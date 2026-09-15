@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "md2html", "runtimeExecutable": "node", "runtimeArgs": ["src/server.js"], "port": 8080, "autoPort": true },
+    { "name": "md2html-8089", "runtimeExecutable": "node", "runtimeArgs": ["-e", "process.env.PORT='8089';require('./src/server.js')"], "port": 8089 }
+  ]
+}

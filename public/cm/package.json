@@ -1,0 +1,4 @@
+{
+  "//": "Browser ES modules of the editor (served as /_static/cm/*.js, resolved by the import map). Marked as ESM so the Node tests can import them.",
+  "type": "module"
+}

@@ -1,0 +1,29 @@
+{
+  "port": 8093,
+  "host": "127.0.0.1",
+  "cacheDir": "../.cache/demo",
+  "warm": false,
+  "log": "text",
+  "sites": [
+    {
+      "slug": "demo",
+      "title": "Websidian demo",
+      "root": "vault",
+      "home": "Start Here",
+      "brand": { "name": "Websidian demo", "color": "#7c3aed" }
+    },
+    {
+      "slug": "websidian",
+      "title": "Websidian docs",
+      "root": "../docs",
+      "home": "Start Here",
+      "folderNames": { "01 Guide": "Guide", "02 Reference": "Reference", "03 Internals": "Internals", "04 Planning": "Planning" },
+      "brand": { "name": "Websidian docs", "color": "#7c3aed" }
+    }
+  ],
+  "edit": {
+    "users": { "demo": "demo" },
+    "allowFrom": ["127.0.0.1", "::1"],
+    "secret": "demo-only-not-for-real-use"
+  }
+}

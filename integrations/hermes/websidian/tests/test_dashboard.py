@@ -1,0 +1,237 @@
+"""Dashboard extension: site slugs, generated Websidian config, secrets, proxy header/path rules, link styles."""
+
+import importlib.util
+import json
+import os
+import shutil
+import stat
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+from tests import PLUGIN_DIR  # noqa: F401  (sets sys.path)
+import guard
+import links
+import sites
+
+_spec = importlib.util.spec_from_file_location("wsd_core_under_test", os.path.join(PLUGIN_DIR, "dashboard", "wsd_core.py"))
+core = importlib.util.module_from_spec(_spec)
+sys.modules["wsd_core_under_test"] = core
+_spec.loader.exec_module(core)
+
+
+class Slugs(unittest.TestCase):
+    def test_slug_sources_and_uniqueness(self):
+        vaults = sites.normalize_vaults([
+            {"path": "/root/Documents/Obsidian Vault"},
+            {"path": "/x/notes", "url": "https://brain.example.com/hermes/"},
+            {"path": "/y/Notes", "slug": "Hermes"},
+            {"path": "/z/obsidian vault"},
+            {"path": "/w/_private"},
+            {"path": "C:\\Users\\me\\Vault\\"},
+            {"path": ""}, "junk", {"url": "https://x/"},
+        ])
+        self.assertEqual([v["slug"] for v in vaults],
+                         ["obsidian-vault", "hermes", "hermes-2", "obsidian-vault-2", "private", "vault"])
+
+    def test_defaults(self):
+        v = sites.normalize_vaults([{"path": "/a/b"}])[0]
+        self.assertTrue(v["untrusted"])
+        self.assertTrue(v["edit"])
+        self.assertEqual(v["title"], "b")
+        v = sites.normalize_vaults([{"path": "/a/b", "untrusted": "no", "edit": False, "title": "T"}])[0]
+        self.assertFalse(v["untrusted"])
+        self.assertFalse(v["edit"])
+        self.assertEqual(v["title"], "T")
+        # garbage never turns untrusted off
+        self.assertTrue(sites.normalize_vaults([{"path": "/a", "untrusted": "maybe"}])[0]["untrusted"])
+        self.assertTrue(sites.normalize_vaults([{"path": "/a", "untrusted": None}])[0]["untrusted"])
+
+    def test_dashboard_settings(self):
+        d = sites.dashboard_settings(None)
+        self.assertFalse(d["configured"])
+        self.assertEqual((d["port"], d["node"], d["public_base"]), (8095, "node", "http://localhost:9119"))
+        d = sites.dashboard_settings({"port": "99999", "public_base": "https://h.example/hermes/"})
+        self.assertTrue(d["configured"])
+        self.assertEqual(d["port"], 8095)
+        self.assertEqual(d["public_base"], "https://h.example/hermes")
+        self.assertEqual(sites.websidian_base_path(d["public_base"]), "/hermes/api/plugins/websidian/w")
+        self.assertEqual(sites.websidian_base_path("http://localhost:9119"), "/api/plugins/websidian/w")
+
+
+class GeneratedConfig(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="websidian-dash-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def runtime(self, settings):
+        return core.resolve_runtime(settings, home=self.tmp)
+
+    def test_config(self):
+        rt = self.runtime({"vaults": [{"path": "/root/Documents/Obsidian Vault", "slug": "brain", "title": "Brain"},
+                                      {"path": "/root/.hermes/memories", "edit": False}],
+                           "dashboard": {"port": 8097, "public_base": "http://localhost:9119"}})
+        self.assertEqual(rt["app_dir"], self.tmp / "plugin-data" / "websidian" / "app")
+        secrets = core.load_or_create_secrets(rt["secrets_path"])
+        cfg = core.build_config(rt, secrets)
+        self.assertEqual(cfg["host"], "127.0.0.1")
+        self.assertEqual(cfg["port"], 8097)
+        self.assertEqual(cfg["basePath"], "/api/plugins/websidian/w")
+        self.assertEqual(cfg["publicUrl"], "http://localhost:9119")
+        self.assertFalse(cfg["warm"])
+        self.assertEqual(cfg["cacheDir"], str(self.tmp / "plugin-data" / "websidian" / "cache"))
+        pa = cfg["proxyAuth"]
+        self.assertEqual(pa["secretHeader"], "x-websidian-proxy-secret")
+        self.assertEqual(pa["userHeader"], "x-websidian-user")
+        self.assertEqual(pa["allowFrom"], ["127.0.0.1", "::1"])
+        self.assertGreaterEqual(len(pa["secret"]), 48)
+        brain, mem = cfg["sites"]
+        self.assertEqual((brain["slug"], brain["title"], brain["untrusted"]), ("brain", "Brain", True))
+        self.assertEqual(brain["edit"]["allowFrom"], ["127.0.0.1", "::1"])
+        self.assertEqual(brain["edit"]["secret"], secrets["edit_secret"])
+        self.assertEqual(brain["auth"], {"token": secrets["site_token"]})
+        self.assertEqual((mem["slug"], mem["edit"], mem["untrusted"]), ("memories", False, True))
+        self.assertNotEqual(pa["secret"], secrets["edit_secret"])
+
+    def test_app_dir_setting(self):
+        rt = self.runtime({"dashboard": {"app_dir": "~/wsd-app", "node": "/usr/bin/node"}})
+        self.assertEqual(rt["app_dir"], Path(os.path.expanduser("~/wsd-app")))
+        self.assertEqual(rt["node"], "/usr/bin/node")
+
+    def test_secrets_persisted(self):
+        path = self.tmp / "d" / "secrets.json"
+        first = core.load_or_create_secrets(path)
+        self.assertEqual(core.load_or_create_secrets(path), first)
+        if os.name == "posix":
+            self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
+        path.write_text(json.dumps({"proxy_secret": "short", "edit_secret": first["edit_secret"]}))
+        again = core.load_or_create_secrets(path)
+        self.assertNotEqual(again["proxy_secret"], "short")
+        self.assertEqual(again["edit_secret"], first["edit_secret"])
+
+    def test_change_detection(self):
+        rt = self.runtime({"vaults": [{"path": "/v"}]})
+        secrets = core.load_or_create_secrets(rt["secrets_path"])
+        path = rt["config_path"]
+        self.assertTrue(core.write_config_if_changed(path, core.build_config(rt, secrets)))
+        self.assertFalse(core.write_config_if_changed(path, core.build_config(rt, secrets)))
+        if os.name == "posix":
+            self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
+        rt2 = self.runtime({"vaults": [{"path": "/v", "edit": False}]})
+        self.assertTrue(core.write_config_if_changed(path, core.build_config(rt2, secrets)))
+        self.assertEqual(json.loads(path.read_text())["sites"][0]["edit"], False)
+        self.assertEqual([p.name for p in path.parent.iterdir() if p.name.startswith(".")], [])  # no temp files left
+
+
+class ProxyRules(unittest.TestCase):
+    def test_request_headers(self):
+        incoming = [("Cookie", "hermes_session_at=abc"), ("Authorization", "Bearer x"), ("Accept", "text/html"),
+                    ("X-Websidian-Proxy-Secret", "forged"), ("x-websidian-user", "admin"), ("Content-Type", "application/json"),
+                    ("X-Requested-With", "fetch"), ("Host", "evil"), ("X-Forwarded-For", "1.2.3.4"), ("If-None-Match", 'W/"1"'),
+                    ("Range", "bytes=0-1"), ("User-Agent", "UA"), ("Accept-Language", "ar"), ("If-Modified-Since", "x"),
+                    ("Accept-Encoding", "gzip"), ("Origin", "http://x")]
+        out = core.filter_request_headers(incoming, "S" * 64, "sat<script>")
+        names = [k for k, _ in out]
+        for dropped in ("cookie", "authorization", "host", "x-forwarded-for", "origin"):
+            self.assertNotIn(dropped, names)
+        self.assertEqual(names.count("x-websidian-proxy-secret"), 1)
+        self.assertEqual(names.count("x-websidian-user"), 1)
+        d = dict(out)
+        self.assertEqual(d["x-websidian-proxy-secret"], "S" * 64)
+        self.assertEqual(d["x-websidian-user"], "satscript")
+        self.assertEqual(d["accept-encoding"], "identity")
+        for kept in ("accept", "content-type", "x-requested-with", "if-none-match", "range", "user-agent",
+                     "accept-language", "if-modified-since"):
+            self.assertIn(kept, d)
+        self.assertEqual(dict(core.filter_request_headers([], "s", ""))["x-websidian-user"], "hermes")
+
+    def test_response_headers(self):
+        out = dict(core.filter_response_headers([
+            ("Set-Cookie", "a=b"), ("Content-Type", "text/html"), ("Content-Security-Policy", "default-src 'self'"),
+            ("ETag", "x"), ("Location", "/api/plugins/websidian/w/s/"), ("X-Render", "hit"), ("Server", "express"),
+            ("X-Powered-By", "x"), ("Access-Control-Allow-Origin", "*"), ("Content-Disposition", "inline")]))
+        self.assertNotIn("set-cookie", out)
+        self.assertNotIn("access-control-allow-origin", out)
+        self.assertNotIn("server", out)
+        self.assertEqual(out["content-security-policy"], "default-src 'self'")
+        self.assertEqual(out["location"], "/api/plugins/websidian/w/s/")
+        self.assertIn("x-render", out)
+
+    def test_upstream_target(self):
+        base = "/api/plugins/websidian/w"
+        t = core.upstream_target
+        self.assertEqual(t(base + "/brain/My%20Note", "", base), base + "/brain/My%20Note")
+        self.assertEqual(t(base + "/brain/_search", "q=a%20b", base), base + "/brain/_search?q=a%20b")
+        self.assertEqual(t(base, "", base), base)
+        self.assertIsNone(t("/api/plugins/other/x", "", base))
+        self.assertIsNone(t(base + "x/y", "", base))
+        for bad in ("/brain/../../../api/config", "/brain/%2e%2e/x", "/brain/.%2E/x", "/./x", "/brain/a%2Fb",
+                    "/brain/a%5cb", "/brain/a%00", "/brain/a\r\nX: y", "/brain/a b", "/brain/a\\b"):
+            self.assertIsNone(t(base + bad, "", base), bad)
+        self.assertIsNone(t(base + "/brain/x", "a=\nb", base))
+        self.assertEqual(t("/hermes" + base + "/s/", "", "/hermes" + base), "/hermes" + base + "/s/")
+
+    def test_error_page_escapes(self):
+        page = core.error_page(502, "down", "<b>x</b>", ["<script>alert(1)</script>\n"], refresh=5)
+        self.assertNotIn("<script>", page)
+        self.assertIn('http-equiv="refresh" content="5"', page)
+
+
+class LinkStyles(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="websidian-ls-")
+        self.vault = os.path.join(self.tmp, "Obsidian Vault")
+        os.makedirs(os.path.join(self.vault, "Projects"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def settings(self, **cfg):
+        return guard.settings_from_sources(lambda k, d: cfg.get(k, d), env={}, hermes_homes=[])
+
+    def entry(self, s, rel="Projects/Plan #2.md"):
+        return links.links_for_path(os.path.join(self.vault, *rel.split("/")), s.vaults)
+
+    def test_dashboard_style(self):
+        s = self.settings(vaults=[{"path": self.vault, "slug": "brain"}], link_style="dashboard",
+                          dashboard={"public_base": "https://hermes.example.com/"})
+        e = self.entry(s)
+        self.assertEqual(e["view"], "https://hermes.example.com/websidian?site=brain&note=Projects/Plan%20%232")
+        self.assertEqual(e["edit"], "https://hermes.example.com/websidian?site=brain&note=Projects/Plan%20%232&edit=1")
+        self.assertEqual(s.vaults[0]["url"], "https://hermes.example.com/websidian?site=brain")
+
+    def test_dashboard_default_when_dashboard_configured_and_no_url(self):
+        s = self.settings(vaults=[{"path": self.vault}], dashboard={"port": 8095})
+        self.assertEqual(self.entry(s, "a.md")["view"], "http://localhost:9119/websidian?site=obsidian-vault&note=a")
+
+    def test_direct_style(self):
+        s = self.settings(vaults=[{"path": self.vault, "slug": "brain"}], link_style="direct",
+                          dashboard={"public_base": "http://localhost:9119"})
+        e = self.entry(s, "Projects/été.md")
+        self.assertEqual(e["view"], "http://localhost:9119/api/plugins/websidian/w/brain/Projects/%C3%A9t%C3%A9")
+        self.assertEqual(e["edit"], "http://localhost:9119/api/plugins/websidian/w/brain/_edit/Projects/%C3%A9t%C3%A9")
+
+    def test_explicit_url_kept_when_style_unset(self):
+        s = self.settings(vaults=[{"path": self.vault, "url": "https://brain.example.com/hermes"}],
+                          dashboard={"public_base": "http://localhost:9119"})
+        self.assertEqual(self.entry(s, "a b.md")["view"], "https://brain.example.com/hermes/a%20b")
+        s = self.settings(vaults=[{"path": self.vault, "url": "https://brain.example.com/hermes"}], link_style="dashboard")
+        self.assertEqual(self.entry(s, "a b.md")["view"], "http://localhost:9119/websidian?site=hermes&note=a%20b")
+
+    def test_no_links_without_url_or_dashboard(self):
+        s = self.settings(vaults=[{"path": self.vault}])
+        e = self.entry(s, "a.md")
+        self.assertEqual((e["view"], e["edit"]), ("", ""))
+
+    def test_env_public_base(self):
+        s = guard.settings_from_sources(None, env={"WEBSIDIAN_VAULTS": json.dumps([{"path": self.vault, "slug": "b"}]),
+                                                   "WEBSIDIAN_PUBLIC_BASE": "http://h:9119", "WEBSIDIAN_LINK_STYLE": "dashboard"},
+                                        hermes_homes=[])
+        self.assertEqual(self.entry(s, "x.md")["view"], "http://h:9119/websidian?site=b&note=x")
+
+
+if __name__ == "__main__":
+    unittest.main()

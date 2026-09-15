@@ -1,0 +1,109 @@
+/* Editor surface (only loaded on /<site>/_edit/… pages). Builds on app.css tokens. */
+.editor-body [hidden] { display: none !important; }
+html.editor-doc, .editor-body { height: 100%; }
+.editor-body { display: flex; flex-direction: column; overflow: hidden; }
+.editor-topbar { flex: 0 0 auto; gap: 8px; }
+.ed-badge { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 5px; }
+.ed-path { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32vw; }
+.ed-status { font-size: 12px; white-space: nowrap; }
+.ed-status.is-dirty { color: #9a6700; }
+.ed-status.is-error { color: #e93147; }
+.ed-btn { background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; color: var(--fg); cursor: pointer; font: inherit; font-size: 13px; padding: 4px 11px; white-space: nowrap; line-height: 1.5; }
+.ed-btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+.ed-btn:disabled { opacity: .45; cursor: default; }
+.ed-btn.ed-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ed-btn.ed-primary:hover { filter: brightness(1.1); color: #fff; }
+.ed-logout { margin: 0; }
+.ed-modes { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.ed-modes button { background: var(--bg2); border: 0; border-inline-end: 1px solid var(--line); color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; padding: 4px 10px; }
+.ed-modes button:last-child { border-inline-end: 0; }
+.ed-modes button.is-active { background: var(--accent-bg); color: var(--accent); }
+
+.ed-conflict { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 8px 16px; font-size: 13px; background: rgba(236, 117, 0, .12); border-bottom: 1px solid rgba(236, 117, 0, .5); }
+.ed-conflict button { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); cursor: pointer; font: inherit; font-size: 12px; padding: 3px 9px; }
+
+/* Agent instruction file (SKILL.md, MEMORY.md…): persistent notice + confirm dialog */
+.ed-protected { display: flex; gap: 8px; align-items: center; padding: 6px 16px; font-size: 13px; background: rgba(233, 49, 71, .09); border-bottom: 1px solid rgba(233, 49, 71, .45); }
+.ed-protected-icon { color: #e93147; font-weight: 700; }
+.modal.ed-confirm { position: relative; margin-top: 14vh; width: min(520px, 92vw); padding: 18px 20px 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 24px 64px rgba(0, 0, 0, .3); }
+.ed-confirm .modal-title { font-size: 16px; font-weight: 650; margin-bottom: 8px; overflow-wrap: anywhere; }
+.ed-confirm .modal-content p { margin: 0 0 8px; font-size: 14px; }
+.ed-confirm-warnings { margin: 0 0 8px; padding-inline-start: 20px; font-size: 13px; color: #9a6700; }
+.ed-confirm .modal-button-container { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.ed-btn.mod-warning { background: #e93147; border-color: #e93147; color: #fff; }
+.ed-btn.mod-warning:hover { filter: brightness(1.1); color: #fff; }
+
+.editor-body { --ed-sidebar: var(--sidebar-w); }
+.editor-body.sidebar-collapsed { --ed-sidebar: 0px; }
+.sidebar-collapsed .ed-shell .sidebar { visibility: hidden; padding: 0; border: 0; overflow: hidden; }
+.ed-shell { flex: 1; min-height: 0; grid-template-columns: var(--ed-sidebar) minmax(0, 1fr) minmax(0, 1fr); }
+.ed-shell .sidebar { height: auto; top: auto; }
+.ed-filter { width: 100%; margin: 0 0 8px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; font-size: 13px; }
+.nav-note.is-hidden { color: var(--muted); font-style: italic; }
+.nav-note.is-hidden::after { content: " ·"; color: #9a6700; }
+.nav-note.is-filtered-out, .nav-folder.is-filtered-out { display: none; }
+.ed-pane { min-height: 0; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.ed-source { border-inline-end: 1px solid var(--line); }
+.ed-textarea { flex: 1; width: 100%; resize: none; border: 0; outline: 0; padding: 18px 22px; background: var(--bg); color: var(--fg); font: 14px/1.6 var(--mono); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ed-textarea:disabled { opacity: .6; }
+.ed-preview { overflow-y: auto; padding: 8px 32px 80px; background: var(--bg); }
+.ed-preview .note { max-width: 860px; margin: 0 auto; }
+.ed-complete { position: absolute; top: 0; inset-inline: 0; z-index: 5; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 6px 12px; font-size: 12px; background: var(--bg2); border-bottom: 1px solid var(--line); box-shadow: 0 6px 16px rgba(0,0,0,.08); }
+.ed-complete .muted { margin-inline-end: 4px; }
+.ed-complete button { border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--fg); cursor: pointer; font: inherit; font-size: 12px; padding: 2px 10px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ed-complete button.is-active, .ed-complete button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
+.mode-edit .ed-shell { grid-template-columns: var(--ed-sidebar) minmax(0, 1fr); }
+.mode-edit .ed-preview { display: none; }
+.mode-preview .ed-shell { grid-template-columns: var(--ed-sidebar) minmax(0, 1fr); }
+.mode-preview .ed-source { display: none; }
+.mode-edit .ed-source { border-inline-end: 0; }
+
+/* ---- status bar (bottom right, like Obsidian's) ---- */
+.status-bar { flex: 0 0 auto; display: flex; justify-content: flex-end; align-items: center; gap: 4px; padding: 2px 10px; font-size: 12px; color: var(--muted); background: var(--bg2); border-top: 1px solid var(--line); min-height: 24px; }
+.status-bar-item { padding: 1px 6px; white-space: nowrap; }
+.status-bar-item.mod-muted { opacity: .6; }
+.status-bar-item.mod-clickable { background: none; border: 0; border-radius: 4px; color: inherit; cursor: pointer; font: inherit; }
+.status-bar-item.mod-clickable:hover { background: var(--accent-bg); color: var(--fg); }
+
+/* ---- quick switcher / command palette (Obsidian's .prompt DOM) ---- */
+.modal-host { position: fixed; inset: 0; z-index: 100; }
+.modal-container { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-start; }
+.modal-bg { position: absolute; inset: 0; background: rgba(0, 0, 0, .35); }
+.prompt { position: relative; margin-top: 11vh; width: min(700px, 92vw); max-height: 72vh; display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 24px 64px rgba(0, 0, 0, .3); overflow: hidden; }
+.prompt-input-container { border-bottom: 1px solid var(--line); }
+.prompt-input { width: 100%; border: 0; outline: 0; padding: 14px 18px; background: transparent; color: var(--fg); font: inherit; font-size: 16px; }
+.prompt-results { overflow-y: auto; padding: 6px; min-height: 0; }
+.suggestion-item { display: flex; align-items: center; gap: 12px; padding: 7px 12px; border-radius: 6px; cursor: pointer; }
+.suggestion-item.is-selected { background: var(--accent-bg); }
+.suggestion-content { flex: 1; min-width: 0; }
+.suggestion-title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggestion-note { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggestion-hotkey { font: 11px var(--mono); padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg2); color: var(--muted); white-space: nowrap; }
+.suggestion-empty { padding: 12px; color: var(--muted); font-size: 14px; }
+.prompt-instructions { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 8px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.prompt-instruction-command { font-weight: 650; margin-inline-end: 5px; color: var(--fg); }
+
+@media (max-width: 1100px) {
+  .ed-shell, .mode-edit .ed-shell, .mode-preview .ed-shell { grid-template-columns: var(--ed-sidebar) minmax(0, 1fr); }
+  .mode-split .ed-preview { display: none; }
+  .ed-path { display: none; }
+}
+@media (max-width: 860px) {
+  .ed-shell, .mode-edit .ed-shell, .mode-preview .ed-shell { grid-template-columns: minmax(0, 1fr); }
+  .ed-shell .sidebar { height: calc(100vh - var(--topbar-h)); top: var(--topbar-h); }
+  .editor-topbar { flex-wrap: wrap; height: auto; padding: 6px 10px; }
+  .ed-status, .ed-badge { display: none; }
+  .ed-cm .cm-content { padding: 16px 12px 40vh; }
+  .status-bar #sbChars, .status-bar #sbEngine { display: none; }
+}
+
+/* ---- login ---- */
+.ed-login { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.ed-login-card { width: min(380px, 100%); display: flex; flex-direction: column; gap: 12px; padding: 28px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg2); }
+.ed-login-card h1 { margin: 0; font-size: 1.3rem; }
+.ed-login-card p { margin: 0; font-size: 14px; }
+.ed-login-card label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.ed-login-card input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; }
+.ed-login-card .ed-btn { margin-top: 6px; padding: 8px; }
+.ed-login-error { color: #e93147; font-size: 13px; }

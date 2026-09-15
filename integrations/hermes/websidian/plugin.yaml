@@ -1,0 +1,41 @@
+name: websidian
+version: "0.1.0"
+description: "Connect Hermes to Websidian (an Obsidian vault served as a website): guard writes so vault notes stay plain Markdown and agent instruction files need human approval, and share view/edit links for the notes the agent writes."
+author: "Websidian"
+license: MIT
+tags: [obsidian, notes, markdown, websidian, security]
+provides_tools:
+  - websidian_links
+provides_hooks:
+  - pre_tool_call
+  - post_tool_call
+  - transform_llm_output
+hooks:
+  - pre_tool_call
+  - post_tool_call
+  - transform_llm_output
+config_schema:
+  vaults:
+    type: list
+    description: "Vaults served by Websidian: [{path: /abs/vault, url?: https://brain.example.com/hermes/, slug?, title?, edit?: true, untrusted?: true}] (url = an external Websidian site base including the slug; slug/title/edit/untrusted are used by the dashboard tab)."
+  protect:
+    type: list
+    description: "Basename patterns of agent instruction files that need human approval (default: SKILL.md, SOUL.md, AGENTS.md, MEMORY.md, USER.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOTSTRAP.md)."
+  protect_mode:
+    type: str
+    default: approve
+    description: "approve (ask a human) or block."
+  block_active_content:
+    type: bool
+    default: true
+    description: "Block raw active HTML and .html/.svg/.js files in vault writes."
+  append_links:
+    type: bool
+    default: true
+    description: "Append 'Notes updated:' view/edit links to the final reply."
+  link_style:
+    type: str
+    description: "dashboard (open notes in the Hermes dashboard's Websidian tab) or direct (Websidian URLs). Unset: a vault's explicit url, else dashboard when the dashboard setting exists."
+  dashboard:
+    type: dict
+    description: "Dashboard tab: {port: 8095, app_dir: ~/.hermes/plugin-data/websidian/app, node: node, public_base: http://localhost:9119}."

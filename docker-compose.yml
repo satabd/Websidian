@@ -1,0 +1,13 @@
+# Example: run md2html with a vault mounted read-only.
+# Put md2html.config.json in ./config with "root": "/vaults/odoohms".
+services:
+  md2html:
+    build: .
+    ports: ["8080:8080"]
+    volumes:
+      - ./config:/config:ro
+      - D:/VibeProjects/OdooHMS/docs:/vaults/odoohms:ro   # use :rw if the config enables the browser editor ("edit")
+      - md2html-cache:/app/.cache
+    restart: unless-stopped
+volumes:
+  md2html-cache:

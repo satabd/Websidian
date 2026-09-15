@@ -1,0 +1,36 @@
+{
+  "port": 8080,
+  "host": "127.0.0.1",
+  "cacheDir": ".cache",
+  "warm": true,
+  "log": "text",
+  "publicUrl": "http://127.0.0.1:8080",
+  "sites": [
+    {
+      "slug": "websidian",
+      "title": "Websidian docs",
+      "root": "docs",
+      "home": "Start Here",
+      "folderNames": {
+        "01 Guide": "Guide",
+        "02 Reference": "Reference",
+        "03 Internals": "Internals",
+        "04 Planning": "Planning"
+      },
+      "codeLinks": {
+        "base": "https://github.com/satabd/Websidian/blob/main/",
+        "vaultPathInRepo": "docs"
+      },
+      "brand": {
+        "name": "Websidian docs",
+        "color": "#7c3aed",
+        "footer": "Served live from the docs/ vault by Websidian itself."
+      }
+    }
+  ],
+  "edit": {
+    "users": { "you": "a-long-password" },
+    "allowFrom": ["127.0.0.1", "::1"],
+    "secret": "replace-with-a-random-string-of-32-characters-or-more"
+  }
+}

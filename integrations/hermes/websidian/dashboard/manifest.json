@@ -1,0 +1,14 @@
+{
+  "name": "websidian",
+  "label": "Websidian",
+  "description": "Read and edit the Obsidian vaults the agent works in (Websidian), behind the dashboard login.",
+  "icon": "FileText",
+  "version": "0.2.0",
+  "tab": {
+    "path": "/websidian",
+    "position": "after:skills"
+  },
+  "entry": "dist/index.js",
+  "css": "dist/style.css",
+  "api": "plugin_api.py"
+}

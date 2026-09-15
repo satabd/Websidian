@@ -1,0 +1,40 @@
+---
+title: Known issues
+tags: [websidian, reference, issues]
+updated: 2026-09-16
+---
+# Known issues
+
+Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]].
+
+## Editor
+- **Every save publishes.** No draft copy of a live note — [[Publishing and visibility]].
+- **No history.** A bad save can only be undone through the vault's own git — Websidian does not commit for you yet ([[Decisions]]).
+- **Tables inside callouts or lists** stay as Markdown source; only top-level tables become a grid.
+- **Table cells render a simplified subset** of Markdown when not being edited (bold, italic, code, links, highlights, tags, images). Other syntax shows as typed.
+- **`![[note]]` in Live Preview** is a chip with the title, not the note's content (the Split view and the site show the content).
+- **Changes on disk while a note is open** are not shown live; they are caught when you save (conflict banner).
+- **Typing with an input method (IME)** in table cells is handled but has not been tested with an Arabic IME.
+- **Mermaid in Live Preview may not render** when the diagram is scrolled into view (seen on trusted and untrusted sites, 2026-09-13; unconfirmed). The Split view and the site render it.
+- **Arabic `[[` suggestions** match titles and aliases, but fuzzy ranking is tuned for Latin text.
+
+## Server and setup
+- **Server changes need a restart** of `npm start`; browser changes a `Ctrl+Shift+R` — [[Quick start]].
+- **Sessions end on restart** unless `edit.secret` is set.
+- **`localhost` cookie clash** between two servers on different ports: use `127.0.0.1`.
+- **Single editor role**: any signed-in user can edit and delete any note.
+- **Sign-in lock-out**: after too many failed sign-ins, an IP gets `429` for up to a minute **even with the right password**. Deliberate (credentials are not checked while over the limit), but it can lock out a colleague on the same network or proxy.
+- **`proxyAuth` with `trustProxy: true`**: the allowed-address check uses `X-Forwarded-For`, so only the secret protects it.
+- **CSS snippets are off on `untrusted` sites** by default; set `snippets` explicitly if the agent's folder should be styled.
+
+## Development
+- **Parallel Claude sessions share one working folder** and can overwrite each other's files. The project is in git now (<https://github.com/satabd/Websidian>), so there is an undo; a worktree per session is still recommended — [[Improvements backlog]].
+- **Tests run outside a dot-folder can miss path bugs**: under `~/.hermes`, Express's `dotfiles` check looked at the whole absolute path and refused editor modules and attachments (fixed 2026-09-13, `test/dotpath.test.js`). The in-container tests ran from `/tmp` and did not catch it.
+- **The browser preview pane is shared** between sessions: another session can navigate or resize it mid-test.
+
+## Agent setups
+- **Chat replies do not carry dashboard links yet**: the Hermes gateway has not restarted since `link_style: dashboard` and the real vaults were configured.
+- **Note names with `&`, `#`, `+` or `%`** break the sign-in redirect of a dashboard link.
+- **Hermes memories and skills are editable in the browser** (a deliberate choice). Protected files ask for confirmation, but anyone signed in to the Hermes dashboard can change what the agent follows.
+- **The Hermes plugin does not inspect the `memory`, `skill_manage`, `execute_code` or MCP tools, so memory changes through the memory tool are not guarded — [[Hermes plugin]].
+- **Hermes (`hermes01`) has no volumes**: its memory, skills and Obsidian vault exist only inside the container — [[Agent memory and second brain]].

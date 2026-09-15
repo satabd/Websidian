@@ -1,0 +1,11 @@
+.cache/
+node_modules/
+.playwright-mcp/
+__pycache__/
+*.pyc
+
+# Local runtime config (copy websidian.config.example.json and edit).
+# It holds real vault paths, passwords, tokens and webhook secrets.
+# Anchored: demo/websidian.config.json is part of the project.
+/websidian.config.json
+/md2html.config.json

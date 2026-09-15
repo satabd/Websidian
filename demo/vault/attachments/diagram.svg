@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="200" viewBox="0 0 520 200" font-family="sans-serif">
+  <rect width="520" height="200" rx="14" fill="#f3f0ff"/>
+  <rect x="30" y="60" width="130" height="80" rx="10" fill="#7c3aed"/>
+  <text x="95" y="106" fill="#fff" font-size="18" text-anchor="middle">Obsidian</text>
+  <rect x="360" y="60" width="130" height="80" rx="10" fill="#0f766e"/>
+  <text x="425" y="106" fill="#fff" font-size="18" text-anchor="middle">Websidian</text>
+  <path d="M170 100 H350" stroke="#555" stroke-width="3" marker-end="url(#a)" marker-start="url(#a)"/>
+  <text x="260" y="88" fill="#333" font-size="15" text-anchor="middle">one vault</text>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#555"/></marker></defs>
+</svg>
