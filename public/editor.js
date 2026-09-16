@@ -102,6 +102,17 @@
       set: function (t) { ta.value = t; },
       focus: function () { ta.focus(); },
       selectedText: function () { return ta.value.slice(ta.selectionStart, ta.selectionEnd); },
+      replaceSelection: function (text) {
+        var whole = ta.selectionStart === ta.selectionEnd;
+        var from = whole ? 0 : ta.selectionStart, to = whole ? ta.value.length : ta.selectionEnd;
+        ta.focus();
+        ta.setSelectionRange(from, to);
+        // execCommand keeps the browser's own undo stack; setting .value would not.
+        if (!document.execCommand || !document.execCommand('insertText', false, text)) {
+          ta.value = ta.value.slice(0, from) + text + ta.value.slice(to);
+        }
+        ta.setSelectionRange(from, from + text.length);
+      },
       commands: [],
     };
   }
@@ -386,6 +397,74 @@
     });
   }
 
+  // ---- writing help (only present when the server has `assist` configured) ----
+  var assistMenu = null;
+  function loadAssist() {
+    return req('GET', 'assist').then(function (j) {
+      if (j && j._status === 200 && j.actions && j.actions.length) assistMenu = j;
+    }, function () { /* not configured: no commands, no noise */ });
+  }
+
+  function runAssist(action) {
+    if (!ed) return;
+    var sel = ed.selectedText ? ed.selectedText() : '';
+    var whole = !sel;
+    var text = whole ? ed.get() : sel;
+    var body = { action: action.id, text: text, title: (E.rel || '').replace(/.*\//, '').replace(/\.md$/i, '') };
+
+    var go = Promise.resolve();
+    if (action.needsTarget) {
+      go = pickLanguage().then(function (lang) {
+        if (!lang) return Promise.reject({ cancelled: true });
+        body.target = lang;
+      });
+    }
+
+    go.then(function () {
+      setStatus((whole ? 'Whole note' : 'Selection') + ' — ' + action.label.toLowerCase() + '…');
+      return req('POST', 'assist', body);
+    }).then(function (j) {
+      if (!j || j._status !== 200) throw new Error((j && j.error) || 'Failed');
+      if (j.replaces === false) {
+        // A suggestion, not a replacement: show it, do not touch the note.
+        setStatus(action.label + ': ' + j.text, 'ok');
+        return;
+      }
+      ed.replaceSelection(j.text);
+      setStatus(action.label + ' — Ctrl+Z to undo', 'ok');
+    }).catch(function (e) {
+      if (e && e.cancelled) return setStatus('');
+      setStatus((e && e.message) || 'The writing help failed', 'error');
+    });
+  }
+
+  // Small prompt for the one action that needs an argument. Uses the same
+  // suggest modal as the quick switcher, so it looks and behaves the same.
+  function pickLanguage() {
+    var langs = (assistMenu && assistMenu.languages) || ['Arabic', 'English'];
+    return new Promise(function (resolve) {
+      var picked = false;
+      suggestModal({
+        placeholder: 'Translate into…',
+        instructions: [['↑↓', 'to navigate'], ['↵', 'to translate'], ['esc', 'to cancel']],
+        search: function (q) {
+          var list = langs.filter(function (l) { return l.toLowerCase().indexOf(q.toLowerCase()) >= 0; });
+          // Any language, not just the configured ones.
+          if (q.trim() && list.indexOf(q.trim()) < 0) list = [q.trim()].concat(list);
+          return list.map(function (l) {
+            return { title: l, run: function () { picked = true; resolve(l); } };
+          });
+        },
+      });
+      // closeModal() empties the host; when that happens without a pick, cancel.
+      var poll = setInterval(function () {
+        if (modalOpen) return;
+        clearInterval(poll);
+        if (!picked) resolve(null);
+      }, 120);
+    });
+  }
+
   var pageCommands = [
     { id: 'app:save', name: 'Save current file', aux: 'Ctrl + S', run: function () { save(false); } },
     { id: 'app:toggle-reading', name: 'Toggle reading view', aux: 'Ctrl + E', run: toggleReading },
@@ -402,9 +481,24 @@
     { id: 'graph:open', name: 'Graph view: Open graph view', run: function () { window.open(E.base + '_graph?focus=' + encodeURIComponent(E.rel), '_blank'); } },
     { id: 'app:use-textarea', name: 'Reload with the plain text editor', run: function () { location.search = '?textarea=1'; } },
   ];
+
+  // One palette entry per server-defined action. Nothing is added when the
+  // server has no `assist` block, so this is invisible unless it is turned on.
+  function assistCommands() {
+    if (!assistMenu) return [];
+    return assistMenu.actions.map(function (a) {
+      return {
+        id: 'assist:' + a.id,
+        name: 'Writing help: ' + a.label,
+        aux: assistMenu.model,
+        run: function () { runAssist(a); },
+        when: function () { return !!ed && !!ed.replaceSelection; },
+      };
+    });
+  }
   function commandPalette() {
     var recent = store('ws-recent-commands') || [];
-    var all = pageCommands.filter(function (c) { return !c.when || c.when(); }).concat((ed && ed.commands || []).map(function (c) { return { id: c.id, name: 'Editor: ' + c.name, aux: c.hotkey, run: c.run }; }));
+    var all = pageCommands.concat(assistCommands()).filter(function (c) { return !c.when || c.when(); }).concat((ed && ed.commands || []).map(function (c) { return { id: c.id, name: 'Editor: ' + c.name, aux: c.hotkey, run: c.run }; }));
     suggestModal({
       placeholder: 'Select a command…',
       instructions: [['↑↓', 'to navigate'], ['↵', 'to use'], ['esc', 'to dismiss']],
@@ -414,6 +508,10 @@
       },
     });
   }
+
+  // Ask once whether the server offers writing help. A 404 means it does not,
+  // and no commands are added.
+  loadAssist();
 
   // ---- page hotkeys (Obsidian's): work in the editor and outside it ----
   document.addEventListener('keydown', function (e) {

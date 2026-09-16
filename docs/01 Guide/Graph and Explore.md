@@ -3,7 +3,7 @@ title: Graph and Explore
 tags: [websidian, guide, graph]
 aliases: [Graph view, Explore view]
 updated: 2026-09-16
-order: 7
+order: 8
 description: Two full-screen views of how the vault connects
 ---
 # Graph and Explore

@@ -203,6 +203,18 @@ The proxy adds `X-Websidian-Proxy-Secret: <secret>` and `X-Websidian-User: <name
 - **Anyone who can reach the port and knows the secret is an editor**, under any name they choose. The proxy should strip client-supplied `X-Websidian-*` headers, but Websidian does not rely on it: the secret is the gate.
 - **Keep the secret out of the vault** (and out of version control): an agent that can write the vault must not be able to read it. Keep `trustProxy` off unless another proxy sits in front, otherwise `X-Forwarded-For` decides the address that `allowFrom` checks.
 
+## Writing help in the editor (optional)
+
+Configure `assist` with an API key environment variable and the command palette gains **Writing help** actions — improve, shorten, expand, summarise, translate, turn into a list, suggest a title or description — backed by Claude.
+
+```json
+"assist": { "apiKeyEnv": "ANTHROPIC_API_KEY", "model": "claude-opus-5", "effort": "low" }
+```
+
+Off unless you configure it, and off unless the key is actually set — with no `assist` block the route does not exist. The browser sends an **action id**, never a prompt: every instruction and the key stay on the server. The result replaces your selection as one undoable change, and nothing is written until you press Ctrl+S.
+
+Full reference: [Writing help](docs/01%20Guide/Writing%20help.md).
+
 ## Serving folders written by AI agents
 
 Websidian is a comfortable way to read what an agent (Hermes Agent, OpenClaw…) writes: its notes, memories, reports and skills. But an agent copies text from web pages and tool output into those files, so treat that text as written by a stranger. A note could contain a `<script>` that, opened by a signed-in editor, calls the editor API and rewrites the agent's instruction files. Mark such sites `"untrusted": true`:

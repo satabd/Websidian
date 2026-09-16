@@ -28,6 +28,7 @@ const editor = require('./editor');
 const { createEsm } = require('./esm');
 const { resolveProxyAuth, middleware: proxyAuthMiddleware } = require('./proxyauth');
 const { isServableAttachment, SVG_CSP, makeNonce, pageCsp } = require('./untrusted');
+const { resolveAssist } = require('./assist');
 
 // ---- configuration --------------------------------------------------------
 // Websidian (formerly md2html): both env var and config file names are accepted.
@@ -58,6 +59,7 @@ const bySlug = new Map(vaults.map(v => [v.slug, v]));
 const searchIndex = new SearchIndex();
 const searchLimiter = new RateLimiter({ limit: (config.rateLimit && config.rateLimit.search) || 60, windowMs: 60_000 });
 const proxyAuth = resolveProxyAuth(config.proxyAuth, msg => console.warn('warning: ' + msg));
+const assist = resolveAssist(config, msg => console.warn('warning: ' + msg));
 if (proxyAuth && !/^(127\.|::1$|localhost$)/.test(HOST)) console.warn(`warning: proxyAuth is enabled but the server listens on ${HOST}; bind it to 127.0.0.1 so only the proxy can reach it`);
 
 // ---- helpers --------------------------------------------------------------
@@ -204,7 +206,7 @@ r.get('/:site/_search', searchLimiter.middleware(), async (req, res, next) => {
 });
 
 // Browser editor (own login, own URLs); must come before the note route so /_edit and /_api are never treated as notes.
-const editing = editor.install(r, { config, vaults, bySlug, renderer, log, layoutVersion: LAYOUT_VERSION, esm, proxyAuth });
+const editing = editor.install(r, { config, vaults, bySlug, renderer, log, layoutVersion: LAYOUT_VERSION, esm, proxyAuth, assist });
 
 r.get('/:site/*', async (req, res, next) => {
   const vault = bySlug.get(req.params.site); if (!vault) return next();

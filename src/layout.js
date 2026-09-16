@@ -13,7 +13,7 @@ const { folderTitle } = require('./vault');
 const { pageTags } = require('./seo');
 const { nonceAttr, withNonce } = require('./untrusted');
 
-const LAYOUT_VERSION = 15;   // 15: window.WEBSIDIAN replaces window.MD2HTML (old name aliased)
+const LAYOUT_VERSION = 16;   // 16: editor gains replaceSelection + writing-help commands
 
 // JSON inside <script>: a note path containing "</script>" must not close the tag.
 const scriptJson = v => JSON.stringify(v).replace(/</g, '\\u003c');

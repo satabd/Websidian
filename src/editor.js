@@ -19,6 +19,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { safeEqual, parseCookies } = require('./auth');
 const { RateLimiter } = require('./ratelimit');
+const assistLib = require('./assist');
 const { escapeHtml } = require('./render');
 const { isServableAttachment } = require('./untrusted');
 const { folderTitle, collator } = require('./vault');
@@ -418,9 +419,11 @@ ${brand.color ? `<style>:root{--accent:${brand.color}}</style>` : ''}
 
 // ---- routes ------------------------------------------------------------------------
 
-function install(router, { config, vaults, bySlug, renderer, log, layoutVersion, esm, proxyAuth = null }) {
+function install(router, { config, vaults, bySlug, renderer, log, layoutVersion, esm, proxyAuth = null, assist = null }) {
   const secret = config.edit && config.edit.secret ? String(config.edit.secret) : crypto.randomBytes(32).toString('hex');
   const loginLimiter = new RateLimiter({ limit: (config.rateLimit && config.rateLimit.login) || 10, windowMs: 60_000 });
+  // Every assist call costs money, so it has its own, tighter budget.
+  const assistLimiter = new RateLimiter({ limit: (config.rateLimit && config.rateLimit.assist) || 20, windowMs: 60_000 });
   for (const v of vaults) {
     v.editor = resolveConfig(v.edit, config.edit, { proxy: !!proxyAuth });
     v.editUrl = rel => v.siteUrl() + '_edit/' + rel.replace(/\.md$/i, '').split('/').map(encodeURIComponent).join('/');
@@ -628,7 +631,35 @@ function install(router, { config, vaults, bySlug, renderer, log, layoutVersion,
     } catch (e) { res.status(500).json({ error: 'Render failed: ' + e.message }); }
   });
 
-  return { currentUser };
+  // -- writing help (optional; only routed when `assist` is configured) ---------------
+  if (assist) {
+    // What the editor may ask for. No prompts and no key cross this line.
+    api.get('/assist', (req, res) => res.json(assistLib.menu(assist)));
+
+    api.post('/assist', assistLimiter.middleware(), async (req, res) => {
+      const body = req.body || {};
+      const t0 = Date.now();
+      try {
+        const out = await assistLib.run(assist, {
+          action: String(body.action || ''),
+          text: body.text,
+          target: body.target,
+          title: body.title,
+        });
+        log('assist', { site: req.vault.slug, user: req.user, action: String(body.action || ''), ms: Date.now() - t0, in: out.usage.input, out: out.usage.output });
+        res.json(out);
+      } catch (e) {
+        // Only errors this project wrote are shown. A provider error is logged
+        // in full and summarised to the browser: its text can carry request
+        // detail, and its status codes mean something else on this API.
+        const status = e.expose ? (e.status || 400) : 502;
+        log('assist-failed', { site: req.vault.slug, user: req.user, action: String(body.action || ''), status, error: e.message });
+        res.status(status).json({ error: e.expose ? e.message : 'The writing help is not available right now — the server log has the detail.' });
+      }
+    });
+  }
+
+  return { currentUser, assist };
 }
 
 module.exports = { install, resolveConfig, ipAllowed, safeNoteRel, linkEscape, isProtected, memoryWarnings, DEFAULT_PROTECT, makeSession, readSession, cookieName, obsidianSettings, anchorsOf, OBSIDIAN_DEFAULTS };

@@ -2,7 +2,7 @@
 title: Hermes plugin
 tags: [websidian, guide, agents, hermes]
 updated: 2026-09-16
-order: 12
+order: 13
 description: Let an agent read and write the vault, safely
 ---
 # Hermes plugin

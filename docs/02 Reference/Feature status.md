@@ -54,6 +54,7 @@ description: Done, partial, in progress, missing
 | Agent memory size warnings (`edit.memoryLimits`) | ✅ | 2026-09-13 |
 | Refuses writes through symlinks / junctions that leave the vault | ✅ | 2026-09-13 |
 | Git commit per save, history panel | ⬜ | Top of the backlog |
+| Writing help in the editor (Claude): improve, shorten, expand, summarise, translate, suggest | 🟡 | Opt-in and shipped; not yet exercised against a live API key — [[Writing help]] |
 | Paste / drop images | ⬜ | |
 | Rename or move with link updates | ⬜ | |
 | Hover page preview | ⬜ | |

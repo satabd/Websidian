@@ -2,7 +2,7 @@
 title: Embedding in your website
 tags: [websidian, guide]
 updated: 2026-09-16
-order: 10
+order: 11
 description: Put a note inside another site with an iframe
 ---
 # Embedding in your website

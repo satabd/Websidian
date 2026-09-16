@@ -2,7 +2,7 @@
 title: Navigation and sections
 tags: [websidian, guide]
 updated: 2026-09-16
-order: 6
+order: 7
 description: Decide the reading order, and give each folder a page
 ---
 # Navigation and sections

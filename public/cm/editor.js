@@ -213,6 +213,20 @@ export function createEditor(opts) {
     scrollToHeading,
     cursor: () => { const h = view.state.selection.main.head; const l = view.state.doc.lineAt(h); return { line: l.number, col: h - l.from + 1, selected: view.state.selection.ranges.reduce((a, r) => a + r.to - r.from, 0) }; },
     selectedText: () => view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to),
+    // Replace the selection (or the whole document when nothing is selected) in a
+    // single transaction, so one Ctrl+Z puts the original text back.
+    replaceSelection: (text) => {
+      const sel = view.state.selection.main;
+      const whole = sel.empty;
+      const from = whole ? 0 : sel.from;
+      const to = whole ? view.state.doc.length : sel.to;
+      view.dispatch({
+        changes: { from, to, insert: text },
+        selection: { anchor: from, head: from + text.length },
+        userEvent: 'input.assist',
+      });
+      view.focus();
+    },
     commands: commands.map(c => ({ id: c.id, name: c.name, hotkey: hotkeyLabel(c.hotkey), run: () => { view.focus(); c.run(view); } })),
     destroy: () => view.destroy(),
   };

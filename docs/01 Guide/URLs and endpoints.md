@@ -2,7 +2,7 @@
 title: URLs and endpoints
 tags: [websidian, reference]
 updated: 2026-09-16
-order: 9
+order: 10
 description: Every page and JSON route
 ---
 # URLs and endpoints

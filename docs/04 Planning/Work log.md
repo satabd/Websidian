@@ -10,6 +10,19 @@ description: What changed each session, newest first
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
 
+## 2026-09-16 — writing help in the editor
+Optional Claude-backed rewriting in the editor ([[Writing help]]), and a merge check against the parallel Hermes session.
+
+- **`src/assist.js`**: nine actions — improve, shorten, expand, summarise, headings, bullets, translate, suggest a title, suggest a description — plus operator-defined ones from `assist.actions`.
+- **The browser sends an action id, never a prompt.** Every instruction and the system prompt live on the server, so the editor cannot be turned into a general-purpose proxy for the API key. The key itself comes from an environment variable named in the config, never from the config file.
+- **Off unless configured *and* keyed**: no `assist` block, or an empty key variable, and the route does not exist (checked: 404 even when signed in). The SDK is `require`d lazily, so an unconfigured vault pays nothing at startup.
+- Refuses before spending: unknown action, empty text, text over `maxChars`, or a "language" that is not one. Rate limited separately at `rateLimit.assist` (default 20/min), because each call costs money.
+- The result is applied as **one undoable change** and nothing is written to disk — the note is still only saved by `Ctrl+S`.
+- **Bug found by testing it in a browser**: the provider's raw error reached the page, including its JSON. The guard was `status >= 500`, but the SDK's authentication error carries `status: 401`, so it fell through to the "safe to show" branch. Errors this project raises are now marked `expose`, and nothing else is echoed — the full text goes to the server log instead. Regression test added.
+- Model `claude-opus-5` at `effort: low` (rewriting a paragraph does not need more), with server-side refusal fallbacks enabled so a policy decline retries on another model inside the same call instead of dead-ending in the editor.
+- **Not verified against a live API key** — there is none in this environment, so every test stubs the client. The wiring, the guards and both error paths are browser-checked; the first real completion is untested. [[Feature status]] says 🟡 for that reason.
+- **Merge check with the "Websidian plugin installation lessons" session**: same branch, both pushed; node 197/197 and plugin 72/72 pass together; no stale `MD2HTML`/`odoohms` names in their work (their supervisor deliberately *strips* `MD2HTML_CONFIG` from the child environment, which works with the alias rather than against it). One contradiction reconciled in [[Known issues]] — a line still said Hermes memories "are editable in the browser (a deliberate choice)" after their change made `vaults[].edit` default to `false`.
+
 ## 2026-09-16 — a real installer for the Hermes plugin (from a macOS install report)
 - **Why**: a Hermes agent installed the plugin on a native macOS profile (Hermes `v0.21.0`, Node `v22.23.1`) and reported back what the documented path did not cover. Everything it verified — 71 plugin tests, the site tests, `/_health` with 69 notes, CSP + `nosniff` on untrusted pages — held; the gaps were all in *how you get there*.
 - **`deploy/install-local.sh` and `deploy/install-local.ps1`** install into a native Hermes profile: plugin → `<profile>/plugins/websidian`, runtime → `<profile>/plugin-data/websidian/app`, `npm --prefix <app_dir> ci --omit=dev --ignore-scripts`, a layout check, then a real boot of the installed server against a throw-away vault and a `GET /_health`. Both were run end to end here (Git Bash and PowerShell); both refuse to restart the dashboard or the gateway and never touch `config.yaml`.

@@ -2,7 +2,7 @@
 title: Deploying
 tags: [websidian, guide, ops]
 updated: 2026-09-16
-order: 11
+order: 12
 description: A real host, HTTPS, and the git webhook
 ---
 # Deploying

@@ -39,7 +39,7 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 ## Agent setups
 - **Chat replies do not carry dashboard links yet**: the Hermes gateway has not restarted since `link_style: dashboard` and the real vaults were configured.
 - **Note names with `&`, `#`, `+` or `%`** break the sign-in redirect of a dashboard link.
-- **Hermes memories and skills are editable in the browser** (a deliberate choice). Protected files ask for confirmation, but anyone signed in to the Hermes dashboard can change what the agent follows.
+- **A vault with `edit: true` is editable by everyone signed in to the dashboard.** The dashboard has one role, so there is no "only this person may edit the agent's memory". Protected files (`SKILL.md`, `MEMORY.md`…) ask for confirmation, but the confirmation is the only thing standing between any dashboard user and what the agent follows. This is why `vaults[].edit` defaults to `false`.
 - **The Hermes plugin does not inspect the `memory`, `skill_manage`, `execute_code` or MCP tools, so memory changes through the memory tool are not guarded — [[Hermes plugin]].
 - **`hermes plugins install <repo>` cannot install this plugin**: the manifest is nested at `integrations/hermes/websidian/plugin.yaml` while the repository root is the Websidian app. Use `deploy/install-local.sh` / `.ps1` (or the container script) instead — [[Hermes plugin]], [[Improvements backlog]].
 - **A hand-copied runtime with `node_modules` in the wrong place looks installed**: the plugin is listed as enabled while the dashboard tab answers 502, because the supervisor runs `node <app_dir>/src/server.js`. Always `npm --prefix <app_dir> ci --omit=dev`; the installers do.

@@ -27,6 +27,7 @@ There is no build step and no publish step. You change a note — in Obsidian, i
 > [!tip]- I want to write in it
 > 1. [[Editing in the browser]] — Live Preview, tables, properties, links
 > 2. [[Editor hotkeys and commands]] — the cheat sheet
+> 3. [[Writing help]] — Claude in the editor, if you want it
 > 3. [[Publishing and visibility]] — drafts, hidden notes, who sees what
 > 4. [[Obsidian syntax support]] — what renders, and what does not
 > 5. [[Navigation and sections]] — decide the reading order
@@ -71,6 +72,7 @@ This vault is written while the project is built, not afterwards. Three notes ex
 | [[Editing in the browser]] | [[Known issues]] | [[Editor API]] | [[Agent memory and second brain]] |
 | [[Editor hotkeys and commands]] | | [[Testing]] | [[Work log]] |
 | [[Navigation and sections]] | | | [[Scope and positioning]] |
+| [[Writing help]] | | | |
 | [[Graph and Explore]] | | | |
 | [[Publishing and visibility]] | | [[Decisions]] | |
 | [[Configuration]] | | | |
