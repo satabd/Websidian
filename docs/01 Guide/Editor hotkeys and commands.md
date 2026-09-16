@@ -2,13 +2,13 @@
 title: Editor hotkeys and commands
 tags: [websidian, guide, editor, cheatsheet]
 aliases: [Hotkeys, Shortcuts]
-updated: 2026-09-13
+updated: 2026-09-16
 order: 4
 description: The cheat sheet
 ---
 # Editor hotkeys and commands
 
-`Ctrl` is `Cmd` on a Mac. Every command is also in the command palette (`Ctrl+P`).
+`Ctrl` is `Cmd` on a Mac. Every command is also in the command palette (`Ctrl+P` or `Ctrl+Shift+P`).
 
 ## Page
 | Keys | Action |
@@ -16,8 +16,14 @@ description: The cheat sheet
 | `Ctrl+S` | Save |
 | `Ctrl+O` | Quick switcher (`Shift+Enter` creates the typed note, `Ctrl+Enter` opens in a new tab) |
 | `Ctrl+P` | Command palette (recently used first) |
+| `Ctrl+Shift+P` | Command palette — the same thing, for when `Ctrl+P` is taken |
 | `Ctrl+E` | Toggle reading view |
 | `Ctrl+Alt+N` | New note |
+| `Alt+W` | Writing help menu — only when the site has it ([[Writing help]]) |
+| Right-click in the editor | Writing help, Undo, Redo, Select all — only when the site has writing help; otherwise the browser's own menu |
+
+> [!note] `Ctrl+P` and the print dialog
+> In a browser `Ctrl+P` normally prints. The editor page cancels it while it has focus, so the palette opens instead. It cannot do that when the editor sits in an `<iframe>` and the **outer** page has focus — inside the Hermes dashboard, for example. `Ctrl+Shift+P` is the binding to reach for there, and the **✦ Writing help ▾** button always works.
 
 ## Formatting
 | Keys | Action |

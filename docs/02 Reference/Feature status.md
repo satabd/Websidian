@@ -54,7 +54,7 @@ description: Done, partial, in progress, missing
 | Agent memory size warnings (`edit.memoryLimits`) | ✅ | 2026-09-13 |
 | Refuses writes through symlinks / junctions that leave the vault | ✅ | 2026-09-13 |
 | Git commit per save, history panel | ⬜ | Top of the backlog |
-| Writing help in the editor: improve, shorten, expand, summarise, translate, suggest — via the `claude` CLI (default), the `hermes` CLI, or the API | ✅ | Both CLIs verified live on real subscriptions, 2026-09-16: `hermes-cli` kept a wikilink through a rewrite and translated to Arabic; `claude-cli` (after `claude auth login`) fixed a paragraph through the route in 7 s and shortened a note from the palette, applied as one undoable change — [[Writing help]] |
+| Writing help in the editor: improve, shorten, expand, summarise, translate, suggest — a top-bar menu, right-click menu, `Alt+W` and the palette; via the `claude` CLI (default), the `hermes` CLI, or the API | ✅ | Menu, right-click, `Ctrl+P` capture and a hermes-cli *Translate → French* with one-step undo verified in the browser on the demo vault, 2026-09-16 (evening). Both CLIs verified live on real subscriptions earlier that day: `hermes-cli` kept a wikilink through a rewrite and translated to Arabic; `claude-cli` (after `claude auth login`) fixed a paragraph through the route in 7 s and shortened a note from the palette, applied as one undoable change — [[Writing help]] |
 | Paste / drop images | ⬜ | |
 | Rename or move with link updates | ⬜ | |
 | Hover page preview | ⬜ | |

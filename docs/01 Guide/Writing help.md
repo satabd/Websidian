@@ -7,9 +7,9 @@ description: An AI in the editor, for rewriting rather than writing for you
 ---
 # Writing help
 
-Optional. When it is configured, the command palette gains a set of **Writing help** actions that rewrite the selected text — improve it, shorten it, expand it, summarise it, translate it, turn it into a list, or suggest a title or description.
+Optional. When it is configured, the editor gains a **✦ Writing help ▾** button in the top bar, with the same actions on right-click and in the command palette. They rewrite the selected text: improve it, shorten it, expand it, summarise it, translate it, turn it into a list, or suggest a title or description.
 
-![[editor-assist.png]]
+![[editor-assist-menu.png]]
 
 It is off unless you turn it on, and it stays off unless the backend can actually work. A vault that does not want this has no route for it at all.
 
@@ -66,13 +66,35 @@ ANTHROPIC_API_KEY=... npm start
 
 ## Using it
 
-1. Select some text. With nothing selected, the action works on the **whole note**.
-2. `Ctrl+P`, then type *writing help*.
-3. Pick an action. Translate asks which language.
+Select some text first. With nothing selected, the action works on the **whole note** — the menu says which it will be before you pick anything.
+
+There are three ways in, and they offer the same actions:
+
+| | How | When it suits |
+|---|---|---|
+| **The button** | **✦ Writing help ▾** in the top bar, or `Alt+W` | Always there; the only one that works in every embedding |
+| **Right-click** | Right-click in the editor: the actions sit above *Undo*, *Redo* and *Select all* | You are already in the text |
+| **The palette** | `Ctrl+P` (or `Ctrl+Shift+P`), then type *writing help* | You would rather type than point |
+
+The button appears only when the server has `assist` configured. On a site without it there is no button, no palette entry, and right-click gives you the browser's own menu untouched.
+
+Translate asks which language. The dropdown's bottom line names the model or backend that will answer.
+
+> [!warning] `Ctrl+P` prints, in a browser
+> That is why the palette has a second binding, `Ctrl+Shift+P`. The editor page cancels `Ctrl+P` while it has focus, so the palette opens rather than the print dialog — but it cannot do that when the editor is in an `<iframe>` and the **outer** page has focus. Inside the **Hermes dashboard** the editor is exactly that, so use the **✦ Writing help ▾** button (or `Alt+W`, which the iframe does see once you have clicked into the editor).
 
 The result replaces what you selected as **one undoable change** — `Ctrl+Z` puts your text back. Nothing is written to disk: the note is still only saved by `Ctrl+S`, so you can always throw the result away by leaving without saving.
 
-*Suggest a title* and *Suggest a description* do not replace anything; they show the suggestion in the status bar for you to copy.
+While a request runs the button says **Working…** and is disabled; a second one is refused with a line in the status bar rather than sent. The status bar carries the progress and any error.
+
+### Suggestions
+
+*Suggest a title* and *Suggest a description* replace nothing. They open a small dialog with the text and four ways out:
+
+- **Use as title** / **Use as description** — writes it into the note's frontmatter, adding the property if it is not there. One `Ctrl+Z` undoes it.
+- **Insert at cursor** — drops the text where the caret is.
+- **Copy** — to the clipboard.
+- **Close** — nothing happens; the note is untouched either way until you press one of the other three.
 
 ## Your own actions
 

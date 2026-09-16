@@ -18,6 +18,7 @@ import { obsidianMarkdown, obsTags } from './syntax.js';
 import { obsidianClasses, livePreview, linkClicks, editorContext, refreshEffect } from './live-preview.js';
 import { editorCommands, obsidianKeymap, wrapOnType } from './commands.js';
 import { obsidianCompletion } from './complete.js';
+import { parseProperties, serializeEntry, entryChange, appendEntry } from './blocks-model.js';
 import { VaultIndex, countText, parseLinkTarget, fuzzyFilter } from './vault-index.js';
 
 export { countText, fuzzyFilter };
@@ -196,6 +197,35 @@ export function createEditor(opts) {
     return true;
   }
 
+  // The document's frontmatter block, as the Properties panel sees it: the YAML
+  // body's offsets in the document. CodeMirror stores \n only, so no \r here.
+  function frontmatterBody() {
+    const src = view.state.doc.toString();
+    if (!/^---[ \t]*\n/.test(src)) return null;
+    const bodyStart = src.indexOf('\n') + 1;
+    const close = /\n(?:---|\.\.\.)[ \t]*(?:\n|$)/.exec(src.slice(bodyStart - 1));
+    if (!close) return null;
+    const bodyEnd = bodyStart - 1 + close.index;   // the newline that ends the last property line
+    return { bodyStart, body: bodyEnd <= bodyStart ? '' : src.slice(bodyStart, bodyEnd) };
+  }
+
+  // Set one frontmatter property — the same serialization and line-replacement
+  // the Properties panel uses (blocks-model.js), in one undoable transaction.
+  // Adds the property, or the whole frontmatter block, when it is not there.
+  function setFrontmatter(key, value) {
+    const fm = frontmatterBody();
+    if (!fm) {
+      view.dispatch({ changes: { from: 0, to: 0, insert: '---\n' + serializeEntry(key, 'text', value) + '\n---\n\n' }, userEvent: 'input.property' });
+      return true;
+    }
+    const parsed = parseProperties(fm.body);
+    const i = parsed.entries.findIndex(e => e.key === key);
+    const text = serializeEntry(key, 'text', value, { style: (i >= 0 && parsed.entries[i].style) || 'block' });
+    const change = i >= 0 ? entryChange(parsed, i, text) : appendEntry(parsed, text);
+    view.dispatch({ changes: { from: fm.bodyStart + change.from, to: fm.bodyStart + change.to, insert: change.insert }, userEvent: 'input.property' });
+    return true;
+  }
+
   function setLivePreview(on) {
     livePreviewOn = !!on;
     view.dispatch({ effects: lp.reconfigure(livePreviewOn ? livePreview : []) });
@@ -216,6 +246,10 @@ export function createEditor(opts) {
     // Replace the selection (or the whole document when nothing is selected) in a
     // single transaction, so one Ctrl+Z puts the original text back.
     replaceSelection: (text) => {
+      // CodeMirror stores \n only and normalises \r\n on insert, so a CRLF reply
+      // (Hermes on Windows) would make the document shorter than text.length and
+      // the selection below would point past its end.
+      text = String(text).replace(/\r\n?/g, '\n');
       const sel = view.state.selection.main;
       const whole = sel.empty;
       const from = whole ? 0 : sel.from;
@@ -227,6 +261,14 @@ export function createEditor(opts) {
       });
       view.focus();
     },
+    // Insert at the caret without touching the rest of the note (the suggestion
+    // modal's "Insert at cursor"); replaceSelection() would swallow the whole
+    // document when nothing is selected.
+    insertAtCursor: (text) => {
+      view.dispatch({ ...view.state.replaceSelection(String(text).replace(/\r\n?/g, '\n')), userEvent: 'input.insert', scrollIntoView: true });
+      view.focus();
+    },
+    setFrontmatter,
     commands: commands.map(c => ({ id: c.id, name: c.name, hotkey: hotkeyLabel(c.hotkey), run: () => { view.focus(); c.run(view); } })),
     destroy: () => view.destroy(),
   };

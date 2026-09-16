@@ -95,6 +95,34 @@
   sbMode.addEventListener('click', toggleLivePreview);
 
   // ---- editor engines ----
+  // Replace [from, to) in the textarea, keeping the browser's own undo stack.
+  function taReplaceRange(from, to, text) {
+    ta.focus();
+    ta.setSelectionRange(from, to);
+    // execCommand keeps the browser's own undo stack; setting .value would not.
+    if (!document.execCommand || !document.execCommand('insertText', false, text)) {
+      ta.value = ta.value.slice(0, from) + text + ta.value.slice(to);
+      onEdit();                                        // no input event fires from setting .value
+    }
+    ta.setSelectionRange(from + text.length, from + text.length);
+  }
+  // A YAML scalar, quoted only where YAML would otherwise read it differently.
+  // The CodeMirror engine reuses the Properties panel's own serializer instead.
+  function yamlish(v) {
+    var s = String(v == null ? '' : v).replace(/[\r\n\t]+/g, ' ').trim();
+    if (s === '') return '';
+    return /^[\s\-?:,[\]{}#&*!|>'"%@`]|\s$|: | #|^\[\[|^(true|false|yes|no|on|off|null|~|-?\d+(\.\d+)?)$/i.test(s) ? JSON.stringify(s) : s;
+  }
+  // The frontmatter block's YAML body, by offset. A textarea's value is \n-only.
+  function taFrontmatter() {
+    var src = ta.value;
+    if (!/^---[ \t]*\n/.test(src)) return null;
+    var bodyStart = src.indexOf('\n') + 1;
+    var close = /\n(?:---|\.\.\.)[ \t]*(?:\n|$)/.exec(src.slice(bodyStart - 1));
+    if (!close) return null;
+    var bodyEnd = bodyStart - 1 + close.index;
+    return { bodyStart: bodyStart, bodyEnd: bodyEnd, body: bodyEnd <= bodyStart ? '' : src.slice(bodyStart, bodyEnd) };
+  }
   function textareaAdapter() {
     return {
       kind: 'textarea',
@@ -103,15 +131,24 @@
       focus: function () { ta.focus(); },
       selectedText: function () { return ta.value.slice(ta.selectionStart, ta.selectionEnd); },
       replaceSelection: function (text) {
+        text = String(text).replace(/\r\n?/g, '\n');   // a textarea value is \n-only too
         var whole = ta.selectionStart === ta.selectionEnd;
         var from = whole ? 0 : ta.selectionStart, to = whole ? ta.value.length : ta.selectionEnd;
-        ta.focus();
-        ta.setSelectionRange(from, to);
-        // execCommand keeps the browser's own undo stack; setting .value would not.
-        if (!document.execCommand || !document.execCommand('insertText', false, text)) {
-          ta.value = ta.value.slice(0, from) + text + ta.value.slice(to);
-        }
+        taReplaceRange(from, to, text);
         ta.setSelectionRange(from, from + text.length);
+      },
+      // Insert at the caret without touching the rest of the note.
+      insertAtCursor: function (text) { taReplaceRange(ta.selectionStart, ta.selectionEnd, String(text).replace(/\r\n?/g, '\n')); },
+      // Set (or add) one frontmatter property as a single undoable edit.
+      setFrontmatter: function (key, value) {
+        var line = key + ': ' + yamlish(value), fm = taFrontmatter();
+        if (!fm) { taReplaceRange(0, 0, '---\n' + line + '\n---\n\n'); return true; }
+        if (fm.body === '') { taReplaceRange(fm.bodyStart, fm.bodyStart, line + '\n'); return true; }
+        var re = new RegExp('^' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':[ \\t]*.*$', 'm');
+        var hit = re.exec(fm.body);
+        if (hit) taReplaceRange(fm.bodyStart + hit.index, fm.bodyStart + hit.index + hit[0].length, line);
+        else taReplaceRange(fm.bodyEnd, fm.bodyEnd, '\n' + line);
+        return true;
       },
       commands: [],
     };
@@ -398,16 +435,173 @@
     });
   }
 
+  // ---- Obsidian-style popup menu (.menu / .menu-item / .menu-separator) ----
+  // One implementation for the Writing help dropdown and the editor's
+  // right-click menu, using the class names Obsidian gives its context menus so
+  // a vault's theme or snippet styles both of them.
+  //
+  // An item is { label, icon?, aux?, title?, run } or one of the non-clickable
+  // rows { separator: true } / { header: true, label } / { info: true, label }.
+  var openMenu = null;
+  function closeMenu() {
+    if (!openMenu) return;
+    var m = openMenu; openMenu = null;
+    document.removeEventListener('pointerdown', m.onOutside, true);
+    document.removeEventListener('keydown', m.onKey, true);
+    window.removeEventListener('resize', closeMenu);
+    window.removeEventListener('blur', closeMenu);
+    if (m.el.parentNode) m.el.parentNode.removeChild(m.el);
+    if (m.owner) m.owner.setAttribute('aria-expanded', 'false');
+    if (m.refocus && ed && mode !== 'preview') ed.focus();
+  }
+  function obsidianMenu(items, opts) {
+    opts = opts || {};
+    closeMenu();
+    var el = document.createElement('div');
+    el.className = 'menu ws-menu';
+    el.setAttribute('role', 'menu');
+    if (opts.label) el.setAttribute('aria-label', opts.label);
+    el.tabIndex = -1;
+    var rows = [], sel = -1;
+    function select(i) {
+      if (i < 0 || i >= rows.length) return;
+      if (rows[sel]) rows[sel].classList.remove('selected');
+      sel = i; rows[sel].classList.add('selected');
+      rows[sel].scrollIntoView({ block: 'nearest' });
+    }
+    function move(d) { if (rows.length) select(((sel < 0 ? (d > 0 ? -1 : 0) : sel) + d + rows.length) % rows.length); }
+    items.forEach(function (it) {
+      var d = document.createElement('div');
+      if (it.separator) { d.className = 'menu-separator'; el.appendChild(d); return; }
+      if (it.header) { d.className = 'menu-item mod-section-title'; d.textContent = it.label; el.appendChild(d); return; }
+      if (it.info) { d.className = 'menu-info'; d.textContent = it.label; el.appendChild(d); return; }
+      d.className = 'menu-item tappable';
+      d.setAttribute('role', 'menuitem');
+      if (it.title) d.title = it.title;
+      var icon = document.createElement('div'); icon.className = 'menu-item-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = it.icon || '';
+      var name = document.createElement('div'); name.className = 'menu-item-title'; name.textContent = it.label;
+      d.appendChild(icon); d.appendChild(name);
+      if (it.aux) { var a = document.createElement('div'); a.className = 'menu-item-aux'; a.textContent = it.aux; d.appendChild(a); }
+      d.addEventListener('mouseenter', function () { select(rows.indexOf(d)); });
+      d.addEventListener('click', function (ev) { ev.preventDefault(); closeMenu(); it.run(ev); });
+      el.appendChild(d); rows.push(d);
+    });
+    document.body.appendChild(el);
+
+    // Place it: under the anchor button, or at the pointer for a right-click.
+    var w = el.offsetWidth, h = el.offsetHeight, x = opts.x || 0, y = opts.y || 0;
+    if (opts.anchor) { var r = opts.anchor.getBoundingClientRect(); x = r.left; y = r.bottom + 4; if (x + w > window.innerWidth - 8) x = r.right - w; }
+    el.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px';
+    el.style.top = Math.max(8, Math.min(y, window.innerHeight - h - 8)) + 'px';
+
+    function onOutside(e) { if (el.contains(e.target) || (opts.anchor && opts.anchor.contains(e.target))) return; closeMenu(); }
+    function onKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeMenu(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); move(1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); move(-1); }
+      else if (e.key === 'Home') { e.preventDefault(); e.stopPropagation(); select(0); }
+      else if (e.key === 'End') { e.preventDefault(); e.stopPropagation(); select(rows.length - 1); }
+      else if (e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); move(e.shiftKey ? -1 : 1); }
+      else if ((e.key === 'Enter' || e.key === ' ') && sel >= 0) { e.preventDefault(); e.stopPropagation(); rows[sel].click(); }
+    }
+    document.addEventListener('pointerdown', onOutside, true);
+    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('resize', closeMenu);
+    window.addEventListener('blur', closeMenu);
+    openMenu = { el: el, onOutside: onOutside, onKey: onKey, owner: opts.anchor || null, refocus: opts.refocus !== false, kind: opts.kind || '' };
+    if (openMenu.owner) openMenu.owner.setAttribute('aria-expanded', 'true');
+    el.focus();
+    if (opts.selectFirst !== false) select(0);
+    return openMenu;
+  }
+
   // ---- writing help (only present when the server has `assist` configured) ----
-  var assistMenu = null;
+  var assistMenu = null, assistBtn = null, assistBusy = false, assistDoneTimer = null;
   function loadAssist() {
     return req('GET', 'assist').then(function (j) {
-      if (j && j._status === 200 && j.actions && j.actions.length) assistMenu = j;
-    }, function () { /* not configured: no commands, no noise */ });
+      if (j && j._status === 200 && j.actions && j.actions.length) { assistMenu = j; mountAssistButton(); }
+    }, function () { /* not configured: no button, no commands, no noise */ });
+  }
+  function assistReady() { return !!assistMenu && !!ed && !!ed.replaceSelection; }
+
+  // The top bar button. Built here rather than in the page's HTML so that a
+  // site without `assist` has nothing to hide — there is no button at all.
+  function mountAssistButton() {
+    if (assistBtn) return;
+    var bar = document.querySelector('.editor-topbar'); if (!bar) return;
+    assistBtn = document.createElement('button');
+    assistBtn.type = 'button';
+    assistBtn.id = 'edAssist';
+    assistBtn.className = 'ed-btn ed-assist';
+    assistBtn.setAttribute('aria-haspopup', 'menu');
+    assistBtn.setAttribute('aria-expanded', 'false');
+    assistBtn.title = 'Writing help (Alt+W) — rewrite the selection, or the whole note when nothing is selected';
+    setAssistLabel('idle');
+    assistBtn.addEventListener('click', function () {
+      if (openMenu && openMenu.owner === assistBtn) { closeMenu(); return; }
+      openAssistMenu();
+    });
+    bar.insertBefore(assistBtn, document.getElementById('edNew'));
+  }
+  function setAssistLabel(state) {
+    if (!assistBtn) return;
+    assistBtn.classList.toggle('is-working', state === 'working');
+    assistBtn.classList.toggle('is-done', state === 'done');
+    assistBtn.textContent = state === 'working' ? '⟳ Working…' : state === 'done' ? '✓ Done' : '✦ Writing help ▾';
+  }
+  function assistWorking(on) {
+    if (!assistBtn) return;
+    clearTimeout(assistDoneTimer);
+    assistBtn.disabled = !!on;
+    setAssistLabel(on ? 'working' : 'idle');
+  }
+  function assistDone() {
+    if (!assistBtn) return;
+    setAssistLabel('done');
+    assistDoneTimer = setTimeout(function () { setAssistLabel('idle'); }, 1600);
+  }
+
+  // What an action will be given: the selection, or the note when there is none.
+  function assistScope() {
+    var sel = ed && ed.selectedText ? ed.selectedText() : '';
+    if (!sel) return 'Whole note';
+    var w = counts(sel).words;
+    return 'Selection · ' + w + (w === 1 ? ' word' : ' words');
+  }
+  // Rewrites first, then the suggestions, the way the palette lists them.
+  function assistActionItems() {
+    var rewrites = [], suggestions = [];
+    assistMenu.actions.forEach(function (a) { (a.replaces === false ? suggestions : rewrites).push(a); });
+    var item = function (a) {
+      return {
+        icon: a.replaces === false ? '☆' : '✦',
+        label: a.label + (a.needsTarget ? '…' : ''),
+        title: a.replaces === false ? 'Shows a suggestion; the note is not changed' : 'Replaces ' + assistScope().toLowerCase() + ' as one undoable change',
+        run: function () { runAssist(a); },
+      };
+    };
+    var items = rewrites.map(item);
+    if (rewrites.length && suggestions.length) items.push({ separator: true });
+    return items.concat(suggestions.map(item));
+  }
+  function openAssistMenu() {
+    if (!assistReady()) return;
+    if (assistBusy) { setStatus('Writing help is already working — wait for it to finish.', 'dirty'); return; }
+    var items = [{ header: true, label: assistScope() }, { separator: true }]
+      .concat(assistActionItems())
+      .concat([{ separator: true }, { info: true, label: assistMenu.model + (assistMenu.backend && assistMenu.backend !== assistMenu.model ? ' · ' + assistMenu.backend : '') }]);
+    obsidianMenu(items, { anchor: assistBtn, label: 'Writing help', kind: 'assist' });
+  }
+  function toggleAssistMenu() {
+    if (openMenu && openMenu.kind === 'assist') { closeMenu(); return; }
+    if (!assistReady()) { setStatus('Writing help is not configured for this site.'); return; }
+    openAssistMenu();
   }
 
   function runAssist(action) {
     if (!ed) return;
+    if (assistBusy) { setStatus('Writing help is already working — wait for it to finish.', 'dirty'); return; }
+    assistBusy = true;
     var sel = ed.selectedText ? ed.selectedText() : '';
     var whole = !sel;
     var text = whole ? ed.get() : sel;
@@ -422,22 +616,106 @@
     }
 
     go.then(function () {
+      assistWorking(true);
       setStatus((whole ? 'Whole note' : 'Selection') + ' — ' + action.label.toLowerCase() + '…');
       return req('POST', 'assist', body);
     }).then(function (j) {
+      assistBusy = false; assistWorking(false);
       if (!j || j._status !== 200) throw new Error((j && j.error) || 'Failed');
       if (j.replaces === false) {
-        // A suggestion, not a replacement: show it, do not touch the note.
-        setStatus(action.label + ': ' + j.text, 'ok');
+        // A suggestion, not a replacement: show it so it can be read, copied
+        // and used; the note is not touched until a button here says so.
+        suggestionModal(action, j.text);
+        setStatus(action.label + ' — suggestion ready', 'ok');
+        assistDone();
         return;
       }
       ed.replaceSelection(j.text);
       setStatus(action.label + ' — Ctrl+Z to undo', 'ok');
+      assistDone();
     }).catch(function (e) {
+      assistBusy = false; assistWorking(false);
       if (e && e.cancelled) return setStatus('');
       setStatus((e && e.message) || 'The writing help failed', 'error');
     });
   }
+
+  // Built-in suggestion actions that map onto a frontmatter property.
+  var SUGGEST_PROPERTY = { title: 'title', describe: 'description', description: 'description' };
+
+  // A suggestion (`replaces: false`) in Obsidian's modal DOM, so it can be read
+  // in full, copied, inserted, or written into the frontmatter.
+  function suggestionModal(action, text) {
+    var key = SUGGEST_PROPERTY[action.id] || null;
+    modalOpen = true; modalHost.hidden = false;
+    modalHost.innerHTML = '<div class="modal-container mod-dim"><div class="modal-bg"></div><div class="modal ed-suggest" role="dialog" aria-modal="true" aria-labelledby="edSuggestTitle">'
+      + '<div class="modal-title" id="edSuggestTitle">' + esc(action.label) + '</div>'
+      + '<div class="modal-content"><p class="ed-suggest-text" dir="auto">' + esc(text) + '</p>'
+      + '<p class="ed-suggest-note muted">Nothing has been written to the note.</p></div>'
+      + '<div class="modal-button-container">'
+      + (key ? '<button type="button" class="ed-btn ed-primary" data-act="prop">Use as ' + esc(key) + '</button>' : '')
+      + '<button type="button" class="ed-btn" data-act="insert">Insert at cursor</button>'
+      + '<button type="button" class="ed-btn" data-act="copy">Copy</button>'
+      + '<button type="button" class="ed-btn" data-act="close">Close</button>'
+      + '</div></div></div>';
+    var act = function (name, fn) { var b = modalHost.querySelector('[data-act="' + name + '"]'); if (b) b.addEventListener('click', fn); };
+    act('copy', function () { copyToClipboard(text); });
+    act('insert', function () {
+      closeModal();
+      if (ed && ed.insertAtCursor) { ed.insertAtCursor(text); setStatus(action.label + ' inserted — Ctrl+Z to undo', 'ok'); }
+      else setStatus('This editor cannot insert at the cursor — copy the text instead.', 'error');
+    });
+    act('prop', function () {
+      closeModal();
+      if (ed && ed.setFrontmatter) { ed.setFrontmatter(key, text); setStatus('Set ' + key + ': — Ctrl+Z to undo', 'ok'); }
+      else setStatus('This editor cannot edit the frontmatter — copy the text instead.', 'error');
+    });
+    act('close', closeModal);
+    modalHost.querySelector('.modal-bg').addEventListener('click', closeModal);
+    modalHost.querySelector('.modal').addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
+    var first = modalHost.querySelector('.modal-button-container .ed-btn'); if (first) first.focus();
+  }
+  function copyToClipboard(text) {
+    var ok = function () { setStatus('Copied to the clipboard', 'ok'); };
+    var fallback = function () {
+      var box = document.createElement('textarea');
+      box.value = text; box.setAttribute('readonly', ''); box.style.position = 'fixed'; box.style.opacity = '0';
+      document.body.appendChild(box); box.select();
+      try { document.execCommand('copy'); ok(); } catch (e) { setStatus('Could not copy — select the text and copy it yourself.', 'error'); }
+      document.body.removeChild(box);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, fallback);
+    else fallback();
+  }
+
+  // ---- right-click inside the editor ----
+  // Only when writing help is available: with it off the browser's own menu
+  // (which has a working Cut/Copy/Paste) is left exactly as it is.
+  function edCommand(id, fallback) {
+    var list = (ed && ed.commands) || [];
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i].run;
+    return fallback;
+  }
+  function editorContextMenu(e) {
+    if (!assistReady() || e.shiftKey) return;            // Shift+right-click always gets the native menu
+    var t = e.target;
+    // Widgets (Properties, tables) have their own fields; there Paste matters
+    // more than this menu does, so the browser keeps them.
+    if (t && t.closest && t !== ta && t.closest('input, textarea, select, .ws-table, .metadata-container, .metadata-properties')) return;
+    e.preventDefault();
+    var items = [{ header: true, label: assistScope() }, { separator: true }]
+      .concat(assistActionItems())
+      .concat([
+        { separator: true },
+        { icon: '↶', label: 'Undo', aux: 'Ctrl+Z', run: edCommand('editor:undo', function () { ed.focus(); try { document.execCommand('undo'); } catch (err) {} }) },
+        { icon: '↷', label: 'Redo', aux: 'Ctrl+Shift+Z', run: edCommand('editor:redo', function () { ed.focus(); try { document.execCommand('redo'); } catch (err) {} }) },
+        { separator: true },
+        { icon: '▤', label: 'Select all', aux: 'Ctrl+A', run: edCommand('editor:select-all', function () { ta.focus(); ta.select(); }) },
+      ]);
+    obsidianMenu(items, { x: e.clientX, y: e.clientY, label: 'Editor', kind: 'context' });
+  }
+  cmHost.addEventListener('contextmenu', editorContextMenu);
+  ta.addEventListener('contextmenu', editorContextMenu);
 
   // Small prompt for the one action that needs an argument. Uses the same
   // suggest modal as the quick switcher, so it looks and behaves the same.
@@ -467,6 +745,10 @@
   }
 
   var pageCommands = [
+    // Ctrl+P is Obsidian's; in a browser it is also Print, so the palette has a
+    // second, web-safe binding and both are shown here.
+    { id: 'app:command-palette', name: 'Command palette: Open command palette', aux: 'Ctrl + P / Ctrl + Shift + P', run: function () { setTimeout(commandPalette, 0); } },
+    { id: 'assist:menu', name: 'Writing help: Open the writing help menu', aux: 'Alt + W', run: function () { setTimeout(toggleAssistMenu, 0); }, when: function () { return assistReady(); } },
     { id: 'app:save', name: 'Save current file', aux: 'Ctrl + S', run: function () { save(false); } },
     { id: 'app:toggle-reading', name: 'Toggle reading view', aux: 'Ctrl + E', run: toggleReading },
     { id: 'app:toggle-live-preview', name: 'Toggle Live Preview/Source mode', run: toggleLivePreview, when: function () { return ed && ed.setLivePreview; } },
@@ -515,16 +797,32 @@
   loadAssist();
 
   // ---- page hotkeys (Obsidian's): work in the editor and outside it ----
+  // Registered in the **capture** phase. In the bubble phase this ran last, so
+  // anything nearer the key — CodeMirror's search panel, a widget's own input,
+  // the prompt box — could stop the event first, and Ctrl+P then reached the
+  // browser and opened the print dialog instead of the palette. In capture this
+  // handler sees the key first and cancels it whatever has focus on this page.
+  // (Inside an iframe, as in the Hermes dashboard, the outer page still prints
+  // when the iframe does not have focus — hence the Writing help button and
+  // Ctrl+Shift+P.)
   document.addEventListener('keydown', function (e) {
-    var mod = e.ctrlKey || e.metaKey; if (!mod) return;
-    var k = e.key.toLowerCase();
-    if (modalOpen && k !== 's') return;
-    if (k === 's' && !e.altKey && !e.shiftKey) { e.preventDefault(); save(false); }
-    else if (k === 'e' && !e.altKey && !e.shiftKey) { e.preventDefault(); toggleReading(); }
-    else if (k === 'o' && !e.altKey && !e.shiftKey) { e.preventDefault(); quickSwitcher(); }
-    else if (k === 'p' && !e.altKey && !e.shiftKey) { e.preventDefault(); commandPalette(); }
+    var k = (e.key || '').toLowerCase();
+    var mod = e.ctrlKey || e.metaKey;
+    // Alt+W opens the writing help menu. Nothing in Obsidian's keymap or
+    // CodeMirror's binds it (see public/cm/commands.js).
+    if (e.altKey && !mod && k === 'w') { e.preventDefault(); if (!modalOpen) toggleAssistMenu(); return; }
+    if (!mod) return;
+    if (openMenu) closeMenu();
+    // Ctrl+P / Ctrl+Shift+P: always cancelled, so the print dialog never opens
+    // while the editor page has focus, whether or not the palette can open.
+    if (k === 'p' && !e.altKey) { e.preventDefault(); if (!modalOpen) commandPalette(); return; }
+    if (e.shiftKey) return;
+    if (k === 's' && !e.altKey) { e.preventDefault(); save(false); return; }   // Ctrl+S works with a dialog open, as before
+    if (modalOpen) return;
+    if (k === 'e' && !e.altKey) { e.preventDefault(); toggleReading(); }
+    else if (k === 'o' && !e.altKey) { e.preventDefault(); quickSwitcher(); }
     else if (e.altKey && k === 'n') { e.preventDefault(); newNote(); }
-  });
+  }, true);
 
   // ---- textarea fallback: Tab indents, [[ autocompletes note names ----
   ta.addEventListener('input', function () { if (ed && ed.kind === 'textarea') { onEdit(); autocomplete(); } });

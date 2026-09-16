@@ -13,7 +13,7 @@ const { folderTitle } = require('./vault');
 const { pageTags } = require('./seo');
 const { nonceAttr, withNonce } = require('./untrusted');
 
-const LAYOUT_VERSION = 17;   // 17: Excalidraw viewer script, `assets` in the page global
+const LAYOUT_VERSION = 18;   // 18: writing help menu in the editor top bar, right-click menu, Alt+W
 
 // JSON inside <script>: a note path containing "</script>" must not close the tag.
 const scriptJson = v => JSON.stringify(v).replace(/</g, '\\u003c');

@@ -366,3 +366,14 @@ test('a provider error is never echoed to the browser', async () => {
     assert.equal(err.status, 400);
   });
 });
+
+test('a CRLF reply from a CLI is normalised to LF before it reaches the editor', async () => {
+  // Hermes on Windows prints \r\n. CodeMirror normalises on insert, so a CRLF
+  // reply made the document shorter than text.length and the selection the
+  // editor sets after replacing pointed past the end ("Selection points
+  // outside of document"). Seen live; the note was left untouched.
+  const a = cliAssist({ backend: 'hermes-cli' }, { stdout: 'ONE\r\nTWO\r\n' }, {});
+  const out = await run(a, { action: 'improve', text: 'one two' });
+  assert.equal(out.text, 'ONE\nTWO');
+  assert.doesNotMatch(out.text, /\r/);
+});

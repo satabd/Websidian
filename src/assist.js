@@ -296,7 +296,9 @@ async function runCli(assist, prompt) {
     (assist.warn || (m => console.error(m)))(detail);
     throw new Error(`${argv[0]} exited ${r.code}: ${(r.err || r.out || '').trim().split('\n')[0] || 'no output'}`);
   }
-  return r.out.trim();
+  // Hermes on Windows prints CRLF; the editor stores LF only, and a CRLF reply
+  // made CodeMirror's post-insert selection point past the end of the document.
+  return r.out.replace(/\r\n?/g, '\n').trim();
 }
 
 // Models sometimes wrap a whole answer in a fence even when told not to.

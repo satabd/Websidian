@@ -84,6 +84,30 @@ html.editor-doc, .editor-body { height: 100%; }
 .prompt-instructions { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 8px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
 .prompt-instruction-command { font-weight: 650; margin-inline-end: 5px; color: var(--fg); }
 
+/* ---- writing help: top bar button, popup menu (Obsidian's .menu DOM), suggestion modal ---- */
+.ed-btn.ed-assist { min-width: 132px; text-align: center; }
+.ed-btn.ed-assist.is-working { color: var(--muted); }
+.ed-btn.ed-assist.is-done { border-color: var(--accent); color: var(--accent); }
+.ed-btn.ed-assist[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
+.menu { position: fixed; z-index: 110; min-width: 216px; max-width: min(380px, 92vw); max-height: 76vh; overflow-y: auto; padding: 5px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 34px rgba(0, 0, 0, .28); font-size: 13px; color: var(--fg); outline: 0; }
+.menu-item { display: flex; align-items: center; gap: 9px; padding: 5px 9px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
+.menu-item.selected, .menu-item:hover { background: var(--accent-bg); }
+.menu-item-icon { flex: 0 0 auto; width: 15px; text-align: center; color: var(--muted); }
+.menu-item.selected .menu-item-icon, .menu-item:hover .menu-item-icon { color: var(--accent); }
+.menu-item-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.menu-item-aux { flex: 0 0 auto; margin-inline-start: 14px; font: 11px var(--mono); color: var(--muted); }
+.menu-item.mod-section-title { cursor: default; padding: 4px 9px 3px; font-size: 11px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.menu-item.mod-section-title:hover { background: none; }
+.menu-separator { height: 1px; margin: 4px 6px; background: var(--line); }
+.menu-info { padding: 4px 9px 3px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.modal.ed-suggest { position: relative; margin-top: 16vh; width: min(560px, 92vw); padding: 18px 20px 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 24px 64px rgba(0, 0, 0, .3); }
+.ed-suggest .modal-title { font-size: 16px; font-weight: 650; margin-bottom: 10px; }
+.ed-suggest-text { margin: 0 0 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg2); font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; user-select: text; }
+.ed-suggest-note { margin: 0; font-size: 12px; }
+.ed-suggest .modal-button-container { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+
 @media (max-width: 1100px) {
   .ed-shell, .mode-edit .ed-shell, .mode-preview .ed-shell { grid-template-columns: var(--ed-sidebar) minmax(0, 1fr); }
   .mode-split .ed-preview { display: none; }

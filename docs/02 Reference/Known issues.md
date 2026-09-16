@@ -22,6 +22,7 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 
 ## Server and setup
 - **Writing help through the `claude` CLI needs a signed-in CLI** on the server (`claude login`). A signed-out or expired CLI answers *Not logged in* / *OAuth session expired*; Websidian logs it and shows the generic failure line — it never pastes that into the note ([[Writing help]]).
+- **`Ctrl+P` still prints when the editor is embedded and the outer page has focus** — inside the Hermes dashboard, for instance. The editor page cancels the browser shortcut only for its own document. Use `Ctrl+Shift+P` for the palette, or the **✦ Writing help ▾** button / `Alt+W` for the actions ([[Editor hotkeys and commands]]).
 - **Hermes cannot run with no tools at all**, so the `hermes-cli` backend runs with whatever toolsets Hermes has enabled unless `assist.toolsets` narrows it; the prompt is a rewrite instruction and the cwd is the temp folder, but it is a wider surface than the Claude CLI's `--tools ""` ([[Writing help]]).
 - **The rename signs everyone out once.** Cookies moved from `md2html_*` to `websidian_*` on 2026-09-16, so the first visit after upgrading needs a fresh sign-in. Share-token links still work — the token is in the link.
 - **Server changes need a restart** of `npm start`; browser changes a `Ctrl+Shift+R` — [[Quick start]].
