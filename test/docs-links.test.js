@@ -33,7 +33,7 @@ for (const f of files) {
   targets.add(rel(f).replace(/\.md$/, '').toLowerCase());
 }
 for (const f of notes) {
-  const fm = /^---\n([\s\S]*?)\n---/.exec(fs.readFileSync(f, 'utf8'));
+  const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(fs.readFileSync(f, 'utf8'));
   if (!fm) continue;
   const aliases = /^aliases:\s*\[(.*?)\]/m.exec(fm[1]);
   if (!aliases) continue;
@@ -82,7 +82,7 @@ test('every note embedded as an image exists in docs/attachments', () => {
 test('every note has title, tags and updated in its frontmatter', () => {
   const bad = [];
   for (const f of notes) {
-    const fm = /^---\n([\s\S]*?)\n---/.exec(fs.readFileSync(f, 'utf8'));
+    const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(fs.readFileSync(f, 'utf8'));
     if (!fm) { bad.push(`${rel(f)} — no frontmatter`); continue; }
     for (const key of ['title', 'tags', 'updated']) {
       if (!new RegExp(`^${key}:`, 'm').test(fm[1])) bad.push(`${rel(f)} — no ${key}:`);

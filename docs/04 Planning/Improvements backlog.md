@@ -60,10 +60,10 @@ See [[Agent memory and second brain]].
 | A2 | Memory view: `§` entries as a list, character meter against the agent's limit |
 | A3 | Git history of memory files, including the agent's own writes ("what did it learn this week") |
 | A4 | One-click "revert this memory entry" |
-| A5 | [[Hermes plugin]] in `hermes01` with the dashboard tab and real vaults ✅ — remaining: gateway restart for chat links |
-| A7 | Fix the dashboard link sign-in redirect for note names with `& # + %` |
-| A8 | Browser-test saving a protected file with confirmation through the dashboard (on a copy) |
-| A6 | Extend the plugin guard to the `memory` and `skill_manage` tools |
+| A5 | [[Hermes plugin]] in `hermes01` with the dashboard tab and real vaults ✅ — gateway restarted 2026-09-16 |
+| A6 | ✅ 2026-09-16 — guard covers `memory` and `skill_manage` ([[Hermes plugin]]) |
+| A7 | ✅ 2026-09-16 — deep links carry `note64=` so `& # + %` survive the login redirect |
+| A8 | ✅ 2026-09-16 — protected save confirmed in the browser through the dashboard session, on a scratch note |
 
 ## Rejected or parked
 - **Community plugin compatibility** — plugins are arbitrary Electron JavaScript; replaced by our own plugin API (#21).

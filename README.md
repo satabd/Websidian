@@ -207,13 +207,15 @@ The proxy adds `X-Websidian-Proxy-Secret: <secret>` and `X-Websidian-User: <name
 
 ## Writing help in the editor (optional)
 
-Configure `assist` with an API key environment variable and the command palette gains **Writing help** actions — improve, shorten, expand, summarise, translate, turn into a list, suggest a title or description — backed by Claude.
+Add an `assist` block and the command palette gains **Writing help** actions — improve, shorten, expand, summarise, translate, turn into a list, suggest a title or description.
 
 ```json
-"assist": { "apiKeyEnv": "ANTHROPIC_API_KEY", "model": "claude-opus-5", "effort": "low" }
+"assist": { "backend": "claude-cli", "effort": "low" }
 ```
 
-Off unless you configure it, and off unless the key is actually set — with no `assist` block the route does not exist. The browser sends an **action id**, never a prompt: every instruction and the key stay on the server. The result replaces your selection as one undoable change, and nothing is written until you press Ctrl+S.
+No API key: the work is handed to a command-line tool you have already signed in to, so it runs on that subscription rather than on API tokens. `backend` is `claude-cli` (the Claude Code CLI, in print mode with every tool disabled — run `claude login` first), `hermes-cli` (the Hermes Agent CLI, using whichever model and provider you configured in Hermes), or `api` for the Anthropic SDK with a key in `apiKeyEnv`.
+
+Off unless you configure it, and off unless the CLI answers `--version` at start (or, for `api`, unless the key is set) — with no `assist` block the route does not exist. The browser sends an **action id**, never a prompt: every instruction stays on the server, the note goes to the CLI on stdin and never on a command line, and the CLI runs with no shell and in a temp directory. The result replaces your selection as one undoable change, and nothing is written until you press Ctrl+S.
 
 Full reference: [Writing help](docs/01%20Guide/Writing%20help.md).
 

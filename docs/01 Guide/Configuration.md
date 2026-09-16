@@ -51,7 +51,7 @@ names are in `.gitignore`: the real one holds passwords, tokens and webhook secr
 |---|---|
 | `port`, `host` | Also `PORT` / `HOST` env vars |
 | `edit` | `{ users, allowFrom, token, sessionHours, secret, protect, memoryLimits }` — see [[Editing in the browser]] |
-| `assist` | `{ apiKeyEnv, model, effort, maxChars, languages, actions }` — optional writing help in the editor, off unless the key is set ([[Writing help]]) |
+| `assist` | `{ backend, command, model, effort, timeoutMs, maxChars, languages, actions }` — optional writing help in the editor. `backend` is `claude-cli` (default), `hermes-cli` or `api`: the CLIs run on the sign-in you already have and need no key, `api` needs `apiKeyEnv`. Off unless the CLI answers `--version` at start, or the key is set ([[Writing help]]) |
 | `edit.protect` | Glob patterns of agent instruction files whose save or delete needs confirmation, e.g. `["SKILL.md", "memories/*.md"]`. Default on `untrusted` sites: `SKILL.md`, `SOUL.md`, `AGENTS.md`, `MEMORY.md`, `USER.md`, `TOOLS.md`, `IDENTITY.md`, `HEARTBEAT.md`, `BOOTSTRAP.md`. A name without `/` matches in any folder; `**` crosses folders |
 | `edit.memoryLimits` | Character limits that trigger a warning on save, default `{ "MEMORY.md": 2200, "USER.md": 1375 }` (Hermes), for files in a `memories/` folder of an `untrusted` site |
 | `basePath` | Mount under a prefix, e.g. `/docs` |
@@ -59,7 +59,7 @@ names are in `.gitignore`: the real one holds passwords, tokens and webhook secr
 | `adminToken` | Enables `POST /_purge` |
 | `cacheDir`, `diskCache`, `cache.maxEntries` | Render cache — see [[Architecture]] |
 | `warm` | Pre-render every note at start |
-| `rateLimit.search`, `rateLimit.login`, `rateLimit.assist` | Per minute per IP: searches; failed sign-ins (editor login and site `auth.users`); [[Writing help]] requests, default 20 |
+| `rateLimit.search`, `rateLimit.login`, `rateLimit.assist` | Per minute per IP: searches; failed sign-ins (editor login and site `auth.users`); [[Writing help]] requests, default 20 — each one spawns a CLI process or spends API tokens |
 | `trustProxy` | `true` behind nginx/Caddy |
 | `proxyAuth` | Sign-in through a trusted reverse proxy — see [[#Behind a trusted proxy]] |
 | `log` | `"text"`, `"json"` or `false` |
