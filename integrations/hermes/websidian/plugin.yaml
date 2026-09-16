@@ -17,7 +17,7 @@ hooks:
 config_schema:
   vaults:
     type: list
-    description: "Vaults served by Websidian: [{path: /abs/vault, url?: https://brain.example.com/hermes/, slug?, title?, edit?: true, untrusted?: true}] (url = an external Websidian site base including the slug; slug/title/edit/untrusted are used by the dashboard tab)."
+    description: "Vaults served by Websidian: [{path: /abs/vault, url?: https://brain.example.com/hermes/, slug?, title?, edit?: false, untrusted?: true}] (url = an external Websidian site base including the slug; slug/title/edit/untrusted are used by the dashboard tab; edit defaults to false, so browser editing is opt-in per vault)."
   protect:
     type: list
     description: "Basename patterns of agent instruction files that need human approval (default: SKILL.md, SOUL.md, AGENTS.md, MEMORY.md, USER.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOTSTRAP.md)."

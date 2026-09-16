@@ -65,7 +65,8 @@ def normalize_vaults(vaults: Optional[Iterable[Any]]) -> List[Dict[str, Any]]:
     """``[{path, url, slug, title, edit, untrusted}]`` with unique slugs, in the configured order.
 
     slug: explicit ``slug`` -> last path segment of ``url`` -> folder name -> ``vault``; duplicates get ``-2``, ``-3``...
-    ``untrusted`` defaults to True and ``edit`` to True.
+    ``untrusted`` defaults to True and ``edit`` to False: a vault an agent writes to is also a vault every
+    dashboard user could rewrite, so browser editing is opt-in per vault.
     """
     out: List[Dict[str, Any]] = []
     used: set = set()
@@ -87,7 +88,8 @@ def normalize_vaults(vaults: Optional[Iterable[Any]]) -> List[Dict[str, Any]]:
         title = str(v.get("title") or "").strip() or os.path.basename(path.replace("\\", "/").rstrip("/")) or slug
         out.append({
             "path": path, "url": url, "slug": slug, "title": title,
-            "edit": as_bool(v.get("edit"), True),
+            # Off unless the operator chose this vault deliberately: every dashboard user shares the editor.
+            "edit": as_bool(v.get("edit"), False),
             # Never let the default be False: vault text may come from the agent, web pages, tool output.
             "untrusted": as_bool(v.get("untrusted"), True),
         })

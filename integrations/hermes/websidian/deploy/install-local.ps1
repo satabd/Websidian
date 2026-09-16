@@ -151,15 +151,24 @@ Next steps (yours to run, in this order):
   2. Point it at your vaults and the dashboard tab (JSON literals; only these keys are written):
        hermes config set plugins.entries.websidian.settings.dashboard '{"port": 8095, "app_dir": "$appJson", "node": "node", "public_base": "http://localhost:9119"}'
        hermes config set plugins.entries.websidian.settings.link_style dashboard
-       hermes config set plugins.entries.websidian.settings.vaults '[{"path": "$homeJson/Documents/Obsidian Vault", "slug": "brain", "title": "Second Brain", "edit": false}]'
+       hermes config set plugins.entries.websidian.settings.vaults '[{"path": "$homeJson/Documents/Obsidian Vault", "slug": "brain", "title": "Second Brain"}]'
      Vaults are untrusted unless you set "untrusted": false, which you should not for anything an agent
-     writes to. "edit" defaults to true; start with false and turn it on for the vault you chose deliberately.
+     writes to. Browser editing is off unless you add "edit": true to a vault — and then every signed-in
+     dashboard user can rewrite it, so turn it on only for a vault you chose deliberately.
 
   3. Restart, when it suits you. Enabled is not the same as active:
        - the dashboard must restart before the Websidian tab and its supervised server exist;
        - the gateway must restart before the write guard and the reply links load in chat.
        hermes dashboard --status
      Then open http://localhost:9119/websidian.
+
+  4. Check it in the browser, signed in. The tab's routes live under /api/plugins/, behind the dashboard's
+     auth gate: an ungated local dashboard shows /websidian and still answers 401 there. Both of these must
+     load through your session:
+       /api/plugins/websidian/status
+       /api/plugins/websidian/w/<slug>/
+     If they 401, put the dashboard in its gated mode (basic auth on a LAN/VPN, OAuth if it faces the
+     internet). Never weaken or remove dashboard authentication to make the tab work.
 
 Files it generates: $HermesHome\plugin-data\websidian\{websidian.config.json,secrets.json,server.log,server.pid,cache\}
 "@

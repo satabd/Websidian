@@ -10,7 +10,7 @@ description: Running and extending the suite
 ```bash
 npm test
 ```
-Node's built-in test runner: 177 tests on 2026-09-16 (156 on 2026-09-13, 123 on 2026-09-11).
+Node's built-in test runner: 180 tests on 2026-09-16 (156 on 2026-09-13, 123 on 2026-09-11).
 
 Hermes plugin: `cd integrations/hermes/websidian` then `python -m unittest discover` — 71 tests (54 before the dashboard tab); the macOS install on 2026-09-16 ran the same 71 ([[Hermes plugin]]).
 
@@ -43,4 +43,4 @@ Unit tests do not cover clicking and typing in widgets. Before calling an editor
 - [ ] if it will be installed under a dot-folder (`~/.hermes`), test from such a path too
 
 > [!tip] Lesson from 2026-09-11
-> The first editor version passed its tests on a toy note and failed on the real OdooHMS notes (raw tables, raw YAML, clicks following links). Always test with real content.
+> The first editor version passed its tests on a toy note and failed on a real client vault (raw tables, raw YAML, clicks following links). Always test with real content.

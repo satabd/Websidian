@@ -111,11 +111,26 @@ An install is complete when all of these hold:
 | 5 | The installed server answers `200` on `/_health` (the installers' smoke test) |
 | 6 | A page from an untrusted vault carries a CSP and `X-Content-Type-Options: nosniff` |
 | 7 | The **Websidian** tab appears after *you* restart the dashboard |
-| 8 | Chat replies carry links after *you* restart the gateway |
+| 8 | The dashboard runs in its gated mode and you have a signed-in session |
+| 9 | Through that session, in a browser, both `/api/plugins/websidian/status` and `/api/plugins/websidian/w/<slug>/` load |
+| 10 | Chat replies carry links after *you* restart the gateway |
 
 Checks 2, 5 and 6 are also a test in this repository (`test/hermes-install.test.js`): it builds the
 installed layout in a temp folder, boots it, and asserts the health, the CSP headers and that every asset
-the page references resolves.
+the page references resolves. Checks 8 and 9 have to be done by a human in a signed-in browser; record the
+result when you close out an installation.
+
+**A healthy Node runtime is not a working tab.** Everything the tab needs lives under `/api/plugins/`,
+which the dashboard's auth gate never makes public. A default local dashboard on `127.0.0.1:9119` renders
+`/websidian` without a login and then answers `401` on those routes, because a plugin route in that mode
+wants an `X-Hermes-Session-Token` header an iframe cannot send. The four states are independent: **plugin
+enabled**, **Websidian healthy**, **dashboard session authenticated**, **protected routes reachable through
+that session**.
+
+> **Never weaken, bypass or remove dashboard authentication to make the tab work.** Put the dashboard in its
+> gated mode instead — basic auth for a trusted LAN or VPN, OAuth for anything reachable from the internet —
+> and keep agent-facing vaults `untrusted: true`. The iframe is same-origin with the dashboard, so a page the
+> gate lets through runs with the signed-in user's privileges.
 
 ## Configure
 
@@ -139,7 +154,7 @@ plugins:
 
 | Setting | Default | |
 |---|---|---|
-| `vaults` | none | List of `{path, url, slug, title, edit, untrusted}`. `url` is what an external Websidian serves the vault at, e.g. `https://brain.example.com/hermes/` for slug `hermes`. `slug`, `title`, `edit` (default `true`) and `untrusted` (default `true`) are used by the dashboard tab. Without a `url` or the dashboard tab, the guard still works but no links are built. |
+| `vaults` | none | List of `{path, url, slug, title, edit, untrusted}`. `url` is what an external Websidian serves the vault at, e.g. `https://brain.example.com/hermes/` for slug `hermes`. `slug`, `title`, `edit` (default `false`) and `untrusted` (default `true`) are used by the dashboard tab. Without a `url` or the dashboard tab, the guard still works but no links are built. |
 | `link_style` | see [Link styles](#link-styles) | `dashboard` or `direct`. |
 | `dashboard` | none | Dashboard tab: `{port, app_dir, node, public_base}`, see [Dashboard tab](#dashboard-tab). |
 | `protect` | the nine files above | Basename patterns (`*`, `?` allowed), matched case-insensitively under the Hermes home and inside vaults. |
@@ -242,7 +257,7 @@ plugins:
 | `dashboard.public_base` | `http://localhost:9119` | Browser-facing dashboard URL. Its path becomes the prefix of Websidian's basePath, so a dashboard behind a reverse proxy at `https://host/hermes` works when this says `https://host/hermes`. Also the base of the agent's links. |
 | `vaults[].slug` | from `url`, else the folder name | Lowercase `[a-z0-9_-]`, never starting with `_`; duplicates get `-2`, `-3`. |
 | `vaults[].title` | folder name | Site title. |
-| `vaults[].edit` | `true` | Browser editor for every dashboard user. `false` for folders whose files you do not want changed from the browser. |
+| `vaults[].edit` | `false` | Browser editor for every dashboard user. Off unless you turn it on for a vault you chose deliberately: the dashboard has one role, so editing a vault means every signed-in dashboard user can rewrite it — including the agent's instruction files, with a confirmation. A read-only vault gets no edit link in replies either. |
 | `vaults[].untrusted` | `true` | Websidian's untrusted mode. See the security model before turning it off. |
 
 Plugin API routes are mounted once, when the dashboard starts, so restart the dashboard after installing or

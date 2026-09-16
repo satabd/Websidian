@@ -78,7 +78,11 @@ def note_links(vault: Mapping[str, Any], rel: str) -> Tuple[str, str]:
     ``url`` (``<url><note>`` and ``<url>_edit/<note>``); ``("", "")`` without either."""
     if vault.get("style") == "dashboard" and vault.get("slug"):
         base = vault.get("public_base") or sites.DEFAULT_PUBLIC_BASE
-        return sites.dashboard_note_url(base, vault["slug"], rel), sites.dashboard_note_url(base, vault["slug"], rel, edit=True)
+        # The dashboard serves this site itself, so a vault with ``edit: false`` (the default) gets no edit
+        # link: it would open an editor the site refuses. An external ``url`` is somebody else's Websidian,
+        # whose own config decides, so direct links below keep both.
+        edit = sites.dashboard_note_url(base, vault["slug"], rel, edit=True) if vault.get("edit") else ""
+        return sites.dashboard_note_url(base, vault["slug"], rel), edit
     url = vault.get("url")
     if url:
         return view_url(url, rel), edit_url(url, rel)
@@ -113,7 +117,8 @@ def format_links_block(entries: List[Mapping[str, str]], heading: str = "Notes u
     lines = [heading]
     for e in entries:
         if e.get("view"):
-            lines.append(f"- {e['rel'][:-3] if e['rel'].lower().endswith('.md') else e['rel']}: {e['view']} (edit: {e['edit']})")
+            name = e['rel'][:-3] if e['rel'].lower().endswith('.md') else e['rel']
+            lines.append(f"- {name}: {e['view']}" + (f" (edit: {e['edit']})" if e.get("edit") else ""))
         else:
             lines.append(f"- {e['rel']} (no url configured for this vault)")
     return "\n".join(lines)

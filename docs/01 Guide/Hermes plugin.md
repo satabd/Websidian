@@ -53,9 +53,16 @@ Enabling is a config change that applies to the *next* session of each process. 
 | 5 | `/_health` answers `200` (the installers' smoke test) |
 | 6 | An untrusted page carries a CSP and `X-Content-Type-Options: nosniff` |
 | 7 | The **Websidian** tab is there after *you* restart the dashboard |
-| 8 | Chat replies carry links after *you* restart the gateway |
+| 8 | The dashboard runs gated and you have a signed-in session |
+| 9 | Through that session, `/api/plugins/websidian/status` **and** `/api/plugins/websidian/w/<slug>/` both load |
+| 10 | Chat replies carry links after *you* restart the gateway |
 
-Checks 2, 5 and 6 run in CI as `test/hermes-install.test.js` — [[Testing]].
+Checks 2, 5 and 6 run in CI as `test/hermes-install.test.js` — [[Testing]]. Checks 8 and 9 need a human in a signed-in browser; note the result when you close out an install.
+
+> [!danger] A healthy Node runtime is not a working tab — and never fix a 401 by opening the gate
+> Everything the tab needs is under `/api/plugins/`, which the dashboard's auth gate never makes public. A default local dashboard on `127.0.0.1:9119` renders `/websidian` without a login and then answers **401** on those routes: in that mode a plugin route wants an `X-Hermes-Session-Token` header, which an iframe cannot send.
+>
+> Four states are independent: plugin **enabled**, Websidian **healthy**, dashboard session **authenticated**, protected routes **reachable through that session**. The fix for a 401 is to put the dashboard in its gated mode — basic auth on a trusted LAN or VPN, OAuth for anything internet-facing — never to weaken or remove the gate. The iframe is same-origin with the dashboard, so anything the gate lets through runs with the signed-in user's privileges; keep agent-facing vaults `untrusted: true`.
 
 ## Installation in hermes01
 Done 2026-09-13 by session `md2html-fd`:
@@ -89,6 +96,9 @@ Done 2026-09-13 by session `md2html-fd`:
 | `brain` — Second Brain | `/root/Documents/Obsidian Vault` | 206 | untrusted, editable |
 | `memories` | `/root/.hermes/memories` | 2 | untrusted, editable, protected files |
 | `skills` | `/root/.hermes/skills` | 1,023 | untrusted, editable, protected files |
+
+> [!warning] That config predates the `edit: false` default
+> All three were editable because `edit` used to default to `true`. After upgrading the plugin in `hermes01` they become read-only unless the settings name `edit: true` for each vault you still want editable — decide that per vault rather than restoring it wholesale ([[Decisions]]).
 
 **In the container:** plugin with the dashboard extension (`dashboard/manifest.json`, `plugin_api.py`, `wsd_core.py`, `dist/`, `sites.py`) in `/root/.hermes/plugins/websidian`; the Websidian app in `/root/.hermes/plugin-data/websidian/app`, on port 8095.
 
@@ -131,7 +141,9 @@ plugins:
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `vaults` | — | `[{path, url}]`: folders Websidian serves and their site URL |
+| `vaults` | — | `[{path, url, slug, title, edit, untrusted}]`: folders Websidian serves and their site URL |
+| `vaults[].edit` | `false` | Browser editing, **opt-in per vault**. The dashboard has one role, so `true` means every signed-in dashboard user can rewrite that vault. A read-only vault also gets no edit link in replies |
+| `vaults[].untrusted` | `true` | Keep it. Vault text can come from the agent, a web page or tool output |
 | `protect` | the 9 instruction files | Basenames that need approval |
 | `protect_mode` | `approve` | `approve` (Hermes human-approval prompt) or `block` |
 | `block_active_content` | `true` | Refuse raw active HTML in vault notes |

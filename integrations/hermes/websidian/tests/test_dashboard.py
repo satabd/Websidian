@@ -38,8 +38,10 @@ class Slugs(unittest.TestCase):
     def test_defaults(self):
         v = sites.normalize_vaults([{"path": "/a/b"}])[0]
         self.assertTrue(v["untrusted"])
-        self.assertTrue(v["edit"])
+        self.assertFalse(v["edit"])          # browser editing is opt-in per vault
         self.assertEqual(v["title"], "b")
+        self.assertTrue(sites.normalize_vaults([{"path": "/a/b", "edit": True}])[0]["edit"])
+        self.assertTrue(sites.normalize_vaults([{"path": "/a/b", "edit": "yes"}])[0]["edit"])
         v = sites.normalize_vaults([{"path": "/a/b", "untrusted": "no", "edit": False, "title": "T"}])[0]
         self.assertFalse(v["untrusted"])
         self.assertFalse(v["edit"])
@@ -71,8 +73,8 @@ class GeneratedConfig(unittest.TestCase):
         return core.resolve_runtime(settings, home=self.tmp)
 
     def test_config(self):
-        rt = self.runtime({"vaults": [{"path": "/root/Documents/Obsidian Vault", "slug": "brain", "title": "Brain"},
-                                      {"path": "/root/.hermes/memories", "edit": False}],
+        rt = self.runtime({"vaults": [{"path": "/root/Documents/Obsidian Vault", "slug": "brain", "title": "Brain", "edit": True},
+                                      {"path": "/root/.hermes/memories"}],
                            "dashboard": {"port": 8097, "public_base": "http://localhost:9119"}})
         self.assertEqual(rt["app_dir"], self.tmp / "plugin-data" / "websidian" / "app")
         secrets = core.load_or_create_secrets(rt["secrets_path"])
@@ -120,9 +122,10 @@ class GeneratedConfig(unittest.TestCase):
         self.assertFalse(core.write_config_if_changed(path, core.build_config(rt, secrets)))
         if os.name == "posix":
             self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
-        rt2 = self.runtime({"vaults": [{"path": "/v", "edit": False}]})
+        self.assertEqual(json.loads(path.read_text())["sites"][0]["edit"], False)   # the default
+        rt2 = self.runtime({"vaults": [{"path": "/v", "edit": True}]})
         self.assertTrue(core.write_config_if_changed(path, core.build_config(rt2, secrets)))
-        self.assertEqual(json.loads(path.read_text())["sites"][0]["edit"], False)
+        self.assertEqual(json.loads(path.read_text())["sites"][0]["edit"]["allowFrom"], ["127.0.0.1", "::1"])
         self.assertEqual([p.name for p in path.parent.iterdir() if p.name.startswith(".")], [])  # no temp files left
 
 
@@ -196,12 +199,21 @@ class LinkStyles(unittest.TestCase):
         return links.links_for_path(os.path.join(self.vault, *rel.split("/")), s.vaults)
 
     def test_dashboard_style(self):
-        s = self.settings(vaults=[{"path": self.vault, "slug": "brain"}], link_style="dashboard",
+        s = self.settings(vaults=[{"path": self.vault, "slug": "brain", "edit": True}], link_style="dashboard",
                           dashboard={"public_base": "https://hermes.example.com/"})
         e = self.entry(s)
         self.assertEqual(e["view"], "https://hermes.example.com/websidian?site=brain&note=Projects/Plan%20%232")
         self.assertEqual(e["edit"], "https://hermes.example.com/websidian?site=brain&note=Projects/Plan%20%232&edit=1")
         self.assertEqual(s.vaults[0]["url"], "https://hermes.example.com/websidian?site=brain")
+
+    def test_dashboard_style_read_only_vault_has_no_edit_link(self):
+        """edit defaults to False, and the dashboard's own site would refuse the editor."""
+        s = self.settings(vaults=[{"path": self.vault, "slug": "brain"}], link_style="dashboard",
+                          dashboard={"public_base": "https://hermes.example.com/"})
+        e = self.entry(s)
+        self.assertEqual(e["view"], "https://hermes.example.com/websidian?site=brain&note=Projects/Plan%20%232")
+        self.assertEqual(e["edit"], "")
+        self.assertNotIn("edit:", links.format_links_block([e]))
 
     def test_dashboard_default_when_dashboard_configured_and_no_url(self):
         s = self.settings(vaults=[{"path": self.vault}], dashboard={"port": 8095})

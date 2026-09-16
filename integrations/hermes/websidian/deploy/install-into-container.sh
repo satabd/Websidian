@@ -80,8 +80,9 @@ Next steps (inside the container, e.g. docker exec -it $CONTAINER bash):
      not on PATH; 'config set' accepts JSON/YAML literals for lists and writes only these keys):
        hermes config set plugins.entries.websidian.settings.dashboard '{"port": 8095, "app_dir": "$APP_DIR", "node": "node", "public_base": "http://localhost:9119"}'
        hermes config set plugins.entries.websidian.settings.link_style dashboard
-       hermes config set plugins.entries.websidian.settings.vaults '[{"path": "/root/Documents/Obsidian Vault", "slug": "brain", "title": "Second Brain"}, {"path": "/root/.hermes/memories", "slug": "memories", "title": "Memories", "edit": false}]'
-     (every vault is untrusted unless you set "untrusted": false, which you should not; "edit" defaults to true.)
+       hermes config set plugins.entries.websidian.settings.vaults '[{"path": "/root/Documents/Obsidian Vault", "slug": "brain", "title": "Second Brain"}, {"path": "/root/.hermes/memories", "slug": "memories", "title": "Memories"}]'
+     (every vault is untrusted unless you set "untrusted": false, which you should not; "edit" defaults to
+     false, so add "edit": true only for a vault every signed-in dashboard user may rewrite.)
      Replace the vaults list with your own; the test vault currently configured is dropped by this command.
 
   3. Restart the dashboard (plugin API routes are mounted only at dashboard start-up) and the gateway (so the
