@@ -10,6 +10,12 @@ description: What changed each session, newest first
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
 
+## 2026-09-17 — right-to-left fix deployed to `hermes01`, tested on the real vaults
+- **Deployed** `6749f1b` into `hermes01` with `install-into-container.sh` from a clean tree, then restarted **only** the Websidian process (PID checked against its command line first). The supervisor brought it back in 16 s; `/_health` reported `revision 6749f1b` and all three vaults (brain 211, memories 2, skills 1,037). Dashboard and gateway untouched — the change was runtime-only.
+- **Tested on real content**, through the same loopback + proxy-secret path the dashboard uses: of 1,206 notes, **45 are clearly Arabic and not one has a `lang:` field** — the whole cause of the report. All 45 now come back `dir="rtl"`; 15 sampled English notes stay `ltr`. 60/60.
+- **Asking Hermes itself failed**: `hermes chat` got *HTTP 429 — the usage limit has been reached* from its ChatGPT/Codex subscription on all three attempts, so the agent never ran and wrote nothing. Retry when the quota resets. Hermes also warned that an earlier `hermes update` did not restart the gateway (unrelated to this change; the gateway is PID 1, so that restart is `docker restart hermes01` — left to the user).
+- **The durable way Hermes learns it**: the `websidian:websidian` skill now has an *Arabic and other right-to-left notes* section — do not add `lang: ar` for direction; add `lang:` only to override (short Arabic notes full of English terms, Persian `fa`, Urdu `ur`). Committed and installed into `hermes01` the same day.
+
 ## 2026-09-16 — Arabic notes without `lang:` are right-to-left pages
 Reported from the Hermes dashboard tab: Arabic notes rendered as left-to-right pages, while the same kind of note in the demo turned the whole page right to left.
 

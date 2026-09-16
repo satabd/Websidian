@@ -47,6 +47,16 @@ prompt. If it is missing, call the `websidian_links` tool with no arguments: its
   blocked, rewrite the content as Markdown. Code samples that mention HTML belong in fenced code blocks.
 - Use `write_file` / `patch` for vault files, not shell redirects, `sed -i`, `cp` or `mv`.
 
+## Arabic and other right-to-left notes
+
+- Write Arabic (or Hebrew) notes normally. **Do not add `lang: ar` just to make them right-to-left**:
+  a note whose letters are mostly Arabic is served as a right-to-left page automatically — sidebar,
+  headings, lists, callouts and tables.
+- Mixing is fine. Each top-level block follows its own text, so an English sentence or a code block inside
+  an Arabic note stays left-to-right, and an Arabic quote inside an English note turns right-to-left.
+- Add `lang:` only to override the guess: a short Arabic note that is mostly English terms, or a note in
+  Persian (`lang: fa`) or Urdu (`lang: ur`), which would otherwise be labelled Arabic.
+
 ## Instruction files
 
 Never create or edit agent instruction files (`SKILL.md`, `SOUL.md`, `AGENTS.md`, `MEMORY.md`, `USER.md`,
