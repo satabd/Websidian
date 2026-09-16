@@ -61,15 +61,15 @@ before(async () => {
 after(() => tmp.rm());
 
 test('block ids on paragraphs, list items and tables', () => {
-  assert.match(out.html, /<p id="\^para1">A paragraph with an id\.<\/p>/);
+  assert.match(out.html, /<p id="\^para1" dir="auto">A paragraph with an id\.<\/p>/);
   assert.match(out.html, /<li id="\^item2">item two<\/li>/);
-  assert.match(out.html, /<table id="\^tbl">/);
+  assert.match(out.html, /<table id="\^tbl" dir="auto">/);
   assert.ok(!out.html.includes('^tbl</p>'), 'bare ^id line is removed');
   assert.match(out.html, /<a href="\/s\/Other#%5Ep" class="internal-link">Other › \^p<\/a>/);
 });
 
 test('block transclusion embeds only the referenced block', () => {
-  assert.match(out.html, /<div class="embed-note embed-block">.*<p>The referenced block\.<\/p>/s);
+  assert.match(out.html, /<div class="embed-note embed-block">.*<p dir="auto">The referenced block\.<\/p>/s);
   assert.ok(!out.html.includes('Intro line'));
   assert.equal(extractBlock('a\n\nb c ^x\n\nd', 'x'), 'b c');
   assert.equal(extractBlock('| t |\n|---|\n| 1 |\n\n^t', 't'), '| t |\n|---|\n| 1 |');

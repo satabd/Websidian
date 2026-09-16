@@ -23,7 +23,7 @@ What the **public site** renders. The editor parses the same syntax — see [[Ed
 | `#tag`, `#nested/tag` | Tags |
 | `![[Drawing.excalidraw]]`, `![[Drawing.excalidraw\|500]]`, `[[Drawing.excalidraw]]` | The live Excalidraw viewer (pan, zoom, images, links, dark mode); the link opens the drawing as a page — [[Excalidraw drawings]] |
 | `Something.base` | Obsidian Bases table views |
-| Frontmatter `title`, `lang`, `status`, `tags`, `description`, `cssclasses` | Title, direction, chips, meta tag, classes |
+| Frontmatter `title`, `lang`, `status`, `tags`, `description`, `cssclasses` | Title, direction, chips, meta tag, classes. Without `lang`, the page direction is detected from the note's letters |
 | `translation:` / `translations:` | Language switch |
 | Tables, code, raw HTML, `[text](Other Note.md)` | As in Obsidian's reading view |
 

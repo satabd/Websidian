@@ -16,7 +16,7 @@ const { parseFrontmatter } = require('./vault');
 const { viewerHtml } = require('./excalidraw');
 
 // Bump when the renderer's output changes, so stale cache entries are dropped.
-const RENDER_VERSION = 7;   // 7: Excalidraw embeds become live viewers
+const RENDER_VERSION = 8;   // 8: dir="auto" on blocks, page direction detected from the text
 const MAX_EMBED_DEPTH = 3;
 const EXCALIDRAW_RE = /\.excalidraw(\.md)?$/i;
 
@@ -356,6 +356,21 @@ function pluginFencesAndTables(md) {
   md.renderer.rules.table_close = () => '</table></div>';
 }
 
+// Every top-level block takes its direction from its own first strong letter (dir="auto"), as Obsidian
+// does: an English paragraph in an Arabic note stays left-to-right, and an Arabic list, quote, callout or
+// table in an English note turns right-to-left. Only top-level blocks: dir="auto" skips descendants that
+// carry their own dir, so marking the items of a list or the paragraph of a quote would leave the bullets
+// or the quote bar on the wrong side. Nested blocks inherit their container's direction instead.
+const AUTO_DIR_BLOCKS = new Set(['paragraph_open', 'heading_open', 'bullet_list_open', 'ordered_list_open',
+  'blockquote_open', 'table_open']);
+function pluginDirection(md) {
+  md.core.ruler.push('auto_direction', state => {
+    for (const t of state.tokens) {
+      if (t.level === 0 && AUTO_DIR_BLOCKS.has(t.type) && t.attrGet('dir') === null) t.attrSet('dir', 'auto');
+    }
+  });
+}
+
 // html: false for untrusted sites. Our own plugins emit html_block/html_inline
 // tokens (callouts, task checkboxes), which markdown-it renders regardless.
 function createMarkdown({ html = true } = {}) {
@@ -363,7 +378,7 @@ function createMarkdown({ html = true } = {}) {
   md.linkify.set({ fuzzyLink: false, fuzzyEmail: false }); // only real URLs, like Obsidian
   md.use(require('markdown-it-footnote'));
   md.use(pluginWikilinks).use(pluginHighlight).use(pluginComments).use(pluginMath).use(pluginCallouts).use(pluginBlockIds)
-    .use(pluginTasks).use(pluginHeadings).use(pluginLinksAndImages).use(pluginFencesAndTables);
+    .use(pluginTasks).use(pluginHeadings).use(pluginLinksAndImages).use(pluginFencesAndTables).use(pluginDirection);
   return md;
 }
 
@@ -458,7 +473,9 @@ class Renderer {
     // Deps are recorded with their current stamps for later validation.
     const depList = [];
     for (const d of deps) { try { const st = await fsp.stat(require('path').join(vault.root, d)); depList.push({ rel: d, stamp: `${st.mtimeMs}-${st.size}` }); } catch { depList.push({ rel: d, stamp: 'missing' }); } }
-    return { html, data, headings, stamp, mtimeMs, deps: depList, text: plainText(body), version: RENDER_VERSION };
+    const plain = plainText(body);
+    const { dir, lang } = detectDirection(plain);
+    return { html, data, headings, stamp, mtimeMs, deps: depList, text: plain, dir, lang, version: RENDER_VERSION };
   }
 }
 
@@ -476,4 +493,18 @@ function plainText(body) {
     .replace(/\s+/g, ' ').trim();
 }
 
-module.exports = { Renderer, RENDER_VERSION, slugify, escapeHtml, extractSection, extractBlock };
+// A note without `lang:` gets its page direction from its letters: when Arabic or Hebrew letters
+// outnumber all other letters, the whole page turns right-to-left (sidebar, table of contents, layout),
+// exactly as `lang: ar` would. URLs and inline code are left out, since they are Latin whatever the
+// note's language. Returns { dir: 'rtl' | 'ltr', lang: 'ar' | 'he' | '' }.
+const count = (s, re) => (s.match(re) || []).length;
+function detectDirection(text) {
+  const s = String(text || '').replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, ' ').replace(/`[^`\n]*`/g, ' ');
+  const arabic = count(s, /(?=\p{L})\p{Script=Arabic}/gu);
+  const hebrew = count(s, /(?=\p{L})\p{Script=Hebrew}/gu);
+  const rtl = arabic + hebrew;
+  if (!rtl || rtl <= count(s, /\p{L}/gu) - rtl) return { dir: 'ltr', lang: '' };
+  return { dir: 'rtl', lang: arabic >= hebrew ? 'ar' : 'he' };
+}
+
+module.exports = { Renderer, RENDER_VERSION, slugify, escapeHtml, extractSection, extractBlock, detectDirection };

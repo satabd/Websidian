@@ -244,7 +244,7 @@ test('API: create with stamp null, then it is served and listed; creating twice 
   assert.equal(r.status, 201); const j = await r.json(); assert.equal(j.created, true); assert.equal(j.url, '/s/guides/Brand%20New'); assert.equal(j.title, 'Brand New');
   const page = await get('/s/guides/Brand%20New'); assert.equal(page.status, 200);
   assert.match(await page.text(), /href="\/s\/Home" class="internal-link"/);
-  assert.match(await (await get('/s/')).text(), /href="\/s\/guides\/Brand%20New">Brand New</, 'in the sidebar');
+  assert.match(await (await get('/s/')).text(), /href="\/s\/guides\/Brand%20New" dir="auto">Brand New</, 'in the sidebar');
   assert.equal((await json('PUT', '/s/_api/note', { rel: 'guides/Brand New.md', text: 'again', stamp: null })).status, 409);
   const list = await (await json('GET', '/s/_api/notes')).json();
   assert.ok(list.some(n => n.rel === 'guides/Brand New.md') && list.some(n => n.rel === 'sub/Draft.md' && n.hidden));

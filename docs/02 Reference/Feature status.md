@@ -21,7 +21,7 @@ description: Done, partial, in progress, missing
 | Graph view, Explore view, local graph | ✅ | |
 | Backlinks, previous/next, table of contents | ✅ | |
 | Navigation order (`order:`), folder notes, generated section pages | ✅ | [[Navigation and sections]] |
-| Arabic / English language switch, RTL pages | ✅ | |
+| Arabic / English language switch, RTL pages | ✅ | Notes without `lang:` get their page direction from their letters (browser-checked on an untrusted site under the dashboard mount, 2026-09-16) |
 | Embed mode for iframes | ✅ | [[Embedding in your website]] |
 | Drafts and visibility rules | ✅ | [[Publishing and visibility]] |
 | Site auth (basic / share token) | ✅ | Cookies are `websidian_<site>` since 2026-09-16 |

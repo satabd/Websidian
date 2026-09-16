@@ -111,7 +111,7 @@ test('raw HTML is escaped on the untrusted site and passed through on the truste
   assert.ok(!/<img src=x onerror/.test(u) && !/<b onclick/.test(u));
   assert.ok(!u.includes('<script>alert(1)</script>') && !u.includes('<script>alert(2)</script>'), 'frontmatter escaped');
   // Obsidian constructs still work.
-  assert.match(u, /<div class="callout callout-tip" data-callout="tip">/);
+  assert.match(u, /<div class="callout callout-tip" data-callout="tip" dir="auto">/);
   assert.match(u, /<a href="\/u\/Home" class="internal-link">Home<\/a>/);
   assert.match(u, /<img src="\/u\/img\/pic.png" alt="pic.png" loading="lazy" width="50">/);
   assert.match(u, /<div class="embed-note">.*bravo content/s);

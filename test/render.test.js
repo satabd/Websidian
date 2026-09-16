@@ -35,8 +35,8 @@ test('image embed with size and note section transclusion', () => {
 });
 
 test('callouts: foldable, nested, default title', () => {
-  assert.match(out.html, /<details class="callout callout-tip" data-callout="tip">\s*<summary class="callout-title">.*Fold me/s);
-  assert.match(out.html, /<div class="callout callout-warning" data-callout="warning">.*inner/s);
+  assert.match(out.html, /<details class="callout callout-tip" data-callout="tip" dir="auto">\s*<summary class="callout-title">.*Fold me/s);
+  assert.match(out.html, /<div class="callout callout-warning" data-callout="warning">.*inner/s);   // nested: inherits
   assert.match(out.html, /callout-abstract.*<span class="callout-title-inner">Abstract<\/span>.*Default title/s);
   assert.ok(!out.html.includes('[!tip]'));
 });
@@ -48,7 +48,7 @@ test('tasks, highlight, comments, mermaid, code, tables, line breaks', () => {
   assert.ok(!out.html.includes('hidden comment'));
   assert.match(out.html, /<pre class="mermaid">flowchart LR\n\s+A --&gt; B/);
   assert.match(out.html, /<code class="hljs language-js">const x = 1;/);
-  assert.match(out.html, /<div class="table-wrap"><table>.*<th>h1<\/th>/s);
+  assert.match(out.html, /<div class="table-wrap"><table dir="auto">.*<th>h1<\/th>/s);
   assert.match(out.html, /Line one<br>\nLine two/);
 });
 
@@ -59,7 +59,7 @@ test('links: repo rewrite, external target, no fuzzy linkify', () => {
 });
 
 test('headings get ids and are collected for the TOC', () => {
-  assert.match(out.html, /<h1 id="home">Home<\/h1>/);
+  assert.match(out.html, /<h1 id="home" dir="auto">Home<\/h1>/);
   assert.deepEqual(out.headings[0], { level: 1, text: 'Home', id: 'home' });
   assert.equal(slugify('ADR-07 — Physical locations are not departments'), 'adr-07-physical-locations-are-not-departments');
   assert.equal(slugify('الخطوات'), 'الخطوات');

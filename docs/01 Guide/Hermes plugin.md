@@ -91,6 +91,22 @@ The installers stamp both copies in `websidian.version` (`{revision, installed_a
 
 The plugin (Python) and the runtime (Node) are separate copies, so half an upgrade would otherwise have no symptom but odd behaviour.
 
+### Arabic notes
+The agent does not need to write `lang: ar`: a note whose letters are mostly Arabic (or Hebrew) is served as a right-to-left page — sidebar, headings, lists, callouts and tables — and each top-level block still follows its own text, so an English line or a code block inside it stays left to right. Add `lang:` to a note only to override the guess.
+
+### Making the tab reachable (the 401)
+Confirmed on the macOS profile, 2026-09-16: the dashboard loaded, the runtime was healthy, and the tab still failed because `/api/plugins/websidian/*` answered **401**.
+
+| Dashboard mode | Websidian tab |
+|---|---|
+| Loopback, ungated (`127.0.0.1`, no gate) | **Not supported.** Non-public `/api/` paths need an `X-Hermes-Session-Token` header, and an iframe navigation cannot send one |
+| Gated, basic password | ✅ the exercised path — the session cookie is `SameSite=Lax`, so the iframe, the editor and its API calls all carry it |
+| Gated, OAuth | Should work, not yet verified with this tab |
+
+Gated mode turns on for any **non-loopback bind or non-loopback `dashboard.public_url`** — binding to the Tailscale interface is what enables it, and the password provider is what makes it passable. Recommended: basic username/password over Tailscale or a trusted LAN, with a long unique password (that login is the only door to the vault, the memories, the skills and — for `edit: true` vaults — the agent's instruction files). Never disable the gate to make the tab load.
+
+Afterwards, set `dashboard.public_base` to the URL the browser really uses, restart the dashboard (auth) and the gateway (links), then check `/api/plugins/websidian/status`, `/api/plugins/websidian/w/<slug>/` and `/websidian` in that order.
+
 ### The agent can do this itself
 The plugin registers a second skill, `websidian:websidian-install`: the same runbook written for an agent — install, update, the restart matrix, the acceptance checks, and the things never to do (no restarting the dashboard or gateway on its own, no weakening the dashboard gate, no `untrusted: false`, no `edit: true` unless asked).
 

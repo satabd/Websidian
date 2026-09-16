@@ -20,6 +20,8 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 - **Mermaid in Live Preview may not render** when the diagram is scrolled into view (seen on trusted and untrusted sites, 2026-09-13; unconfirmed). The Split view and the site render it.
 - **Arabic `[[` suggestions** match titles and aliases, but fuzzy ranking is tuned for Latin text.
 
+- **Page direction is a guess when a note has no `lang:`**: more Arabic or Hebrew letters than other letters makes the page right-to-left. A short Arabic note full of English terms can land left-to-right, and Persian or Urdu is labelled `lang="ar"` (the direction is right, the language tag is not). Set `lang:` in the frontmatter when it matters.
+
 ## Server and setup
 - **Writing help through the `claude` CLI needs a signed-in CLI** on the server (`claude login`). A signed-out or expired CLI answers *Not logged in* / *OAuth session expired*; Websidian logs it and shows the generic failure line — it never pastes that into the note ([[Writing help]]).
 - **`Ctrl+P` still prints when the editor is embedded and the outer page has focus** — inside the Hermes dashboard, for instance. The editor page cancels the browser shortcut only for its own document. Use `Ctrl+Shift+P` for the palette, or the **✦ Writing help ▾** button / `Alt+W` for the actions ([[Editor hotkeys and commands]]).

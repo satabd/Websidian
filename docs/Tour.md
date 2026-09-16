@@ -23,7 +23,7 @@ Wikilinks, embeds, callouts, math, mermaid, footnotes, tags and properties all r
 
 ![[site-syntax.png]]
 
-Arabic and English live in one vault. Direction is decided per line, so a right-to-left paragraph sits next to a left-to-right one without either being wrong.
+Arabic and English live in one vault. Direction is decided per block, so a right-to-left paragraph sits next to a left-to-right one without either being wrong — and a note whose letters are mostly Arabic turns the whole page right to left, sidebar and all, even when nobody wrote `lang: ar` in it.
 
 ![[site-rtl-arabic.png]]
 

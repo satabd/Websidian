@@ -86,7 +86,7 @@ async function getRendered(vault, rel) {
     fromCache = false;
     const t0 = process.hrtime.bigint();
     const r = await renderer.render(vault, rel);
-    entry = { stamp: fullStamp(vault, r.stamp), html: r.html, data: r.data, headings: r.headings, deps: r.deps, text: r.text, renderedAt: Date.now(), renderMs: Number(process.hrtime.bigint() - t0) / 1e6 };
+    entry = { stamp: fullStamp(vault, r.stamp), html: r.html, data: r.data, headings: r.headings, deps: r.deps, text: r.text, dir: r.dir, lang: r.lang, renderedAt: Date.now(), renderMs: Number(process.hrtime.bigint() - t0) / 1e6 };
     await cache.set(vault.slug, rel, entry);
   }
   return { ...entry, fromCache };
@@ -330,7 +330,7 @@ r.get('/:site/*', async (req, res, next) => {
       headings = [...headings, { level: 2, text: 'In this section', id: 'in-this-section' }];
     }
   }
-  res.type('html').send(page({ vault, vaults, config, rel: noteRel, title: note.title, body, data: entry.data, headings, siteLang: config.lang, embed, editUrl: editUser && !embed ? vault.editUrl(noteRel) : '', nonce: res.locals.cspNonce }));
+  res.type('html').send(page({ vault, vaults, config, rel: noteRel, title: note.title, body, data: entry.data, headings, siteLang: config.lang, detected: { dir: entry.dir, lang: entry.lang }, embed, editUrl: editUser && !embed ? vault.editUrl(noteRel) : '', nonce: res.locals.cspNonce }));
 });
 
 app.use((req, res) => notFound(res, null, 'Not found'));

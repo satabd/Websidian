@@ -13,7 +13,7 @@ const { folderTitle } = require('./vault');
 const { pageTags } = require('./seo');
 const { nonceAttr, withNonce } = require('./untrusted');
 
-const LAYOUT_VERSION = 18;   // 18: writing help menu in the editor top bar, right-click menu, Alt+W
+const LAYOUT_VERSION = 19;   // 19: dir="auto" on sidebar, table of contents and backlink titles; detected page direction
 
 // JSON inside <script>: a note path containing "</script>" must not close the tag.
 const scriptJson = v => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -35,7 +35,7 @@ function navTree(node, currentRel, depth = 0) {
     out += `<details class="nav-folder"${contains || depth === 0 ? ' open' : ''}><summary>${label}</summary><div class="nav-children">${navTree(f, currentRel, depth + 1)}</div></details>`;
   }
   for (const n of node.notes) {
-    out += `<a class="nav-note${n.rel === currentRel ? ' is-current' : ''}${n.isBase ? ' nav-base' : ''}" href="${n.url}"${n.lang ? ` lang="${escapeHtml(n.lang)}"` : ''}${n.rel === currentRel ? ' aria-current="page"' : ''}>${n.isBase ? '▦ ' : ''}${escapeHtml(n.title)}</a>`;
+    out += `<a class="nav-note${n.rel === currentRel ? ' is-current' : ''}${n.isBase ? ' nav-base' : ''}" href="${n.url}" dir="auto"${n.lang ? ` lang="${escapeHtml(n.lang)}"` : ''}${n.rel === currentRel ? ' aria-current="page"' : ''}>${n.isBase ? '▦ ' : ''}${escapeHtml(n.title)}</a>`;
   }
   return out;
 }
@@ -53,7 +53,7 @@ function breadcrumbs(vault, rel) {
 function toc(headings) {
   const items = headings.filter(h => h.level >= 2 && h.level <= 3);
   if (items.length < 2) return '';
-  return `<nav class="toc" aria-label="On this page"><div class="toc-title">On this page</div>${items.map(h => `<a class="toc-h${h.level}" href="#${h.id}">${escapeHtml(h.text)}</a>`).join('')}</nav>`;
+  return `<nav class="toc" aria-label="On this page"><div class="toc-title">On this page</div>${items.map(h => `<a class="toc-h${h.level}" href="#${h.id}" dir="auto">${escapeHtml(h.text)}</a>`).join('')}</nav>`;
 }
 
 function metaRow(data) {
@@ -93,7 +93,7 @@ function footer(vault, rel, embed) {
   }
   const back = vault.backlinksOf(rel);
   if (back.length) {
-    out += `<section class="backlinks"><h2 class="backlinks-title">Linked from</h2><ul>${back.map(n => `<li><a href="${vault.noteUrl(n.rel)}${q}"${n.data.lang ? ` lang="${escapeHtml(n.data.lang)}"` : ''}>${escapeHtml(n.title)}</a><span class="muted"> · ${escapeHtml(n.folder ? n.folder.split('/').map(p => folderTitle(p, vault.folderNames)).join(' / ') : vault.title)}</span></li>`).join('')}</ul></section>`;
+    out += `<section class="backlinks"><h2 class="backlinks-title">Linked from</h2><ul>${back.map(n => `<li><a href="${vault.noteUrl(n.rel)}${q}" dir="auto"${n.data.lang ? ` lang="${escapeHtml(n.data.lang)}"` : ''}>${escapeHtml(n.title)}</a><span class="muted"> · ${escapeHtml(n.folder ? n.folder.split('/').map(p => folderTitle(p, vault.folderNames)).join(' / ') : vault.title)}</span></li>`).join('')}</ul></section>`;
   }
   return out ? `<footer class="note-footer">${out}</footer>` : '';
 }
@@ -309,9 +309,12 @@ ${math}<script src="${assets}/_static/app.js?v=${LAYOUT_VERSION}" defer></script
 const cssClasses = data => (Array.isArray(data.cssclasses) ? data.cssclasses : String(data.cssclasses || data.cssclass || '').split(/\s+/)).filter(Boolean).map(c => escapeHtml(String(c))).join(' ');
 
 // editUrl: set only for requests carrying a valid editor session (see editor.js); adds the Edit button.
-function page({ vault, vaults, config = {}, rel, title, body, data = {}, headings = [], siteLang = 'en', status = 200, embed = false, editUrl = '', nonce = '' }) {
-  const lang = String(data.lang || siteLang || 'en');
-  const rtl = /^(ar|he|fa|ur)\b/i.test(lang);
+// detected: { dir, lang } from the note's own letters (render.js detectDirection). It only ever turns a page
+// right-to-left: a `lang:` in the frontmatter always wins, and a site whose `lang` is already RTL stays so.
+function page({ vault, vaults, config = {}, rel, title, body, data = {}, headings = [], siteLang = 'en', detected = null, status = 200, embed = false, editUrl = '', nonce = '' }) {
+  const autoRtl = !data.lang && !!detected && detected.dir === 'rtl';
+  const lang = String(data.lang || (autoRtl ? detected.lang : '') || siteLang || 'en');
+  const rtl = autoRtl || /^(ar|he|fa|ur)\b/i.test(lang);
   const assets = vault.basePath;
   const brand = vault.brand;
   const bodyHasH1 = /<h1\b/i.test(body);
