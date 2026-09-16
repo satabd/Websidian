@@ -1,5 +1,5 @@
 /* Explore view: a second, separate full-screen graph page. Built on top of
- * the pure helpers exported by public/graph.js (window.MD2HTML_GRAPH) —
+ * the pure helpers exported by public/graph.js (window.WEBSIDIAN_GRAPH) —
  * parseQuery/matches/colorFor/bubbleRadius/bandWidth/clusterHome/
  * radialPositions/shortestPath — but with its own self-contained renderer,
  * so the existing graph.js mount()/graph-page.js pair is never touched.
@@ -11,7 +11,7 @@
  */
 (function () {
   'use strict';
-  var G = window.MD2HTML_GRAPH; if (!G) return;
+  var G = window.WEBSIDIAN_GRAPH || window.MD2HTML_GRAPH; if (!G) return;
   var canvas = document.getElementById('exploreCanvas'); if (!canvas) return;
   var ctx = canvas.getContext('2d');
   var site = canvas.getAttribute('data-site'), focusAttr = canvas.getAttribute('data-focus') || '';
@@ -27,7 +27,7 @@
   var cssVars = getComputedStyle(document.documentElement);
   var theme = function () { cssVars = getComputedStyle(document.documentElement); return { fg: cssVars.getPropertyValue('--fg').trim() || '#222', muted: cssVars.getPropertyValue('--muted').trim() || '#888', line: cssVars.getPropertyValue('--line').trim() || '#ccc', bg: cssVars.getPropertyValue('--bg').trim() || '#fff', accent: cssVars.getPropertyValue('--accent').trim() || '#0969da', font: cssVars.getPropertyValue('--font') || 'sans-serif' }; };
 
-  var baseUrl = window.MD2HTML.base + '_graph.json';
+  var baseUrl = (window.WEBSIDIAN || window.MD2HTML).base + '_graph.json';
   var centerId = focusAttr || null;
   // a focused note is a natural entry point for the radial layout, but only
   // default to it the first time — once the visitor picks a layout, respect it

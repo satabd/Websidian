@@ -54,7 +54,7 @@ test('token-protected site: 403, then ?token= sets cookie and redirects, cookie 
   const r = await get('/p/sub/Second?token=tok-1');
   assert.equal(r.status, 302); assert.equal(r.headers.get('location'), '/p/sub/Second');
   const cookie = r.headers.get('set-cookie').split(';')[0];
-  assert.ok(cookie.startsWith('md2html_p=tok-1'));
+  assert.ok(cookie.startsWith('websidian_p=tok-1'));
   assert.equal((await get('/p/sub/Second', { cookie })).status, 200);
   assert.equal((await get('/p/_search?q=bravo')).status, 403);
   assert.equal((await get('/p/_search?q=bravo', { cookie })).status, 200);

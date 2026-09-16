@@ -13,7 +13,8 @@ function safeEqual(a, b) {
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
-function cookieName(slug) { return 'md2html_' + slug.replace(/[^a-z0-9]/gi, '_'); }
+// Renamed from md2html_ in the Websidian sweep: readers are signed out once.
+function cookieName(slug) { return 'websidian_' + slug.replace(/[^a-z0-9]/gi, '_'); }
 
 function parseCookies(header) {
   const out = {};

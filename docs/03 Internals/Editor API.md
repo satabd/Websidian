@@ -25,7 +25,7 @@ Rules: only `.md` files inside the vault; no dot-folders or `exclude`d paths; 2 
 
 ## Example
 ```bash
-curl -X PUT http://127.0.0.1:8080/odoohms/_api/note \
+curl -X PUT http://127.0.0.1:8080/notes/_api/note \
   -H "Authorization: Bearer $TOKEN" -H "X-Requested-With: cli" -H "Content-Type: application/json" \
   -d '{"rel":"inbox/Idea.md","text":"# Idea\n","stamp":null}'
 ```

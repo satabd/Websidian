@@ -2,7 +2,7 @@
  * remembers settings per browser (localStorage, per site). */
 (function () {
   'use strict';
-  var G = window.MD2HTML_GRAPH; if (!G) return;
+  var G = window.WEBSIDIAN_GRAPH || window.MD2HTML_GRAPH; if (!G) return;
   var canvas = document.getElementById('graphCanvas'); if (!canvas) return;
   var site = canvas.getAttribute('data-site'), focus = canvas.getAttribute('data-focus') || null;
   var KEY = 'md2html-graph-' + site;
@@ -12,7 +12,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var stats = $('graphStats'), hoverBox = $('graphHover'), legend = $('gpLegend'), groupsBox = $('gpGroups');
   var localMode = !!focus, g;
-  var baseUrl = window.MD2HTML.base + '_graph.json';
+  var baseUrl = (window.WEBSIDIAN || window.MD2HTML).base + '_graph.json';
   function cur() { return g ? g.settings() : S; }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(cur())); } catch (e) {} }
   function urlFor() { var q = []; if (localMode && focus) { q.push('rel=' + encodeURIComponent(focus)); q.push('depth=' + cur().depth); } if (cur().tags) q.push('tags=1'); return baseUrl + (q.length ? '?' + q.join('&') : ''); }
@@ -97,5 +97,5 @@
     root.setAttribute('data-theme', dark ? 'light' : 'dark'); try { localStorage.setItem('md2html-theme', dark ? 'light' : 'dark'); } catch (e) {}
     g.redraw();
   });
-  window.MD2HTML_GRAPH.instance = g;
+  window.WEBSIDIAN_GRAPH.instance = g;
 })();

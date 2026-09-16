@@ -146,7 +146,7 @@ test('login: wrong password 401, right password sets a session cookie and redire
   const ok = await form('/s/_edit/_login', { user: 'sat', password: 'pw-1', next: '/s/_edit/sub/Second' });
   assert.equal(ok.status, 303); assert.equal(ok.headers.get('location'), '/s/_edit/sub/Second');
   const sc = ok.headers.get('set-cookie');
-  assert.match(sc, /^md2html_edit_s=/); assert.match(sc, /HttpOnly/); assert.match(sc, /SameSite=Strict/); assert.match(sc, /Path=\/s\//);
+  assert.match(sc, /^websidian_edit_s=/); assert.match(sc, /HttpOnly/); assert.match(sc, /SameSite=Strict/); assert.match(sc, /Path=\/s\//);
   cookie = sc.split(';')[0];
   const evil = await form('/s/_edit/_login', { user: 'sat', password: 'pw-1', next: 'https://evil.example/' });
   assert.equal(evil.headers.get('location'), '/s/_edit/Home', 'open redirect refused');
@@ -159,7 +159,7 @@ test('editor page: home redirect, canonical redirect, hidden notes listed, new-n
   const canon = await get('/s/_edit/sub/Second.md', { cookie }); assert.equal(canon.status, 302); assert.equal(canon.headers.get('location'), '/s/_edit/sub/Second');
   const r = await get('/s/_edit/sub/Second', { cookie }); assert.equal(r.status, 200); assert.equal(r.headers.get('cache-control'), 'no-store');
   const html = await r.text();
-  assert.match(html, /window\.MD2HTML_EDIT=\{"site":"s","base":"\/s\/","rel":"sub\/Second.md","exists":true/);
+  assert.match(html, /window\.WEBSIDIAN_EDIT=window\.MD2HTML_EDIT=\{"site":"s","base":"\/s\/","rel":"sub\/Second.md","exists":true/);
   assert.ok(html.includes('<textarea id="edText"') && html.includes('_static/editor.js'));
   assert.match(html, /class="nav-note is-hidden" href="\/s\/_edit\/sub\/Draft"/, 'draft notes are editable');
   assert.match(html, /class="nav-note is-current" href="\/s\/_edit\/sub\/Second"/);
@@ -291,8 +291,8 @@ test('API token: scripts can use Authorization: Bearer without a session', async
 
 test('logout clears the session; login attempts are rate limited', async () => {
   const out = await form('/s/_edit/_logout', {}, { cookie });
-  assert.equal(out.status, 303); assert.match(out.headers.get('set-cookie'), /md2html_edit_s=;/);
-  assert.equal((await get('/s/_edit/Home', { cookie: 'md2html_edit_s=garbage' })).status, 302);
+  assert.equal(out.status, 303); assert.match(out.headers.get('set-cookie'), /websidian_edit_s=;/);
+  assert.equal((await get('/s/_edit/Home', { cookie: 'websidian_edit_s=garbage' })).status, 302);
   let last;
   for (let i = 0; i < 12; i++) last = await form('/s/_edit/_login', { user: 'x', password: 'y' });
   assert.equal(last.status, 429);

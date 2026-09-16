@@ -21,6 +21,7 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 - **Arabic `[[` suggestions** match titles and aliases, but fuzzy ranking is tuned for Latin text.
 
 ## Server and setup
+- **The rename signs everyone out once.** Cookies moved from `md2html_*` to `websidian_*` on 2026-09-16, so the first visit after upgrading needs a fresh sign-in. Share-token links still work — the token is in the link.
 - **Server changes need a restart** of `npm start`; browser changes a `Ctrl+Shift+R` — [[Quick start]].
 - **Sessions end on restart** unless `edit.secret` is set.
 - **`localhost` cookie clash** between two servers on different ports: use `127.0.0.1`.

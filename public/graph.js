@@ -2,7 +2,7 @@
  * No dependencies. Handles a few thousand nodes; the simulation cools down
  * and stops, then only redraws on interaction.
  *
- *   var g = MD2HTML_GRAPH.mount(canvasEl, { url, center, mini, onLoad, onHover, onNavigate, settings })
+ *   var g = WEBSIDIAN_GRAPH.mount(canvasEl, { url, center, mini, onLoad, onHover, onNavigate, settings })
  *   g.set({ repel: 1.4, linkDistance: 90, arrows: true, ... })   // live tuning
  *
  * Filter query syntax (like Obsidian): words match title/path, `path:x`,
@@ -466,7 +466,7 @@
     return path[0] === fromId ? path : null;
   }
 
-  window.MD2HTML_GRAPH = {
+  window.WEBSIDIAN_GRAPH = window.MD2HTML_GRAPH = {
     mount: mount, PALETTE: PALETTE, DEFAULTS: DEFAULTS, parseQuery: parseQuery, matches: matches,
     colorFor: colorFor, recencyBucket: recencyBucket, bubbleRadius: bubbleRadius, bandWidth: bandWidth,
     clusterHome: clusterHome, radialPositions: radialPositions, shortestPath: shortestPath

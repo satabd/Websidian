@@ -25,6 +25,17 @@ Newest first. One entry per working session: what changed, what was learned, wha
 - **Still open**: `hermes plugins install <repo>` cannot take this repository — the manifest is nested at `integrations/hermes/websidian/plugin.yaml` ([[Improvements backlog]], [[Known issues]]).
 - **Next**: navigation order and folder notes ([[Improvements backlog]] #1) is still the top item.
 
+## 2026-09-16 — finished the rename, and took a client vault out of the examples
+User feedback: *"you still use MD2HTML which we changed to Websidian and for paths you use odoohms which is related to a project we use as example, that will causes a confusion for the reader."* Both were right.
+
+- **`odoohms` is gone from the docs** — 50 occurrences across the README and five guide notes, plus the folder names (`00-overview`, `10-presentation`) and note names (`Scenario 1 - Patient Registration`, `What the System Does`) that came with it. Examples use the slug `notes` and folders `guide/` and `reference/`, which read as placeholders. Two prose mentions of the OdooHMS repository are now generic. `test/naming.test.js` fails if any of those names come back.
+- **Phase 0 of the rename is done** ([[Roadmap]]). Cookies are `websidian_<site>` and `websidian_edit_<site>`; the page globals are `window.WEBSIDIAN`, `WEBSIDIAN_EDIT` and `WEBSIDIAN_GRAPH`; `localStorage` keys are `websidian-*`.
+- **Kept working on purpose**: `window.MD2HTML*` is assigned alongside each new global, the old `localStorage` keys are read as a fallback so nobody loses their theme, and the iframe height message is posted under **both** `websidian:height` and `md2html:height` — that one is a public contract, and pages already embedded listen for the old name ([[Embedding in your website]]).
+- **Not kept**: cookie names. Renaming a cookie signs everyone out once; there is no way around it, so it is written down in [[Known issues]] instead.
+- Browser-checked after the sweep: graph and explore render, search returns results through the new global, the editor loads CodeMirror, and an iframe receives both height messages. No console errors.
+- `LAYOUT_VERSION` 14 → 15, because `public/*.js` is cached `immutable` for a week and changes are invisible until it moves.
+- `npm test` 186/186.
+
 ## 2026-09-16 — Websidian's own public site
 - **`docker compose up docs`** serves this vault on :8081 with `deploy/docs-site.config.json` — public, read-only, no `edit` block at all, so `/_edit/` and `/_api/` are simply not routed (checked: both 404). Websidian's own site is Websidian.
 - **Generated favicon**: every page carries `<link rel="icon">` built from `brand.color` and the site's initial, inline as a `data:` URI (allowed by the untrusted CSP's `img-src 'self' data:`). The `/favicon.ico` 404 in [[Known issues]] is gone.

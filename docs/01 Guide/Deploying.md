@@ -41,7 +41,7 @@ For your own vault, mount it **read-write** if you use the editor; read-only is 
 > `og:image` is taken from the first image in the note, so a page that opens with a screenshot gets a large preview card when the link is shared. Every page also carries an icon generated from `brand.color`, so nothing 404s on `/favicon.ico`.
 
 ## Keeping the server's vault current
-- **Git webhook**: set `webhook: { "secret": "…", "command": "git pull --ff-only" }` on the site. On GitHub: Settings → Webhooks → payload URL `https://docs.example.com/_hooks/git/odoohms`, content type JSON, same secret, push events. Other systems: `POST …/_hooks/git/odoohms?token=<secret>`.
+- **Git webhook**: set `webhook: { "secret": "…", "command": "git pull --ff-only" }` on the site. On GitHub: Settings → Webhooks → payload URL `https://docs.example.com/_hooks/git/notes`, content type JSON, same secret, push events. Other systems: `POST …/_hooks/git/notes?token=<secret>`.
 - Or a cron `git pull`, Dropbox, Obsidian Sync or `rsync` — the folder is watched and re-indexed within half a second.
 
 ## Checklist

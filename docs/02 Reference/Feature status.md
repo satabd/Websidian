@@ -24,7 +24,7 @@ description: Done, partial, in progress, missing
 | Arabic / English language switch, RTL pages | ✅ | |
 | Embed mode for iframes | ✅ | [[Embedding in your website]] |
 | Drafts and visibility rules | ✅ | [[Publishing and visibility]] |
-| Site auth (basic / share token) | ✅ | |
+| Site auth (basic / share token) | ✅ | Cookies are `websidian_<site>` since 2026-09-16 |
 | Generated favicon from `brand.color`, OpenGraph and Twitter cards | ✅ | [[Deploying#A public, read-only site]] |
 | `untrusted` site mode: no raw HTML, CSP with nonces, attachment allowlist, strict mermaid, CSS snippets off | ✅ | For agent-written folders — [[Agent memory and second brain]] |
 | Rate limit on failed basic-auth sign-ins (429) | ✅ | |

@@ -1,5 +1,5 @@
 'use strict';
-// md2html server: serves one or more Obsidian vaults as websites.
+// Websidian server: serves one or more Obsidian vaults as websites.
 //
 // Request flow for a note:
 //   1. stat the .md file (cheap)                       -> stamp = mtime + size

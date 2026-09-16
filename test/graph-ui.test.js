@@ -14,7 +14,7 @@ const { graphDocument, exploreDocument } = require('../src/layout');
 const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'graph.js'), 'utf8');
 const sandbox = { window: {}, document: { documentElement: {} }, getComputedStyle: () => ({ getPropertyValue: () => '' }) };
 vm.runInNewContext(src, sandbox);
-const G = sandbox.window.MD2HTML_GRAPH;
+const G = sandbox.window.WEBSIDIAN_GRAPH;
 
 test('graph.js still exports the original mount()/DEFAULTS surface untouched', () => {
   assert.equal(typeof G.mount, 'function');

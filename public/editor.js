@@ -5,7 +5,7 @@
   // the page falls back to the plain textarea. Everything here — load, save,
   // conflicts, preview, quick switcher, command palette, status bar — works
   // with either engine through the small `ed` adapter.
-  var E = window.MD2HTML_EDIT; if (!E) return;
+  var E = window.WEBSIDIAN_EDIT || window.MD2HTML_EDIT; if (!E) return;
   var S = E.settings || {};
   var root = document.documentElement;
   var api = E.base + '_api/';
@@ -21,7 +21,7 @@
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function setStatus(text, kind) { status.textContent = text; status.className = 'ed-status ' + (kind === 'dirty' ? 'is-dirty' : kind === 'error' ? 'is-error' : 'muted'); }
   function req(method, path, body) {
-    return fetch(api + path, { method: method, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'md2html' }, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' })
+    return fetch(api + path, { method: method, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'websidian' }, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' })
       .then(function (r) { return r.json().then(function (j) { if (j && typeof j === 'object') j._status = r.status; return j; }, function () { return { _status: r.status, error: 'HTTP ' + r.status }; }); });
   }
   function getJson(path) { return req('GET', path).then(function (j) { if (j && j._status && j._status !== 200) throw new Error(j.error || 'HTTP ' + j._status); return j; }); }
@@ -30,13 +30,13 @@
   function editUrl(rel) { return E.base + '_edit/' + rel.replace(/\.md$/i, '').split('/').map(encodeURIComponent).join('/'); }
 
   // ---- theme (same preference as the viewer) ----
-  try { var saved = localStorage.getItem('md2html-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+  try { var saved = localStorage.getItem('websidian-theme') || localStorage.getItem('md2html-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
   var isDark = function () { return root.getAttribute('data-theme') === 'dark' || (!root.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches); };
   function syncThemeClass() { document.body.classList.toggle('theme-dark', isDark()); document.body.classList.toggle('theme-light', !isDark()); }
   syncThemeClass();
   function toggleTheme() {
     var next = isDark() ? 'light' : 'dark'; root.setAttribute('data-theme', next);
-    try { localStorage.setItem('md2html-theme', next); } catch (e) {}
+    try { localStorage.setItem('websidian-theme', next); } catch (e) {}
     syncThemeClass(); lastPreviewed = null; renderPreview(); if (ed && ed.refresh) ed.refresh();
   }
   document.getElementById('themeBtn').addEventListener('click', toggleTheme);
@@ -48,7 +48,7 @@
     document.body.className = document.body.className.replace(/\bmode-\w+/g, '') + ' mode-' + m;
     modes.forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-mode') === m); });
     if (m !== 'preview') lastEditMode = m;
-    if (persist !== false) store('md2html-edit-mode', m);
+    if (persist !== false) store('websidian-edit-mode', m);
     renderPreview();
     if (m !== 'preview' && ed) setTimeout(function () { ed.focus(); }, 0);
   }
@@ -139,7 +139,7 @@
       ed = textareaAdapter(); ta.value = text; ta.disabled = false; ta.placeholder = 'Write Markdown…';
       ta.setSelectionRange(0, 0); ta.scrollTop = 0; sbEngine.textContent = 'Plain text';
     }
-    var savedMode = store('md2html-edit-mode');
+    var savedMode = store('websidian-edit-mode') || store('md2html-edit-mode');
     setMode(savedMode || (S.defaultViewMode === 'preview' ? 'preview' : ed.kind === 'codemirror' ? 'edit' : 'split'), false);
     updateModeButton(); updateCounts();
     if (exists) setStatus('Loaded');

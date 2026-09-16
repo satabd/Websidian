@@ -4,8 +4,9 @@
   function whenReady(check, fn, tries) { if (check()) fn(); else if (tries > 0) setTimeout(function () { whenReady(check, fn, tries - 1); }, 100); }
 
   // ---- embed mode: keep ?embed=1 on internal links so an iframe stays chrome-less ----
-  if (window.MD2HTML && window.MD2HTML.embed) {
-    var base = window.MD2HTML.base;
+  var W = window.WEBSIDIAN || window.MD2HTML;
+  if (W && W.embed) {
+    var base = W.base;
     document.querySelectorAll('a[href]').forEach(function (a) {
       var h = a.getAttribute('href');
       if (h.indexOf(base) === 0 && h.indexOf('embed=') < 0 && !/\.(png|jpe?g|gif|svg|webp|pdf)(\?|#|$)/i.test(h)) {
@@ -13,19 +14,25 @@
         a.setAttribute('href', p + (p.indexOf('?') >= 0 ? '&' : '?') + 'embed=1' + hash);
       }
     });
-    // Tell a parent page our height so an iframe can size itself: listen for "md2html:height".
-    var post = function () { if (window.parent !== window) window.parent.postMessage({ type: 'md2html:height', height: document.documentElement.scrollHeight, rel: window.MD2HTML.rel }, '*'); };
+    // Tell a parent page our height so an iframe can size itself. Both names are
+    // sent: "md2html:height" is the older one and pages still listen for it.
+    var post = function () {
+      if (window.parent === window) return;
+      var h = document.documentElement.scrollHeight;
+      window.parent.postMessage({ type: 'websidian:height', height: h, rel: W.rel }, '*');
+      window.parent.postMessage({ type: 'md2html:height', height: h, rel: W.rel }, '*');
+    };
     window.addEventListener('load', post); new MutationObserver(post).observe(document.body, { childList: true, subtree: true }); setTimeout(post, 1500);
   }
 
   // ---- theme toggle (remembered per browser) ----
-  try { var saved = localStorage.getItem('md2html-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+  try { var saved = localStorage.getItem('websidian-theme') || localStorage.getItem('md2html-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
   var themeBtn = document.getElementById('themeBtn');
   if (themeBtn) themeBtn.addEventListener('click', function () {
     var dark = root.getAttribute('data-theme') === 'dark' || (!root.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
     var next = dark ? 'light' : 'dark';
     root.setAttribute('data-theme', next);
-    try { localStorage.setItem('md2html-theme', next); } catch (e) {}
+    try { localStorage.setItem('websidian-theme', next); } catch (e) {}
     renderMermaid(true);
   });
 
@@ -52,20 +59,20 @@
   });
 
   // ---- graph views (needs graph.js, loaded on pages that have a graph canvas) ----
-  whenReady(function () { return !document.querySelector('canvas[data-graph]') || !!window.MD2HTML_GRAPH; }, function () {
-    if (!window.MD2HTML_GRAPH) return;
+  whenReady(function () { return !document.querySelector('canvas[data-graph]') || !!window.WEBSIDIAN_GRAPH; }, function () {
+    if (!window.WEBSIDIAN_GRAPH) return;
     document.querySelectorAll('canvas.local-graph-canvas').forEach(function (c) {
-      window.MD2HTML_GRAPH.mount(c, { url: c.getAttribute('data-graph'), center: c.getAttribute('data-center'), mini: true });
+      window.WEBSIDIAN_GRAPH.mount(c, { url: c.getAttribute('data-graph'), center: c.getAttribute('data-center'), mini: true });
     });
     var big = document.getElementById('graphCanvas');
     if (big) {
       var legend = document.getElementById('graphLegend'), stats = document.getElementById('graphStats');
-      var g = window.MD2HTML_GRAPH.mount(big, {
+      var g = window.WEBSIDIAN_GRAPH.mount(big, {
         url: big.getAttribute('data-graph'), center: big.getAttribute('data-focus') || null,
         onLoad: function (info) {
           if (stats) stats.textContent = info.nodes + ' notes · ' + info.edges + ' links';
           if (legend) legend.innerHTML = info.groups.filter(function (gr) { return gr.key !== '#'; }).map(function (gr) {
-            return '<label><input type="checkbox" checked data-group="' + gr.id + '"><span class="swatch" style="background:' + window.MD2HTML_GRAPH.PALETTE[gr.id % window.MD2HTML_GRAPH.PALETTE.length] + '"></span>' + gr.title.replace(/[&<>]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]; }) + '</label>';
+            return '<label><input type="checkbox" checked data-group="' + gr.id + '"><span class="swatch" style="background:' + window.WEBSIDIAN_GRAPH.PALETTE[gr.id % window.WEBSIDIAN_GRAPH.PALETTE.length] + '"></span>' + gr.title.replace(/[&<>]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]; }) + '</label>';
           }).join('');
           legend.querySelectorAll('input').forEach(function (cb) { cb.addEventListener('change', function () { g.setGroup(Number(cb.getAttribute('data-group')), cb.checked); cb.parentElement.classList.toggle('is-off', !cb.checked); }); });
         }
@@ -75,7 +82,7 @@
       if (tags) tags.addEventListener('change', function () { g.setTags(tags.checked); if (tags.checked && big.getAttribute('data-graph').indexOf('tags=') < 0) { big.setAttribute('data-graph', big.getAttribute('data-graph') + '?tags=1'); fetch(big.getAttribute('data-graph')).then(function (r) { return r.json(); }).then(g.load); } });
       if (labels) labels.addEventListener('change', function () { g.setLabels(labels.value); });
       if (fit) fit.addEventListener('click', function () { g.fit(); });
-      window.MD2HTML_GRAPH.instance = g;
+      window.WEBSIDIAN_GRAPH.instance = g;
     }
   }, 60);
 
@@ -123,13 +130,14 @@
   // ---- search ----
   var input = document.getElementById('searchInput'), results = document.getElementById('searchResults');
   if (input) {
-    var timer = null, active = -1, site = window.MD2HTML && window.MD2HTML.site;
+    var G0 = window.WEBSIDIAN || window.MD2HTML;
+    var timer = null, active = -1, site = G0 && G0.site;
     function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
     function close() { results.hidden = true; results.innerHTML = ''; active = -1; }
     function run() {
       var q = input.value.trim();
       if (q.length < 2) return close();
-      fetch(window.MD2HTML.base + '_search?q=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (hits) {
+      fetch(G0.base + '_search?q=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (hits) {
         if (input.value.trim() !== q) return;
         results.hidden = false; active = -1;
         results.innerHTML = hits.length ? hits.map(function (h) {

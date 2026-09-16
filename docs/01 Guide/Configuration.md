@@ -18,7 +18,7 @@ names are in `.gitignore`: the real one holds passwords, tokens and webhook secr
 {
   "port": 8080,
   "sites": [
-    { "slug": "notes", "title": "My notes", "root": "/path/to/your/vault", "home": "00-overview/Start Here" }
+    { "slug": "notes", "title": "My notes", "root": "/path/to/your/vault", "home": "guide/Start Here" }
   ],
   "edit": { "users": { "you": "a-long-password" }, "allowFrom": ["127.0.0.1", "::1"], "secret": "a-random-string" }
 }
@@ -28,7 +28,7 @@ names are in `.gitignore`: the real one holds passwords, tokens and webhook secr
 
 | Key | Meaning |
 |---|---|
-| `slug` | URL prefix: `/odoohms/…` |
+| `slug` | URL prefix: `/notes/…` |
 | `root` | Vault folder |
 | `home` | Note shown at `/slug/`; falls back to `index`, `home`, `readme`, `start here`, then the first note |
 | `exclude` | Folders (by path) or extensions (`*.xlsx`). Dot-folders (`.obsidian`, `.git`, `.trash`) are always ignored |

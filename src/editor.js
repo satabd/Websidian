@@ -130,7 +130,8 @@ function ipAllowed(ip, rules) {
 
 // ---- sessions ------------------------------------------------------------------
 
-function cookieName(slug) { return 'md2html_edit_' + slug.replace(/[^a-z0-9]/gi, '_'); }
+// Renamed from md2html_edit_ in the Websidian sweep: editors sign in again once.
+function cookieName(slug) { return 'websidian_edit_' + slug.replace(/[^a-z0-9]/gi, '_'); }
 
 function sign(secret, slug, user, exp) {
   return crypto.createHmac('sha256', secret).update(`${slug}|${user}|${exp}`).digest('base64url');
@@ -371,7 +372,7 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
   <span class="status-bar-item mod-muted" id="sbEngine" title="Editor engine"></span>
 </footer>
 <div class="modal-host" id="edModal" hidden></div>
-<script${n}>window.MD2HTML_EDIT=${scriptJson({ site: vault.slug, base: vault.siteUrl(), rel, exists, viewUrl, user, assets, settings, backlinks: (vault.backlinks.get(rel) || []).length })};</script>
+<script${n}>window.WEBSIDIAN_EDIT=window.MD2HTML_EDIT=${scriptJson({ site: vault.slug, base: vault.siteUrl(), rel, exists, viewUrl, user, assets, settings, backlinks: (vault.backlinks.get(rel) || []).length })};</script>
 <script src="${assets}/_vendor/mermaid/mermaid.min.js" defer></script>
 <script src="${assets}/_vendor/hljs/highlight.min.js" defer></script>
 <script src="${assets}/_vendor/katex/katex.min.js" defer></script>

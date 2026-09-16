@@ -44,9 +44,9 @@ test('token auth: query sets cookie and redirects, cookie grants access, otherwi
   assert.equal(enforce(v, { headers: {}, query: { token: 'secret' }, originalUrl: '/s/Page?token=secret&embed=1' }, res), true);
   assert.equal(res.code, 302); assert.equal(res.redirected, '/s/Page?embed=1'); assert.equal(res.cookies[0].v, 'secret'); assert.equal(res.cookies[0].o.httpOnly, true);
   res = fakeRes();
-  assert.equal(enforce(v, { headers: { cookie: 'x=1; md2html_s=secret' }, query: {} }, res), null);
+  assert.equal(enforce(v, { headers: { cookie: 'x=1; websidian_s=secret' }, query: {} }, res), null);
   res = fakeRes();
-  assert.equal(enforce(v, { headers: { cookie: 'md2html_s=wrong' }, query: {} }, res), true); assert.equal(res.code, 403);
+  assert.equal(enforce(v, { headers: { cookie: 'websidian_s=wrong' }, query: {} }, res), true); assert.equal(res.code, 403);
   assert.deepEqual(parseCookies('a=1; b=%20x'), { a: '1', b: ' x' });
   assert.equal(enforce(fakeVault(null), { headers: {}, query: {} }, fakeRes()), null);
 });

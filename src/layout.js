@@ -13,7 +13,7 @@ const { folderTitle } = require('./vault');
 const { pageTags } = require('./seo');
 const { nonceAttr, withNonce } = require('./untrusted');
 
-const LAYOUT_VERSION = 14;   // 14: generated favicon so no page 404s on /favicon.ico
+const LAYOUT_VERSION = 15;   // 15: window.WEBSIDIAN replaces window.MD2HTML (old name aliased)
 
 // JSON inside <script>: a note path containing "</script>" must not close the tag.
 const scriptJson = v => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -208,7 +208,7 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
   </details>
   <div class="gp-foot"><button type="button" id="gpReset">Reset to defaults</button><span class="muted">Drag a node to pin it · double-click to release · right-click to highlight · Ctrl+click opens in a new tab</span></div>
 </aside>
-<script${nonceAttr(nonce)}>window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(focus)},base:${scriptJson(vault.siteUrl())},embed:false,graphPage:true};</script>${vaults.length > 1 ? `
+<script${nonceAttr(nonce)}>window.WEBSIDIAN=window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(focus)},base:${scriptJson(vault.siteUrl())},embed:false,graphPage:true};</script>${vaults.length > 1 ? `
 <script src="${assets}/_static/site-switch.js?v=${LAYOUT_VERSION}" defer></script>` : ''}
 <script src="${assets}/_static/graph.js?v=${LAYOUT_VERSION}" defer></script>
 <script src="${assets}/_static/graph-page.js?v=${LAYOUT_VERSION}" defer></script>
@@ -285,7 +285,7 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
   </details>
   <div class="gp-foot"><button type="button" id="exReset">Reset to defaults</button><span class="muted">Drag to pin · double-click to release · right-click to highlight · Alt+click a node to set the radial centre · click a bubble to expand it</span></div>
 </aside>
-<script${nonceAttr(nonce)}>window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(focus)},base:${scriptJson(vault.siteUrl())},embed:false,graphPage:true};</script>${vaults.length > 1 ? `
+<script${nonceAttr(nonce)}>window.WEBSIDIAN=window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(focus)},base:${scriptJson(vault.siteUrl())},embed:false,graphPage:true};</script>${vaults.length > 1 ? `
 <script src="${assets}/_static/site-switch.js?v=${LAYOUT_VERSION}" defer></script>` : ''}
 <script src="${assets}/_static/graph.js?v=${LAYOUT_VERSION}" defer></script>
 <script src="${assets}/_static/explore.js?v=${LAYOUT_VERSION}" defer></script>
@@ -296,7 +296,7 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
 function scripts(vault, rel, embed, assets, body, nonce, siteSwitch) {
   const math = /class="math /.test(body) ? `<script src="${assets}/_vendor/katex/katex.min.js" defer></script>\n` : '';
   const graph = /data-graph=/.test(body) || (!embed && rel && vault.notes.has(rel)) ? `<script src="${assets}/_static/graph.js?v=${LAYOUT_VERSION}" defer></script>\n` : '';
-  return `<script${nonceAttr(nonce)}>window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(rel)},base:${scriptJson(vault.siteUrl())},embed:${embed}};</script>
+  return `<script${nonceAttr(nonce)}>window.WEBSIDIAN=window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(rel)},base:${scriptJson(vault.siteUrl())},embed:${embed}};</script>
 ${graph}
 <script src="${assets}/_vendor/mermaid/mermaid.min.js" defer></script>
 <script src="${assets}/_vendor/hljs/highlight.min.js" defer></script>

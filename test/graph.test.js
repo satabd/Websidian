@@ -85,7 +85,7 @@ test('client query language (parseQuery / matches) from public/graph.js', () => 
   const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'graph.js'), 'utf8');
   const sandbox = { window: {}, document: { documentElement: {} }, getComputedStyle: () => ({ getPropertyValue: () => '' }) };
   vm.runInNewContext(src, sandbox);
-  const { parseQuery, matches } = sandbox.window.MD2HTML_GRAPH;
+  const { parseQuery, matches } = sandbox.window.WEBSIDIAN_GRAPH;
   const n = { id: 'docs/sub/Note One.md', title: 'Note One', folder: 'docs/sub', tags: ['hms', 'demo/x'], type: 'note' };
   assert.equal(matches(parseQuery('note'), n), true);
   assert.equal(matches(parseQuery('"note one"'), n), true);

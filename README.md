@@ -13,7 +13,7 @@ by `git pull`, by Dropbox sync, by `rsync` — and the next visitor sees the new
 version. There is no build step and no publish step.
 
 ```
-vault/00-overview/Start Here.md   →   https://docs.example.com/odoohms/00-overview/Start%20Here
+vault/guide/Start Here.md   →   https://docs.example.com/notes/guide/Start%20Here
 ```
 
 ## Quick start
@@ -40,7 +40,7 @@ vault when you are ready.
       "slug": "notes",
       "title": "My notes",
       "root": "/path/to/your/obsidian/vault",
-      "home": "00-overview/Start Here",
+      "home": "guide/Start Here",
       "exclude": ["Private", "*.base", "*.xlsx"],
       "folderNames": { "ar": "العربية" },
       "codeLinks": { "base": "https://github.com/you/your-repo/blob/main/", "vaultPathInRepo": "docs" }
@@ -51,22 +51,22 @@ vault when you are ready.
 
 | Key | Meaning |
 |---|---|
-| `slug` | URL prefix: `/odoohms/...` |
+| `slug` | URL prefix: `/notes/...` |
 | `root` | Vault folder (absolute, or relative to the config file) |
 | `home` | Note shown at `/slug/`. Falls back to `index`, `home`, `readme`, `start here`, then the first note |
 | `exclude` | Folders (by path) or extensions (`*.xlsx`) to ignore. `.obsidian` and other dot-folders are always ignored |
 | `excludeStatus` | e.g. `["draft"]` — notes whose frontmatter `status` matches are not served or listed |
 | `onlyPublished` | `true` → only notes with `publish: true` in frontmatter are served. `publish: false` always hides a note |
-| `folderNames` | Display names for folders in the sidebar (`10-presentation` becomes "Presentation" automatically) |
+| `folderNames` | Display names for folders in the sidebar (`10-guide` becomes "Guide" automatically) |
 | `sectionIndex` | `false` turns generated folder pages off (default on) — [Navigation and sections](docs/01%20Guide/Navigation%20and%20sections.md) |
 | `codeLinks` | Rewrites relative links that leave the vault (`../../addons/x.py:221`) to your repository (`…/addons/x.py#L221`) |
-| `auth` | Restrict a site: `{ "users": { "name": "password" } }` for a browser login prompt (HTTP Basic), and/or `{ "token": "secret" }` for share links (`…/odoohms/?token=secret` sets a cookie for 30 days). Protected sites are `noindex` and excluded from robots/sitemap |
+| `auth` | Restrict a site: `{ "users": { "name": "password" } }` for a browser login prompt (HTTP Basic), and/or `{ "token": "secret" }` for share links (`…/notes/?token=secret` sets a cookie for 30 days). Protected sites are `noindex` and excluded from robots/sitemap |
 | `snippets` | Vault CSS snippets from `.obsidian/snippets` to include on every page: `true` (default, the ones enabled in Obsidian; `false` by default on `untrusted` sites), `"all"`, `["name", …]`, or `false` |
 | `webhook` | `{ "secret": "…", "command": "git pull --ff-only" }` enables `POST /_hooks/git/<slug>` (GitHub signature or `?token=`) which runs the command in the vault folder and rescans |
 | `edit` | Browser editor for the site's notes (see [Editing in the browser](#editing-in-the-browser)): `{ "users": { "name": "password" }, "allowFrom": ["10.0.0.0/8"], "token": "…", "sessionHours": 12, "secret": "…", "protect": ["SKILL.md"], "memoryLimits": { "MEMORY.md": 2200 } }` (`protect`/`memoryLimits`: see agent instruction files). Top-level applies to all sites; per site overrides it; `false` on a site turns it off. Without `edit`, no editor URLs exist |
 | `brand` | Per-site look: `name`, `logo` (URL), `color` (accent), `font`, `favicon`, `homeUrl` (where the brand link goes), `backLink: {label, url}` (link back to your product page), `footer` (HTML), `headHtml` (analytics etc.), `css` (extra rules) |
 | `untrusted` | `true` for a folder whose notes you did not write yourself, e.g. written by an AI agent: no raw HTML in notes, only images/PDF/audio/video served as attachments, a strict Content-Security-Policy and strict mermaid. See [Serving folders written by AI agents](#serving-folders-written-by-ai-agents) |
-| `basePath` | Top-level. Mount everything under a prefix, e.g. `"/docs"` → `yoursite.com/docs/odoohms/…` behind a reverse proxy |
+| `basePath` | Top-level. Mount everything under a prefix, e.g. `"/docs"` → `yoursite.com/docs/notes/…` behind a reverse proxy |
 | `publicUrl` | Top-level, e.g. `https://docs.example.com`. Makes sitemap, canonical and OpenGraph URLs absolute |
 | `adminToken` | Top-level. Enables `POST /_purge[?site=x]` with `Authorization: Bearer <token>`: clears memory + disk cache and rescans |
 | `log` | Top-level: `"text"` (default), `"json"` (one JSON object per line for log shippers), or `false` |
@@ -117,23 +117,23 @@ Not supported: Dataview queries, Bases views other than tables, Excalidraw drawi
 
 | URL | Serves |
 |---|---|
-| `/odoohms/` | Home note |
-| `/odoohms/10-presentation/Scenario 1 - Patient Registration` | That note |
-| `/odoohms/Scenario 1 - Patient Registration` | Redirects (301) to the canonical URL above — bare names work like wikilinks |
-| `/odoohms/screenshots/x.png` | Any attachment straight from the vault |
-| `/odoohms/00-overview/Glossary?raw` | The Markdown source |
-| `/odoohms/_search?q=insurance claim` | JSON search across the vault (the header search box uses it) |
-| `/odoohms/00-overview/Glossary?embed=1` | **Embed mode**: the article only (no header, sidebar, search), for an iframe or include in your own website. Links inside stay in embed mode |
-| `/odoohms/_edit/00-overview/Glossary` | **Editor** for that note (only when `edit` is configured and you are signed in; see below). `/odoohms/_edit/` opens the home note |
-| `/odoohms/Catalogue.base` | An Obsidian Base rendered as tables (also listed in the sidebar) |
-| `/odoohms/_graph`, `/odoohms/_graph?focus=<rel>` | **Graph view**: Obsidian's graph on the web — filters, colour groups, forces, local graph, pinning. [Full reference](docs/01%20Guide/Graph%20and%20Explore.md) |
-| `/odoohms/_explore`, `/odoohms/_explore?focus=<rel>` | **Explore view**: a second graph built for reading — folder clusters, section bubbles, radial rings, a path finder between any two notes. [Full reference](docs/01%20Guide/Graph%20and%20Explore.md) |
-| `/odoohms/_graph.json?rel=<rel>&depth=1&tags=1` | The graph data (ETagged; built from the index, no rendering). Nodes carry `links`, `in`, `out`, `status`, `updated`, `dist`; the result carries per-section `clusters` and cross-section `clusterLinks` |
-| `/odoohms/sitemap.xml`, `/robots.txt` | For search engines; protected sites are excluded |
+| `/notes/` | Home note |
+| `/notes/guide/Getting Started` | That note |
+| `/notes/Getting Started` | Redirects (301) to the canonical URL above — bare names work like wikilinks |
+| `/notes/screenshots/x.png` | Any attachment straight from the vault |
+| `/notes/reference/Glossary?raw` | The Markdown source |
+| `/notes/_search?q=insurance claim` | JSON search across the vault (the header search box uses it) |
+| `/notes/reference/Glossary?embed=1` | **Embed mode**: the article only (no header, sidebar, search), for an iframe or include in your own website. Links inside stay in embed mode |
+| `/notes/_edit/reference/Glossary` | **Editor** for that note (only when `edit` is configured and you are signed in; see below). `/notes/_edit/` opens the home note |
+| `/notes/Catalogue.base` | An Obsidian Base rendered as tables (also listed in the sidebar) |
+| `/notes/_graph`, `/notes/_graph?focus=<rel>` | **Graph view**: Obsidian's graph on the web — filters, colour groups, forces, local graph, pinning. [Full reference](docs/01%20Guide/Graph%20and%20Explore.md) |
+| `/notes/_explore`, `/notes/_explore?focus=<rel>` | **Explore view**: a second graph built for reading — folder clusters, section bubbles, radial rings, a path finder between any two notes. [Full reference](docs/01%20Guide/Graph%20and%20Explore.md) |
+| `/notes/_graph.json?rel=<rel>&depth=1&tags=1` | The graph data (ETagged; built from the index, no rendering). Nodes carry `links`, `in`, `out`, `status`, `updated`, `dist`; the result carries per-section `clusters` and cross-section `clusterLinks` |
+| `/notes/sitemap.xml`, `/robots.txt` | For search engines; protected sites are excluded |
 | `/_health` | Liveness: `{ ok, uptimeSec, sites: [...] }` |
 | `/_stats` | Cache hit/miss counters, search index state, snippets, auth flags |
 | `POST /_purge?site=x` | Clear caches and rescan (needs `adminToken`) |
-| `POST /_hooks/git/odoohms` | Git webhook: pull and rescan (needs the site's `webhook.secret`) |
+| `POST /_hooks/git/notes` | Git webhook: pull and rescan (needs the site's `webhook.secret`) |
 
 Every page ends with **Previous / Next** (within its folder) and **Linked from** (backlinks), computed from the index so they are always current. Every linked note also shows a **local graph** (the note and its neighbours) in the right column, and the ◉ button opens the full graph focused on that note. The header has a **language switch** when another edition of the note exists, a **print / PDF** button, and **search** with fuzzy and prefix matching, title boosting and highlighted snippets (MiniSearch index, rebuilt automatically when notes change).
 
@@ -143,7 +143,7 @@ Every page ends with **Previous / Next** (within its folder) and **Linked from**
 
 ## Keeping the server's vault current with a git webhook
 
-On GitHub: repository Settings → Webhooks → Add: payload URL `https://docs.example.com/_hooks/git/odoohms`, content type `application/json`, secret = the site's `webhook.secret`, event "Just the push event". Every push then runs `git pull --ff-only` in the vault folder on the server and rescans; the next request serves the new content. Without GitHub, any system can call `POST …/_hooks/git/odoohms?token=<secret>`.
+On GitHub: repository Settings → Webhooks → Add: payload URL `https://docs.example.com/_hooks/git/notes`, content type `application/json`, secret = the site's `webhook.secret`, event "Just the push event". Every push then runs `git pull --ff-only` in the vault folder on the server and rescans; the next request serves the new content. Without GitHub, any system can call `POST …/_hooks/git/notes?token=<secret>`.
 
 ## Editing in the browser
 
@@ -155,8 +155,8 @@ Viewing is public; editing is a separate surface that only exists when you confi
 "edit": { "users": { "sat": "a-long-password" }, "allowFrom": ["10.0.0.0/8", "::1"] }
 ```
 
-- **Own URLs** — `/odoohms/_edit/<note>` is the editor, `/odoohms/_api/…` its JSON API. Nothing else changes: public pages, embeds, search and the sitemap are untouched.
-- **Own login** — `edit.users` accounts sign in at `/odoohms/_edit/_login` and get a signed, `HttpOnly`, `SameSite=Strict` session cookie (default 12 hours, `sessionHours`). Sessions are invalidated on restart unless you set `edit.secret`. Sign-in attempts are rate limited.
+- **Own URLs** — `/notes/_edit/<note>` is the editor, `/notes/_api/…` its JSON API. Nothing else changes: public pages, embeds, search and the sitemap are untouched.
+- **Own login** — `edit.users` accounts sign in at `/notes/_edit/_login` and get a signed, `HttpOnly`, `SameSite=Strict` session cookie (default 12 hours, `sessionHours`). Sessions are invalidated on restart unless you set `edit.secret`. Sign-in attempts are rate limited.
 - **Own network gate** — `edit.allowFrom` (IPs, prefixes like `"192.168."`, or IPv4 CIDRs) hides the editor entirely from everyone else: they get 403, and never see an Edit button. Set `trustProxy` when behind nginx/Caddy so the client IP is the real one.
 - **Scripts** — `edit.token` allows `Authorization: Bearer <token>` on the API without a browser session, e.g. `curl -X PUT -H 'X-Requested-With: cli' -H 'Content-Type: application/json' -d '{"rel":"a/b.md","text":"…","stamp":null}' …/_api/note`.
 - **Agent instruction files** — on `untrusted` sites, `SKILL.md`, `SOUL.md`, `AGENTS.md`, `MEMORY.md`, `USER.md`, `TOOLS.md`, `IDENTITY.md`, `HEARTBEAT.md` and `BOOTSTRAP.md` (any folder, any case) are what an AI agent reads as instructions, so the editor shows a warning banner on them and saving or deleting asks for confirmation (the API answers `428` until the request carries `"confirm": "instructions"`, or `?confirm=instructions` on DELETE). Autosave never confirms. `edit.protect` replaces the list on any site (file names or globs like `"prompts/**"`; `[]` turns it off). `memories/MEMORY.md` and `memories/USER.md` (Hermes Agent's memory) also warn when over their character budget, `edit.memoryLimits` (default `{ "MEMORY.md": 2200, "USER.md": 1375 }`).
@@ -230,11 +230,11 @@ Recommendations:
 ## Showing a note inside your own website
 
 ```html
-<iframe id="doc" src="https://docs.example.com/odoohms/00-overview/What%20the%20System%20Does?embed=1"
+<iframe id="doc" src="https://docs.example.com/notes/guide/What%20It%20Does?embed=1"
         style="width:100%;border:0" title="What the System Does"></iframe>
 <script>
   // The embedded page posts its height so the iframe can grow with the content.
-  addEventListener('message', e => { if (e.data && e.data.type === 'md2html:height') document.getElementById('doc').style.height = e.data.height + 'px'; });
+  addEventListener('message', e => { if (e.data && e.data.type === 'websidian:height') document.getElementById('doc').style.height = e.data.height + 'px'; });
 </script>
 ```
 
@@ -278,7 +278,7 @@ request  ──▶ stat(note.md)  ──▶  ETag matches browser copy?  ──�
 | Failure modes | Process must be running; a bad note only breaks its own page | Build fails as a whole; site stays on the old version until fixed |
 | Best for | Docs that change often, many vaults, one place to keep up to date | Rarely changing content, no server to run |
 
-If you ever need a static copy anyway (offline hand-over, CDN-only host), the renderer is the same code: a crawler over `/odoohms/` with `wget --mirror` produces one.
+If you ever need a static copy anyway (offline hand-over, CDN-only host), the renderer is the same code: a crawler over `/notes/` with `wget --mirror` produces one.
 
 ## Deploying
 
@@ -293,7 +293,7 @@ Put nginx or Caddy in front for HTTPS, e.g. `reverse_proxy localhost:8080` in a 
 
 **Docker:** `docker compose up -d` with the vault mounted read-only (see `docker-compose.yml`). The cache lives in a named volume.
 
-**Keeping the vault current on the server:** whatever already syncs your Markdown works — a cron `git pull` in the vault folder, the Dropbox client, or `rsync` from your machine. Because the vault is in the OdooHMS repository under `docs/`, a `git pull` on the server is the whole deployment.
+**Keeping the vault current on the server:** whatever already syncs your Markdown works — a cron `git pull` in the vault folder, the Dropbox client, or `rsync` from your machine. If the vault lives in a git repository, a `git pull` on the server is the whole deployment.
 
 ## Tests
 

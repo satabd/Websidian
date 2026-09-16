@@ -11,16 +11,23 @@ Where Websidian goes, in phases. What it can honestly become is in [[Scope and p
 
 | Phase | Goal | State |
 |---|---|---|
-| 0 | Rename to Websidian | 🟡 package, README, config filename and env var done; cookie and client-global names still old |
+| 0 | Rename to Websidian | ✅ done 2026-09-16 |
 | 1 | CMS essentials: git per save, attachments, rename, properties, publishing states, roles, live reload, slash commands | 🟡 properties, slash commands and publishing states done |
 | 2 | An editor an Obsidian user feels at home in | 🟡 most of it — see [[Feature status]] |
 | 3 | Reading view completeness and Obsidian themes | ⬜ |
 | 4 | Platform: plugin API, MCP server, multi-vault, i18n, export | 🟡 agent integration started ([[Hermes plugin]]) |
 
-## Phase 0 — Rename to Websidian
-Done: `package.json`, README, the `WEBSIDIAN_CONFIG` env var and the `websidian.config.json` default filename (both old names still work as aliases).
+## Phase 0 — Rename to Websidian ✅
+Done in one sweep on 2026-09-16:
 
-Left: cookie prefix `websidian_`, the `window.WEBSIDIAN` client global (alias kept), Docker image name, domain. None are urgent — do them in one sweep with a compatibility note.
+- `package.json`, README, the `WEBSIDIAN_CONFIG` env var and the `websidian.config.json` default filename — both old names still work.
+- Cookies `websidian_<site>` and `websidian_edit_<site>`. **Everyone is signed out once** when this ships; there is no way to rename a cookie without that.
+- `window.WEBSIDIAN`, `window.WEBSIDIAN_EDIT`, `window.WEBSIDIAN_GRAPH` — the `MD2HTML` names are assigned alongside them, so a script someone else wrote still works.
+- The iframe height message is sent as **both** `websidian:height` and `md2html:height` ([[Embedding in your website]]), because pages in the wild listen for the old one.
+- `localStorage` keys `websidian-theme` and `websidian-edit-mode`, falling back to the old keys so a reader keeps their theme.
+- Example slugs and paths in the docs no longer name a real client vault.
+
+`test/naming.test.js` holds the aliases in place. Left: the Docker image name and a domain.
 
 ## Phase 1 — CMS essentials
 Make the editor something you use every day.
