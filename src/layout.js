@@ -381,4 +381,4 @@ function sitesIndex(vaults, basePath = '') {
 <body><main class="main sites"><h1>Documentation</h1><ul class="site-list">${vaults.map(v => `<li><a href="${v.siteUrl()}">${escapeHtml(v.title)}</a><span class="muted">${v.visibleNotesSorted().length} pages${v.auth ? ' · restricted' : ''}</span></li>`).join('')}</ul></main></body></html>`;
 }
 
-module.exports = { page, sitesIndex, graphDocument, exploreDocument, LAYOUT_VERSION, langName };
+module.exports = { faviconTag, page, sitesIndex, graphDocument, exploreDocument, LAYOUT_VERSION, langName };

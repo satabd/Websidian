@@ -20,6 +20,7 @@ const express = require('express');
 const { safeEqual, parseCookies } = require('./auth');
 const { RateLimiter } = require('./ratelimit');
 const assistLib = require('./assist');
+const { faviconTag } = require('./layout');   // the editor and login pages had no icon, so every visit logged a /favicon.ico 404
 const { escapeHtml } = require('./render');
 const { isServableAttachment } = require('./untrusted');
 const { folderTitle, collator } = require('./vault');
@@ -315,6 +316,7 @@ function editorDocument({ vault, vaults, config, rel, exists, user, proxied = fa
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Edit · ${escapeHtml(title)} · ${escapeHtml(brand.name || vault.title)}</title>
+${faviconTag(vault)}
 ${importMap ? `<script type="importmap"${n}>${scriptJson(importMap)}</script>` : ''}
 <link rel="stylesheet" href="${assets}/_static/app.css?v=${layoutVersion}">
 <link rel="stylesheet" href="${assets}/_static/editor.css?v=${assetVersion('editor.css', layoutVersion)}">
@@ -397,6 +399,7 @@ function loginDocument({ vault, next, error, layoutVersion, proxyOnly = false })
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow">
 <title>Editor login · ${escapeHtml(brand.name || vault.title)}</title>
+${faviconTag(vault)}
 <link rel="stylesheet" href="${vault.basePath}/_static/app.css?v=${layoutVersion}">
 <link rel="stylesheet" href="${vault.basePath}/_static/editor.css?v=${layoutVersion}">
 ${brand.color ? `<style>:root{--accent:${brand.color}}</style>` : ''}
