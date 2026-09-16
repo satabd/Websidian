@@ -2,6 +2,8 @@
 title: Editor API
 tags: [websidian, internals, reference, api]
 updated: 2026-09-13
+order: 3
+description: The JSON API under /_api
 ---
 # Editor API
 

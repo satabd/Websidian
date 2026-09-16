@@ -31,6 +31,15 @@ function folderTitle(name, overrides) {
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
+// `order:` in frontmatter wins; everything without one keeps the natural sort,
+// after everything with one. Non-numeric `order:` is ignored rather than trusted.
+function compareOrder(a, b, fallbackA, fallbackB) {
+  const na = a === undefined || a === null || a === '' || !Number.isFinite(Number(a)) ? Infinity : Number(a);
+  const nb = b === undefined || b === null || b === '' || !Number.isFinite(Number(b)) ? Infinity : Number(b);
+  if (na !== nb) return na - nb;
+  return collator.compare(fallbackA, fallbackB);
+}
+
 // Targets of [[wikilinks]] and ![[embeds]] in a note body, without heading/alias parts.
 function extractLinkTargets(body) {
   const out = [];
@@ -65,6 +74,7 @@ class Vault {
     this.excludeStatus = new Set(site.excludeStatus || []);
     this.onlyPublished = !!site.onlyPublished;
     this.folderNames = site.folderNames || {};
+    this.sectionIndex = site.sectionIndex;   // false turns folder pages off entirely
     this.codeLinks = site.codeLinks || null;
     this.basePath = (site.basePath || '').replace(/\/$/, '');
     this.brand = site.brand || {};
@@ -314,45 +324,103 @@ class Vault {
 
   // URL helpers ---------------------------------------------------------------
   siteUrl() { return this.basePath + '/' + this.slug + '/'; }
-  noteUrl(rel) { return this.siteUrl() + rel.replace(/\.md$/i, '').split('/').map(encodeURIComponent).join('/'); }
+  noteUrl(rel) {
+    // A folder note lives at its folder's URL, so every link, backlink and
+    // sitemap entry points at `/site/Guide/` rather than `/site/Guide/Guide`.
+    const folder = this.folderOfNote(rel);
+    if (folder !== null) return this.folderUrl(folder);
+    return this.siteUrl() + rel.replace(/\.md$/i, '').split('/').map(encodeURIComponent).join('/');
+  }
   fileUrl(rel) { return this.siteUrl() + rel.split('/').map(encodeURIComponent).join('/'); }
+  folderUrl(folder) { return folder ? this.siteUrl() + folder.split('/').map(encodeURIComponent).join('/') + '/' : this.siteUrl(); }
+
+  // ---- folder notes ---------------------------------------------------------
+  // Obsidian's convention: `Guide/Guide.md` is the page for the folder `Guide`.
+  // `Guide/index.md` works too, for vaults that came from a static generator.
+  folderNoteRel(folder) {
+    if (!folder) return null;
+    const base = folder.split('/').pop();
+    for (const cand of [`${folder}/${base}.md`, `${folder}/index.md`]) {
+      const n = this.notes.get(cand);
+      if (n && !n.hidden) return cand;
+    }
+    return null;
+  }
+
+  // The folder a note is the folder note *of*, or null when it is an ordinary note.
+  folderOfNote(rel) {
+    const n = this.notes.get(rel);
+    if (!n || !n.folder) return null;
+    return this.folderNoteRel(n.folder) === rel ? n.folder : null;
+  }
 
   // Backlinks and folder neighbours, for the page footer.
   backlinksOf(rel) { return (this.backlinks.get(rel) || []).map(r => this.notes.get(r)).filter(n => n && !n.hidden); }
   neighbours(rel) {
     const n = this.notes.get(rel); if (!n) return { prev: null, next: null };
-    const siblings = this.visibleNotesSorted().filter(x => x.folder === n.folder);
+    // A folder note is the section's landing page, not a step inside it: its
+    // "next" would be its own first child, which reads as a loop.
+    if (this.folderOfNote(rel) !== null) return { prev: null, next: null };
+    const siblings = this.visibleNotesSorted()
+      .filter(x => x.folder === n.folder && this.folderOfNote(x.rel) === null)
+      .sort((a, b) => compareOrder(a.data && a.data.order, b.data && b.data.order, a.rel, b.rel));
     const i = siblings.findIndex(x => x.rel === rel);
     return { prev: i > 0 ? siblings[i - 1] : null, next: i >= 0 && i < siblings.length - 1 ? siblings[i + 1] : null };
   }
 
-  // Navigation tree: folders first, natural sort, hidden notes omitted.
+  // Navigation tree: folders first, `order:` then natural sort, hidden notes omitted.
+  // A folder note becomes the folder itself — its title names the folder, its
+  // `order:` places the folder, and it is not listed again inside it.
   getTree() {
     if (this.tree) return this.tree;
-    const root = { name: '', title: this.title, folders: new Map(), notes: [] };
-    for (const n of this.visibleNotesSorted()) {
-      let node = root;
-      if (n.folder) for (const part of n.folder.split('/')) {
-        if (!node.folders.has(part)) node.folders.set(part, { name: part, title: folderTitle(part, this.folderNames), folders: new Map(), notes: [] });
+    const mkFolder = (part, folderPath) => {
+      const noteRel = this.folderNoteRel(folderPath);
+      const note = noteRel ? this.notes.get(noteRel) : null;
+      // An explicit `folderNames` entry in the config beats the folder note's title.
+      const title = (this.folderNames && this.folderNames[part]) || (note && note.title) || folderTitle(part, this.folderNames);
+      return {
+        name: part, path: folderPath, title, folders: new Map(), notes: [],
+        rel: noteRel, url: noteRel ? this.folderUrl(folderPath) : null,
+        order: note && note.data ? note.data.order : undefined,
+      };
+    };
+    const root = { name: '', path: '', title: this.title, folders: new Map(), notes: [], rel: null, url: null };
+    const descend = folder => {
+      let node = root, sofar = '';
+      if (folder) for (const part of folder.split('/')) {
+        sofar = sofar ? `${sofar}/${part}` : part;
+        if (!node.folders.has(part)) node.folders.set(part, mkFolder(part, sofar));
         node = node.folders.get(part);
       }
-      node.notes.push({ rel: n.rel, title: n.title, url: this.noteUrl(n.rel), lang: n.data.lang });
+      return node;
+    };
+    for (const n of this.visibleNotesSorted()) {
+      if (this.folderOfNote(n.rel) !== null) continue;   // it *is* the folder
+      descend(n.folder).notes.push({ rel: n.rel, title: n.title, url: this.noteUrl(n.rel), lang: n.data.lang, order: n.data.order });
     }
     for (const b of this.bases()) {
-      let node = root;
-      if (b.folder) for (const part of b.folder.split('/')) {
-        if (!node.folders.has(part)) node.folders.set(part, { name: part, title: folderTitle(part, this.folderNames), folders: new Map(), notes: [] });
-        node = node.folders.get(part);
-      }
-      node.notes.push({ rel: b.rel, title: b.base, url: this.fileUrl(b.rel), isBase: true });
+      descend(b.folder).notes.push({ rel: b.rel, title: b.base, url: this.fileUrl(b.rel), isBase: true });
     }
     const finish = node => {
-      node.folders = [...node.folders.values()].sort((a, b) => collator.compare(a.name, b.name)).map(finish);
-      node.notes.sort((a, b) => collator.compare(a.rel, b.rel));
+      node.folders = [...node.folders.values()]
+        .sort((a, b) => compareOrder(a.order, b.order, a.name, b.name))
+        .map(finish);
+      node.notes.sort((a, b) => compareOrder(a.order, b.order, a.rel, b.rel));
       return node;
     };
     this.tree = finish(root);
     return this.tree;
+  }
+
+  // The tree node for a folder path, or null when no such folder is served.
+  folderNode(folder) {
+    if (!folder) return this.getTree();
+    let node = this.getTree();
+    for (const part of folder.split('/')) {
+      node = (node.folders || []).find(f => f.name === part);
+      if (!node) return null;
+    }
+    return node;
   }
 
   // ---- watching -------------------------------------------------------------
@@ -370,4 +438,4 @@ class Vault {
   }
 }
 
-module.exports = { Vault, parseFrontmatter, folderTitle, extractLinkTargets, extractTags, IMAGE_EXT, collator };
+module.exports = { Vault, parseFrontmatter, folderTitle, extractLinkTargets, extractTags, IMAGE_EXT, collator, compareOrder };

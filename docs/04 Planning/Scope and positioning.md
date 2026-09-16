@@ -3,6 +3,8 @@ title: Scope and positioning
 tags: [websidian, planning]
 aliases: [Positioning, What full Obsidian means]
 updated: 2026-09-16
+order: 2
+description: What full Obsidian can honestly mean
 ---
 # Scope and positioning
 

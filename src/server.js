@@ -21,6 +21,7 @@ const { enforce } = require('./auth');
 const { RateLimiter } = require('./ratelimit');
 const { SearchIndex } = require('./search');
 const { renderBase } = require('./bases');
+const { sectionPage, sectionAppendix } = require('./sections');
 const seo = require('./seo');
 const hooks = require('./hooks');
 const editor = require('./editor');
@@ -236,7 +237,22 @@ r.get('/:site/*', async (req, res, next) => {
     return res.sendFile(file.rel, { root: vault.root, maxAge: '1h', lastModified: true, etag: true, dotfiles: 'deny' }, err => { if (err) next(err); });
   }
 
-  // 2. Notes. Empty path = home; a bare name is resolved like a wikilink and redirected to its canonical URL.
+  // 2. Sections. A folder's URL serves its folder note (`Guide/Guide.md`), or a
+  //    generated index of what is in it — never a 404 for a folder that exists.
+  const folderNode = rel === '' ? null : vault.folderNode(rel);
+  if (folderNode && !vault.note(rel + '.md')) {
+    if (folderNode.rel) {
+      // There is a folder note: fall through and render it at this URL.
+      rel = folderNode.rel;
+    } else if (vault.sectionIndex !== false) {
+      const etag = etagFor([vault.listHash, vault.linkHash, 'l' + LAYOUT_VERSION, 's1', embed ? 'e' : '']);
+      if (sendConditional(req, res, etag)) return;
+      const body = sectionPage(vault, folderNode);
+      return res.type('html').send(page({ vault, vaults, config, rel: folderNode.path, title: folderNode.title, body, data: {}, headings: [], siteLang: config.lang, embed, nonce: res.locals.cspNonce }));
+    }
+  }
+
+  // 3. Notes. Empty path = home; a bare name is resolved like a wikilink and redirected to its canonical URL.
   let noteRel = rel === '' ? vault.homeRel() : (vault.note(rel) ? rel : vault.note(rel + '.md') ? rel + '.md' : vault.resolveNote(rel, ''));
   if (!noteRel) return notFound(res, vault, `No page at “${rel}”. Check the sidebar, or the note may have been renamed.`, editUser && /^[^.]/.test(rel) ? `<p><a href="${escapeHtml(vault.editUrl(rel + '.md'))}">Create “${escapeHtml(rel)}” in the editor</a></p>` : '');
   const note = vault.note(noteRel);
@@ -246,18 +262,31 @@ r.get('/:site/*', async (req, res, next) => {
 
   if (req.query.raw !== undefined) return res.type('text/markdown; charset=utf-8').sendFile(note.abs);
 
-  // 3. HTTP cache: ETag from the note's stamp + everything that shapes the page.
+  // 4. HTTP cache: ETag from the note's stamp + everything that shapes the page.
   const stamp = await stampOf(vault, noteRel);
   if (stamp === 'missing') { await vault.scan(); return notFound(res, vault, 'This note was just removed.'); }
   const etag = etagFor([fullStamp(vault, stamp), vault.linkHash, 'l' + LAYOUT_VERSION, embed ? 'e' : '', editUser ? 'ed' : '', vault.snippets.map(s => s.mtimeMs).join(',')]);
   if (sendConditional(req, res, etag)) return;
 
-  // 4. Render (or take from cache) and wrap in the layout.
+  // 5. Render (or take from cache) and wrap in the layout.
   let entry;
   try { entry = await getRendered(vault, noteRel); }
   catch (e) { console.error(`render failed for ${noteRel}:`, e); return res.status(500).type('text').send('Render error: ' + e.message); }
   res.set('X-Render', entry.fromCache ? 'cache' : `rendered ${entry.renderMs.toFixed(1)}ms`);
-  res.type('html').send(page({ vault, vaults, config, rel: noteRel, title: note.title, body: entry.html, data: entry.data, headings: entry.headings, siteLang: config.lang, embed, editUrl: editUser && !embed ? vault.editUrl(noteRel) : '', nonce: res.locals.cspNonce }));
+
+  // A folder note gets the generated list of its section appended, so the
+  // section page never disagrees with the folder it describes. It is generated
+  // per request from the index (cheap) and is not part of the render cache.
+  let body = entry.html, headings = entry.headings;
+  const ownFolder = vault.folderOfNote(noteRel);
+  if (ownFolder !== null && vault.sectionIndex !== false && !embed) {
+    const appendix = sectionAppendix(vault, vault.folderNode(ownFolder));
+    if (appendix) {
+      body += appendix;
+      headings = [...headings, { level: 2, text: 'In this section', id: 'in-this-section' }];
+    }
+  }
+  res.type('html').send(page({ vault, vaults, config, rel: noteRel, title: note.title, body, data: entry.data, headings, siteLang: config.lang, embed, editUrl: editUser && !embed ? vault.editUrl(noteRel) : '', nonce: res.locals.cspNonce }));
 });
 
 app.use((req, res) => notFound(res, null, 'Not found'));

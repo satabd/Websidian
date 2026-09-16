@@ -3,6 +3,8 @@ title: Improvements backlog
 tags: [websidian, planning]
 aliases: [Suggestions, Backlog]
 updated: 2026-09-16
+order: 3
+description: Suggestions ranked by value for effort
 ---
 # Improvements backlog
 
@@ -11,8 +13,7 @@ Suggestions ranked by value for effort. **P1** = next, **P2** = soon, **P3** = l
 ## P1 — do next
 | # | Improvement | Why | Effort |
 |---|---|---|---|
-| 1 | **Navigation order and folder notes** — `order:` in frontmatter, `Folder/Folder.md` as a section's index page, generated section indexes | The sidebar is alphabetical, so `Configuration` sorts above `Quick start` and no vault reads in a sensible order. Phase 1 #6 in [[Roadmap]] | M |
-| 1b | **A git worktree per Claude session** | The repo exists now, but parallel sessions still share one folder and overwrite each other ([[Known issues]]) | S |
+| 1 | **A git worktree per Claude session** | The repo exists now, but parallel sessions still share one folder and overwrite each other ([[Known issues]]) | S |
 | 2 | **Git commit per save**, authored by the signed-in editor; history panel with diff and restore | Decided ([[Decisions]]); makes every other change safe; audit trail | M |
 | 3 | **Paste and drop images** into the editor → upload to the vault's attachment folder (`app.json` `attachmentFolderPath`) → insert `![[name.png]]` | Nobody writes real documentation without screenshots | M |
 | 4 | **Live reload of the open note** when the file changes on disk (server-sent events), with a merge prompt if you have unsaved edits | Obsidian desktop, git pulls and agents write the same files; today you only find out at save time | M |
@@ -31,6 +32,8 @@ Suggestions ranked by value for effort. **P1** = next, **P2** = soon, **P3** = l
 | 13 | Search operators (`tag:`, `path:`, `file:`, `[prop:value]`) in site search and quick switcher | Obsidian users expect them |
 | 14 | Mobile toolbar (bold, link, list, checkbox, undo) above the keyboard | Editing from a phone |
 | 14b | A default `/favicon.ico` so a site without `brand.favicon` does not 404 | First thing in every browser console ([[Known issues]]) |
+| 14c | **Package the Hermes plugin for `hermes plugins install`** — a standalone plugin repository, or a root manifest that points at the nested one | Today the only routes are `deploy/install-local.sh` / `.ps1`, the container script, or copying a subfolder by hand ([[Hermes plugin]]) |
+| 14d | **Decide the default for `vaults[].edit`** in the Hermes plugin: `true` today, `false` proposed for agent-facing vaults | A vault the agent writes to is also a vault every dashboard user can rewrite ([[Known issues]]) |
 
 ## P3 — later
 | # | Improvement |

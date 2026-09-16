@@ -2,6 +2,8 @@
 title: Your first site
 tags: [websidian, guide]
 updated: 2026-09-16
+order: 2
+description: Point it at your own vault, end to end
 ---
 # Your first site
 

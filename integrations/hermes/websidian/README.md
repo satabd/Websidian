@@ -31,14 +31,91 @@ When the agent writes notes into the vault, the plugin:
 
 ## Install
 
+`hermes plugins install <repo>` cannot take this repository: its root is the Websidian application and the
+plugin manifest is nested at `integrations/hermes/websidian/plugin.yaml`. Install it with the script for your
+platform instead, or copy the folder by hand.
+
+### Native profile (macOS, Linux, Git Bash on Windows)
+
+From the repository root:
+
 ```bash
-cp -r integrations/hermes/websidian ~/.hermes/plugins/websidian     # Windows: %LOCALAPPDATA%\hermes\plugins\websidian
-hermes plugins enable websidian
+bash integrations/hermes/websidian/deploy/install-local.sh
 ```
 
-Restart Hermes. Plugins are opt-in: nothing loads until the plugin is enabled. No extra Python packages
-are needed. For the dashboard tab, also install Websidian and restart `hermes dashboard`
-([Dashboard tab](#dashboard-tab)).
+It finds the profile (`$HERMES_HOME`, else `~/.hermes`), copies the plugin to `<profile>/plugins/websidian`
+and the Websidian runtime to `<profile>/plugin-data/websidian/app`, runs `npm --prefix <app_dir> ci
+--omit=dev --ignore-scripts` **in app_dir**, checks the layout, then starts the installed server once on a
+throw-away vault and asks it for `/_health`. Options: `--hermes-home`, `--app-dir`, `--plugin-dir`,
+`--no-smoke`, `--dry-run`.
+
+### Native profile (Windows PowerShell)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File integrations\hermes\websidian\deploy\install-local.ps1
+```
+
+Same steps and the same checks; options are `-HermesHome`, `-AppDir`, `-PluginDir`, `-NodeExe`, `-NoSmoke`,
+`-DryRun`. The profile is `$env:HERMES_HOME`, else `~\.hermes`, else `%LOCALAPPDATA%\hermes`.
+
+### Docker container
+
+See [Deploy into a container](#deploy-into-a-container).
+
+### By hand
+
+```bash
+cp -r integrations/hermes/websidian ~/.hermes/plugins/websidian     # Windows: %LOCALAPPDATA%\hermes\plugins\websidian
+```
+
+The write guard, the links, the tool and the skill work with this alone — no extra Python packages are
+needed. The **dashboard tab additionally needs the Websidian runtime**, and `npm ci` has to run with
+`app_dir` as its prefix: a plain `npm ci` in your checkout puts `node_modules` there, the supervised
+`node <app_dir>/src/server.js` finds none, and the tab shows a 502 while the plugin still reports as
+installed.
+
+```bash
+mkdir -p ~/.hermes/plugin-data/websidian/app
+cp -r src public package.json package-lock.json ~/.hermes/plugin-data/websidian/app/
+npm --prefix ~/.hermes/plugin-data/websidian/app ci --omit=dev --ignore-scripts
+```
+
+### Enable it, then activate it
+
+Enabling is recorded in `config.yaml`; it takes effect in the *next* session of each process.
+
+```bash
+hermes plugins enable websidian     # decline "replace built-in tools": see below
+hermes plugins list --plain         # websidian ... enabled
+hermes dashboard --status
+```
+
+- **Decline `--allow-tool-override`.** The plugin works through its three hooks and its own
+  `websidian_links` tool; it never needs to replace a built-in tool. If a future version asks for it, that
+  version should say why.
+- **Restart the dashboard** before the Websidian tab exists: plugin API routes are mounted once, at
+  dashboard start-up, and that is also what starts the supervised Websidian process.
+- **Restart the gateway** before the write guard and the "Notes updated:" links act in chat.
+- The installers restart neither: when you take that interruption is your call.
+
+### Acceptance checklist
+
+An install is complete when all of these hold:
+
+| # | Check |
+|---|---|
+| 1 | `<profile>/plugins/websidian/plugin.yaml` and `dashboard/manifest.json` exist |
+| 2 | `<app_dir>/src/server.js` and `<app_dir>/node_modules/` exist |
+| 3 | `hermes plugins list --plain` shows `websidian` as enabled |
+| 4 | Every configured `vaults[].path` exists and is readable |
+| 5 | The installed server answers `200` on `/_health` (the installers' smoke test) |
+| 6 | A page from an untrusted vault carries a CSP and `X-Content-Type-Options: nosniff` |
+| 7 | The **Websidian** tab appears after *you* restart the dashboard |
+| 8 | Chat replies carry links after *you* restart the gateway |
+
+Checks 2, 5 and 6 are also a test in this repository (`test/hermes-install.test.js`): it builds the
+installed layout in a temp folder, boots it, and asserts the health, the CSP headers and that every asset
+the page references resolves.
 
 ## Configure
 
@@ -309,6 +386,8 @@ importable by that `python`, else from the `WEBSIDIAN_*` environment variables, 
 | `dashboard/plugin_api.py` | Dashboard backend: `/status` and the `/w/` reverse proxy (FastAPI `router`) |
 | `dashboard/wsd_core.py` | Config generation, secrets, proxy header rules, Node supervisor (standard library only) |
 | `dashboard/dist/index.js`, `dashboard/dist/style.css` | The tab: plain IIFE on the dashboard plugin SDK, no build |
+| `deploy/install-local.sh` | Installs the plugin and the runtime into a native Hermes profile (macOS, Linux, Git Bash), with a `/_health` smoke test |
+| `deploy/install-local.ps1` | The same for Windows PowerShell |
 | `deploy/install-into-container.sh` | Copies Websidian and the plugin into a Docker container |
 | `skills/websidian/SKILL.md` | Agent instructions for writing vault notes |
 | `NOTES-api.md` | The Hermes APIs this plugin relies on, with source references |

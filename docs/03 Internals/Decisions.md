@@ -2,6 +2,8 @@
 title: Decisions
 tags: [websidian, internals, decisions]
 updated: 2026-09-16
+order: 5
+description: The choices we made, and why
 ---
 # Decisions
 
@@ -22,3 +24,5 @@ updated: 2026-09-16
 | 2026-09-16 | **The shipped example config serves `docs/`** | A fresh clone runs `npm start` and reads the documentation through Websidian itself |
 | 2026-09-16 | **Long-form planning lives in the vault, not in root Markdown files** | `ROADMAP.md` was 13 KB the website could not serve; it is now a pointer to [[Roadmap]] and [[Scope and positioning]] |
 | 2026-09-16 | **Screenshots are captured from the running app, never mocked** | `test/docs-links.test.js` fails if a note embeds a screenshot that does not exist, so they cannot quietly rot |
+| 2026-09-16 | **Section lists are generated, never written by hand** | A hand-kept list of what is in a folder is wrong the day after it is written |
+| 2026-09-16 | **A folder note lives at the folder's URL**, and its own path redirects there | One canonical URL per page; `/site/Guide/` reads better than `/site/Guide/Guide` |

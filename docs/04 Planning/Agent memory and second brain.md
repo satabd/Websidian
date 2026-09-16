@@ -3,6 +3,8 @@ title: Agent memory and second brain
 tags: [websidian, planning, agents]
 aliases: [Hermes, OpenClaw]
 updated: 2026-09-13
+order: 4
+description: A vault as an agent's second brain
 ---
 # Agent memory and second brain
 

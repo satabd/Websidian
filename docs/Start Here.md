@@ -3,6 +3,7 @@ title: Start Here
 tags: [websidian, moc]
 aliases: [Home, Websidian docs]
 updated: 2026-09-16
+order: 1
 ---
 # Websidian
 
@@ -28,7 +29,8 @@ There is no build step and no publish step. You change a note — in Obsidian, i
 > 2. [[Editor hotkeys and commands]] — the cheat sheet
 > 3. [[Publishing and visibility]] — drafts, hidden notes, who sees what
 > 4. [[Obsidian syntax support]] — what renders, and what does not
-> 5. [[Graph and Explore]] — see how the vault connects
+> 5. [[Navigation and sections]] — decide the reading order
+> 6. [[Graph and Explore]] — see how the vault connects
 
 > [!tip]- I want to connect an agent
 > 1. [[Hermes plugin]] — the plugin, the dashboard tab, the guard
@@ -68,7 +70,8 @@ This vault is written while the project is built, not afterwards. Three notes ex
 | [[Your first site]] | [[Obsidian syntax support]] | [[Editor internals]] | [[Improvements backlog]] |
 | [[Editing in the browser]] | [[Known issues]] | [[Editor API]] | [[Agent memory and second brain]] |
 | [[Editor hotkeys and commands]] | | [[Testing]] | [[Work log]] |
-| [[Graph and Explore]] | | | [[Scope and positioning]] |
+| [[Navigation and sections]] | | | [[Scope and positioning]] |
+| [[Graph and Explore]] | | | |
 | [[Publishing and visibility]] | | [[Decisions]] | |
 | [[Configuration]] | | | |
 | [[URLs and endpoints]] | | | |

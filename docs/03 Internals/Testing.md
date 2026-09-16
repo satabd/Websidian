@@ -1,16 +1,18 @@
 ---
 title: Testing
 tags: [websidian, internals]
-updated: 2026-09-13
+updated: 2026-09-16
+order: 4
+description: Running and extending the suite
 ---
 # Testing
 
 ```bash
 npm test
 ```
-Node's built-in test runner: 156 tests on 2026-09-13 (123 on 2026-09-11).
+Node's built-in test runner: 177 tests on 2026-09-16 (156 on 2026-09-13, 123 on 2026-09-11).
 
-Hermes plugin: `cd integrations/hermes/websidian` then `python -m unittest discover` — 54 tests ([[Hermes plugin]]).
+Hermes plugin: `cd integrations/hermes/websidian` then `python -m unittest discover` — 71 tests (54 before the dashboard tab); the macOS install on 2026-09-16 ran the same 71 ([[Hermes plugin]]).
 
 | File | Covers |
 |---|---|
@@ -27,6 +29,8 @@ Hermes plugin: `cd integrations/hermes/websidian` then `python -m unittest disco
 | `test/editor.test.js` | Editor login, gates, API, import map, module serving, settings |
 | `test/cm-editor.test.js` | Editor modules in Node: syntax, link resolution, commands, suggestions, table and properties models |
 | `test/server.test.js`, `server-ops.test.js` | The real server over HTTP |
+| `test/hermes-install.test.js` | The *installed* layout (a copy, as `deploy/install-local.*` makes it): `/_health`, untrusted CSP + `nosniff`, every `/_static` and `/_vendor` asset resolving |
+| `test/docs-links.test.js` | This vault: every `[[wikilink]]` and embed resolves, every note has `title`/`tags`/`updated` |
 
 ## Manual checks in a browser
 Unit tests do not cover clicking and typing in widgets. Before calling an editor change done, check on a **copy of a real vault** (not only the demo), with real mouse and keyboard input:

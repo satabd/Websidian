@@ -13,7 +13,7 @@ const { folderTitle } = require('./vault');
 const { pageTags } = require('./seo');
 const { nonceAttr, withNonce } = require('./untrusted');
 
-const LAYOUT_VERSION = 12;
+const LAYOUT_VERSION = 13;   // 13: folder notes, section index pages, order: in the sidebar
 
 // JSON inside <script>: a note path containing "</script>" must not close the tag.
 const scriptJson = v => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -27,7 +27,12 @@ function navTree(node, currentRel, depth = 0) {
   let out = '';
   for (const f of node.folders) {
     const contains = folderContains(f, currentRel);
-    out += `<details class="nav-folder"${contains || depth === 0 ? ' open' : ''}><summary>${escapeHtml(f.title)}</summary><div class="nav-children">${navTree(f, currentRel, depth + 1)}</div></details>`;
+    // A folder with a folder note is a page of its own, so its label is a link.
+    const current = f.rel && f.rel === currentRel;
+    const label = f.url
+      ? `<a class="nav-folder-note${current ? ' is-current' : ''}" href="${f.url}"${current ? ' aria-current="page"' : ''}>${escapeHtml(f.title)}</a>`
+      : escapeHtml(f.title);
+    out += `<details class="nav-folder"${contains || depth === 0 ? ' open' : ''}><summary>${label}</summary><div class="nav-children">${navTree(f, currentRel, depth + 1)}</div></details>`;
   }
   for (const n of node.notes) {
     out += `<a class="nav-note${n.rel === currentRel ? ' is-current' : ''}${n.isBase ? ' nav-base' : ''}" href="${n.url}"${n.lang ? ` lang="${escapeHtml(n.lang)}"` : ''}${n.rel === currentRel ? ' aria-current="page"' : ''}>${n.isBase ? '▦ ' : ''}${escapeHtml(n.title)}</a>`;
@@ -35,7 +40,7 @@ function navTree(node, currentRel, depth = 0) {
   return out;
 }
 function folderContains(node, rel) {
-  return node.notes.some(n => n.rel === rel) || node.folders.some(f => folderContains(f, rel));
+  return node.rel === rel || node.notes.some(n => n.rel === rel) || node.folders.some(f => folderContains(f, rel));
 }
 
 function breadcrumbs(vault, rel) {

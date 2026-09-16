@@ -60,6 +60,22 @@ a:hover { text-decoration: underline; }
 .nav-note:hover { background: var(--accent-bg); text-decoration: none; }
 .nav-note.is-current { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
 .nav-note[lang="ar"] { direction: rtl; text-align: start; }
+/* A folder with a folder note is a page: its label in the sidebar is a link. */
+.nav-folder > summary > .nav-folder-note { color: inherit; }
+.nav-folder > summary > .nav-folder-note:hover { text-decoration: underline; }
+.nav-folder > summary > .nav-folder-note.is-current { color: var(--accent); }
+
+/* Generated section pages, and the "In this section" list under a folder note. */
+.section-index { list-style: none; padding: 0; margin: 16px 0; }
+.section-item { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.section-item:last-child { border-bottom: 0; }
+.section-link { font-weight: 600; }
+.section-item.is-folder .section-link { color: var(--fg); }
+.section-item.is-folder .section-link:hover { color: var(--accent); }
+.section-desc { grid-column: 1; color: var(--muted); font-size: 14px; }
+.section-meta { grid-column: 2; grid-row: 1; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.section-index-wrap { margin-top: 32px; padding-top: 8px; border-top: 1px solid var(--line); }
+.section-index-wrap > h2 { margin-top: 0; font-size: 15px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border: 0; }
 
 .crumbs { color: var(--muted); font-size: 13px; padding: 12px 0 4px; }
 .crumbs .sep { margin: 0 4px; }

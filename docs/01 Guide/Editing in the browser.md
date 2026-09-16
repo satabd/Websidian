@@ -2,6 +2,8 @@
 title: Editing in the browser
 tags: [websidian, guide, editor]
 updated: 2026-09-16
+order: 3
+description: Live Preview, tables, properties, links, saving
 ---
 # Editing in the browser
 

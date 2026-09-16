@@ -2,6 +2,8 @@
 title: Obsidian syntax support
 tags: [websidian, reference]
 updated: 2026-09-13
+order: 2
+description: What renders on the site, and what does not
 ---
 # Obsidian syntax support
 

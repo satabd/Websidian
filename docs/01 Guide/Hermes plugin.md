@@ -1,7 +1,9 @@
 ---
 title: Hermes plugin
 tags: [websidian, guide, agents, hermes]
-updated: 2026-09-13
+updated: 2026-09-16
+order: 12
+description: Let an agent read and write the vault, safely
 ---
 # Hermes plugin
 
@@ -13,9 +15,47 @@ Connects Hermes Agent to Websidian: keeps agent-written vault notes plain Markdo
 Code: `integrations/hermes/websidian/` (`plugin.yaml`, `__init__.py`, `guard.py`, `links.py`, `skills/websidian/SKILL.md`, `README.md`, `NOTES-api.md`, `tests/`).
 
 ## Install
-1. Copy the folder to `~/.hermes/plugins/websidian` (inside the `hermes01` container).
-2. `hermes plugins enable websidian`
-3. Configure (below) and restart the Hermes gateway.
+
+> [!warning] `hermes plugins install <repo>` cannot take this repository
+> Its root is the Websidian application; the plugin manifest is nested at `integrations/hermes/websidian/plugin.yaml`. Use a script below, or copy the folder by hand. Packaging it for the normal installer is [[Improvements backlog|backlog]] work.
+
+**Native profile** (macOS, Linux, Git Bash), from the repository root:
+
+```bash
+bash integrations/hermes/websidian/deploy/install-local.sh
+```
+
+**Windows PowerShell:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File integrations\hermes\websidian\deploy\install-local.ps1
+```
+
+Either one finds the profile (`$HERMES_HOME`, else `~/.hermes`, else `%LOCALAPPDATA%\hermes`), copies the plugin to `<profile>/plugins/websidian` and the Websidian runtime to `<profile>/plugin-data/websidian/app`, installs the runtime's dependencies **inside `app_dir`**, then boots the installed server once on a throw-away vault and asks it for `/_health`. Flags: `--hermes-home` / `-HermesHome`, `--app-dir`, `--plugin-dir`, `--no-smoke`, `--dry-run`. For a container, use `deploy/install-into-container.sh` instead.
+
+> [!tip] The one thing to get right by hand
+> The dashboard tab supervises `node <app_dir>/src/server.js`. If you copy the runtime yourself, run `npm --prefix <app_dir> ci --omit=dev`, not a plain `npm ci` in your checkout: otherwise `node_modules` lands next to your source, the plugin still reports as installed, and the tab answers 502.
+
+### Enable it, then activate it
+```bash
+hermes plugins enable websidian     # decline "replace built-in tools" — this plugin does not need it
+hermes plugins list --plain         # websidian ... enabled
+```
+Enabling is a config change that applies to the *next* session of each process. Restart the **dashboard** before the Websidian tab and its supervised server exist; restart the **gateway** before the write guard and the reply links act in chat. The installers restart neither — you choose when to take the interruption.
+
+### Is it really installed?
+| # | Check |
+|---|---|
+| 1 | `<profile>/plugins/websidian/plugin.yaml` and `dashboard/manifest.json` exist |
+| 2 | `<app_dir>/src/server.js` and `<app_dir>/node_modules/` exist |
+| 3 | `hermes plugins list --plain` shows it enabled |
+| 4 | Every configured vault path exists and is readable |
+| 5 | `/_health` answers `200` (the installers' smoke test) |
+| 6 | An untrusted page carries a CSP and `X-Content-Type-Options: nosniff` |
+| 7 | The **Websidian** tab is there after *you* restart the dashboard |
+| 8 | Chat replies carry links after *you* restart the gateway |
+
+Checks 2, 5 and 6 run in CI as `test/hermes-install.test.js` — [[Testing]].
 
 ## Installation in hermes01
 Done 2026-09-13 by session `md2html-fd`:

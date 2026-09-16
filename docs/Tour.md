@@ -3,6 +3,8 @@ title: Tour
 tags: [websidian, moc, tour]
 aliases: [Screenshots, What it looks like]
 updated: 2026-09-16
+order: 2
+description: Every screen, with screenshots
 ---
 # A tour of Websidian
 

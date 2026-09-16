@@ -2,6 +2,8 @@
 title: Configuration
 tags: [websidian, guide, reference]
 updated: 2026-09-16
+order: 8
+description: Every key, with examples
 ---
 # Configuration
 
@@ -32,7 +34,8 @@ names are in `.gitignore`: the real one holds passwords, tokens and webhook secr
 | `exclude` | Folders (by path) or extensions (`*.xlsx`). Dot-folders (`.obsidian`, `.git`, `.trash`) are always ignored |
 | `excludeStatus` | e.g. `["draft"]`: notes with that frontmatter `status` are not served — see [[Publishing and visibility]] |
 | `onlyPublished` | `true`: only notes with `publish: true` are served |
-| `folderNames` | Sidebar names for folders, e.g. `{ "ar": "العربية" }` |
+| `folderNames` | Sidebar names for folders, e.g. `{ "ar": "العربية" }`. Beats a folder note's own title |
+| `sectionIndex` | `false` turns generated folder pages and the "In this section" list off — [[Navigation and sections]] |
 | `codeLinks` | Rewrites links that leave the vault to your repository |
 | `auth` | Protect viewing: `{ "users": {…} }` (browser login) and/or `{ "token": "…" }` (share links) |
 | `snippets` | `.obsidian/snippets` CSS to include: `true` (the enabled ones; default), `"all"`, a list, or `false`. Default `false` on `untrusted` sites |
@@ -84,6 +87,18 @@ For running Websidian behind something that already has its own login, such as t
 > Then `proxyAuth.allowFrom` can be spoofed and the secret is the only real protection. Keep the secret long and the proxy stripping client-supplied `x-websidian-*` headers.
 
 Works under a `basePath`: checked over HTTP with `/api/plugins/websidian/w` (pages, assets, editor, graph, search, embed, sitemap, redirects).
+
+## Read from a note's own frontmatter
+
+| Key | Does |
+|---|---|
+| `order` | Position in the sidebar and the Previous / Next pager — [[Navigation and sections]] |
+| `description` | Shown beside the title in generated section lists, and as the page's meta description |
+| `title`, `aliases` | Name and alternative names for wikilink resolution |
+| `status`, `publish` | Visibility — [[Publishing and visibility]] |
+| `tags`, `updated`, `lang`, `cssclasses` | Chips, dates, direction and per-note CSS |
+
+A note named after its folder (`Guide/Guide.md`, or `Guide/index.md`) becomes that folder's page.
 
 ## Read from the vault itself (no config needed)
 - `.obsidian/app.json` — editor behaviour: tabs vs spaces, tab size, auto-pairing, Live Preview default, line numbers, readable line length, spellcheck, link format, new note location, properties display.

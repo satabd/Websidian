@@ -3,6 +3,8 @@ title: Editor hotkeys and commands
 tags: [websidian, guide, editor, cheatsheet]
 aliases: [Hotkeys, Shortcuts]
 updated: 2026-09-13
+order: 4
+description: The cheat sheet
 ---
 # Editor hotkeys and commands
 

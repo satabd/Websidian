@@ -2,6 +2,8 @@
 title: Roadmap
 tags: [websidian, planning]
 updated: 2026-09-16
+order: 1
+description: The phases, and what is done in each
 ---
 # Roadmap
 
@@ -28,7 +30,7 @@ Make the editor something you use every day.
 3. **Rename / move** with wikilink rewriting across the vault, and an automatic `301` from the old URL (`redirect_from` written to frontmatter).
 4. ✅ **Properties panel** — form above the editor, types from `.obsidian/types.json`, raw YAML still editable.
 5. **Publishing states and scheduling** — `status` and `publish` already drive visibility ([[Publishing and visibility]]); still to add `publishAt` / `unpublishAt`, an "unpublished changes" badge, and a signed preview link for showing a draft to a reviewer.
-6. **Navigation control** — `order:` in frontmatter, folder notes (`Folder/Folder.md` becomes the folder's page), collapsed and expanded defaults.
+6. ✅ **Navigation control** — `order:` in frontmatter, folder notes (`Folder/Folder.md` becomes the folder's page), generated section pages ([[Navigation and sections]]). Left: collapsed and expanded defaults, custom slugs.
 7. **Roles** — `viewer` (sees drafts, cannot save), `editor`, `admin` (config, purge, users). Per-folder rights later.
 8. **Live reload for editors** through server-sent events when the vault changes on disk — Obsidian on the desktop just saved the note you are reading.
 9. ✅ **Slash commands** for callouts, tables, code fences, embeds, today's date.

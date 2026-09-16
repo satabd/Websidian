@@ -3,10 +3,37 @@ title: Work log
 tags: [websidian, log]
 aliases: [Changelog]
 updated: 2026-09-16
+order: 5
+description: What changed each session, newest first
 ---
 # Work log
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
+
+## 2026-09-16 — a real installer for the Hermes plugin (from a macOS install report)
+- **Why**: a Hermes agent installed the plugin on a native macOS profile (Hermes `v0.21.0`, Node `v22.23.1`) and reported back what the documented path did not cover. Everything it verified — 71 plugin tests, the site tests, `/_health` with 69 notes, CSP + `nosniff` on untrusted pages — held; the gaps were all in *how you get there*.
+- **`deploy/install-local.sh` and `deploy/install-local.ps1`** install into a native Hermes profile: plugin → `<profile>/plugins/websidian`, runtime → `<profile>/plugin-data/websidian/app`, `npm --prefix <app_dir> ci --omit=dev --ignore-scripts`, a layout check, then a real boot of the installed server against a throw-away vault and a `GET /_health`. Both were run end to end here (Git Bash and PowerShell); both refuse to restart the dashboard or the gateway and never touch `config.yaml`.
+- **The bug the report caught**: `npm ci` run from your checkout instead of `app_dir` succeeds and puts `node_modules` in the wrong place. The plugin then reports as installed while the dashboard tab 502s, because the supervisor runs `node <app_dir>/src/server.js`. `--prefix` is the whole fix; it is now in the scripts, the manual recipe and the test.
+- **`test/hermes-install.test.js`** builds the installed layout in a temp folder (copy `src`, `public`, `package.json`, `package-lock.json`; link `node_modules`), boots it, and asserts `/_health`, the untrusted CSP + `nosniff`, and that **every** `/_static` and `/_vendor` asset the page references answers 200 — a missing `public/` or `node_modules/` in a copy now fails CI instead of a user's dashboard. 177/177 tests pass.
+- **`npm audit --omit=dev` is clean again**: `qs` moved to `~6.16.0` through `express`, closing [GHSA-x5fp-wj9c-mxmx](https://github.com/advisories/GHSA-x5fp-wj9c-mxmx) and [GHSA-4mjr-xmp4-gh2g](https://github.com/advisories/GHSA-4mjr-xmp4-gh2g). Lockfile-only change; the whole suite was re-run after it.
+- **Plugin README rewritten around four install routes** (native script, PowerShell, container, by hand) with an 8-row acceptance checklist, "enable ≠ activate" (dashboard restart for the tab, gateway restart for chat links), and an explicit *decline `--allow-tool-override`* — the plugin only needs its three hooks and `websidian_links`.
+- **Learned**: PowerShell strips the quotes when it passes an argument to a native `.exe`, so `node -p 'process.versions.node.split(".")[0]'` becomes a syntax error inside node. Parse `node -v` in PowerShell instead.
+- **Learned**: in Git Bash, a config written with `/tmp/...` paths is read by a *Windows* node as `C:\tmp\...`. The smoke test converts with `cygpath -m` first, like `install-into-container.sh` already did for `docker cp`.
+- **Still open**: `hermes plugins install <repo>` cannot take this repository — the manifest is nested at `integrations/hermes/websidian/plugin.yaml` ([[Improvements backlog]], [[Known issues]]). And whether agent-facing vaults should default to `edit: false` instead of `true` is an open question for the user.
+- **Next**: navigation order and folder notes ([[Improvements backlog]] #1) is still the top item.
+
+## 2026-09-16 — navigation order, folder notes, generated section pages
+Phase 1 #6 in [[Roadmap]], and the reason the docs did not read in order.
+
+- **`order:` in frontmatter** decides the sidebar and the Previous / Next pager. Notes with it come first ascending; notes without keep the old natural sort; a non-numeric value is ignored rather than guessed at (`compareOrder` in `src/vault.js`).
+- **Folder notes**: `Guide/Guide.md` (or `Guide/index.md`) becomes the folder's page. It is served at the *folder's* URL, names and orders the folder in the sidebar, is not listed inside itself, and its own longer path `301`s to the folder URL — `noteUrl()` returns the folder URL for it, so links, backlinks and the sitemap all follow without special cases.
+- **Generated section pages** (`src/sections.js`): a folder note gets an "In this section" list appended; a folder *without* one gets the whole page generated instead of a 404. Both list notes and subfolders in navigation order with each note's `description:` and `updated:`. `sectionIndex: false` turns it off per site.
+- **These docs are the first user**: every note has `order:` and `description:`, and each of the four sections has a folder note. [[Quick start]] is now first in the Guide instead of [[Configuration]].
+- New note [[Navigation and sections]]; `test/sections.test.js` adds 16 tests (`npm test` 179/179).
+- **Fixed while testing**: a folder note offered "Previous: Feature status" from the section page that *contains* it — a folder note now has no pager, and folder notes are skipped when finding siblings.
+- **Fixed while testing**: `updated: 2026-09-16` is parsed by js-yaml into a `Date`, so a `typeof v !== 'object'` guard silently dropped every date from the generated lists.
+- **Learned**: `/_static` is cache-busted by `LAYOUT_VERSION`, so CSS changes are invisible until it is bumped. Bumped to 13.
+- **Next**: [[Hermes plugin]] — close the open guard items and document it with screenshots.
 
 ## 2026-09-16 — documentation overhaul and the first screenshots
 - **The vault had no images at all.** 11 screenshots now live in `docs/attachments/`, every one captured from `npm run demo` with Playwright at 1440×900 — reading view, syntax, RTL, search, graph, explore, editor login, Live Preview, properties, table grid, command palette.

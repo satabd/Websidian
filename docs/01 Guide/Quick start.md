@@ -2,6 +2,8 @@
 title: Quick start
 tags: [websidian, guide]
 updated: 2026-09-16
+order: 1
+description: Two commands and a browser
 ---
 # Quick start
 

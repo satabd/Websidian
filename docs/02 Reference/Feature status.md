@@ -1,7 +1,9 @@
 ---
 title: Feature status
 tags: [websidian, reference, status]
-updated: 2026-09-13
+updated: 2026-09-16
+order: 1
+description: Done, partial, in progress, missing
 ---
 # Feature status
 
@@ -18,6 +20,7 @@ updated: 2026-09-13
 | Search (fuzzy, snippets) | 🟡 | No Obsidian operators (`tag:`, `path:`…) |
 | Graph view, Explore view, local graph | ✅ | |
 | Backlinks, previous/next, table of contents | ✅ | |
+| Navigation order (`order:`), folder notes, generated section pages | ✅ | [[Navigation and sections]] |
 | Arabic / English language switch, RTL pages | ✅ | |
 | Embed mode for iframes | ✅ | [[Embedding in your website]] |
 | Drafts and visibility rules | ✅ | [[Publishing and visibility]] |
@@ -65,4 +68,6 @@ updated: 2026-09-13
 | Git webhook pull | ✅ |
 | Hermes plugin (`integrations/hermes/websidian`) — [[Hermes plugin]] | ✅ tested in the real Hermes; real vaults configured; gateway restart pending for chat links |
 | Hermes dashboard tab (Websidian inside the Hermes dashboard, via `proxyAuth`) — [[Hermes plugin#Dashboard tab]] | ✅ deployed in `hermes01`, browser-tested |
+| Hermes plugin: native profile installers (`deploy/install-local.sh`, `install-local.ps1`) — [[Hermes plugin#Install]] | ✅ both run end to end 2026-09-16 (Git Bash, PowerShell), each ending in a real `/_health` smoke test; layout covered by `test/hermes-install.test.js` |
+| Hermes plugin packaged for `hermes plugins install` | ⬜ the manifest is nested, so the normal installer cannot take this repository ([[Improvements backlog]] 14c) |
 | MCP server for agents | ⬜ |

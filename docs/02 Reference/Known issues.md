@@ -2,6 +2,8 @@
 title: Known issues
 tags: [websidian, reference, issues]
 updated: 2026-09-16
+order: 3
+description: Limits and gotchas, stated plainly
 ---
 # Known issues
 
@@ -38,4 +40,7 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 - **Note names with `&`, `#`, `+` or `%`** break the sign-in redirect of a dashboard link.
 - **Hermes memories and skills are editable in the browser** (a deliberate choice). Protected files ask for confirmation, but anyone signed in to the Hermes dashboard can change what the agent follows.
 - **The Hermes plugin does not inspect the `memory`, `skill_manage`, `execute_code` or MCP tools, so memory changes through the memory tool are not guarded — [[Hermes plugin]].
+- **`hermes plugins install <repo>` cannot install this plugin**: the manifest is nested at `integrations/hermes/websidian/plugin.yaml` while the repository root is the Websidian app. Use `deploy/install-local.sh` / `.ps1` (or the container script) instead — [[Hermes plugin]], [[Improvements backlog]].
+- **A hand-copied runtime with `node_modules` in the wrong place looks installed**: the plugin is listed as enabled while the dashboard tab answers 502, because the supervisor runs `node <app_dir>/src/server.js`. Always `npm --prefix <app_dir> ci --omit=dev`; the installers do.
+- **Agent-facing vaults are editable by default** (`vaults[].edit` defaults to `true`), so any dashboard user can change what the agent reads. The installers' printed example starts at `edit: false`; making that the default is an open question — [[Improvements backlog]].
 - **Hermes (`hermes01`) has no volumes**: its memory, skills and Obsidian vault exist only inside the container — [[Agent memory and second brain]].

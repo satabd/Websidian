@@ -2,6 +2,8 @@
 title: Editor internals
 tags: [websidian, internals, editor]
 updated: 2026-09-13
+order: 2
+description: How the CodeMirror editor is put together
 ---
 # Editor internals
 

@@ -2,6 +2,8 @@
 title: Architecture
 tags: [websidian, internals]
 updated: 2026-09-16
+order: 1
+description: Request flow, caching, which file does what
 ---
 # Architecture
 
@@ -36,6 +38,7 @@ A page re-renders only when its file changes, a note it embeds changes, or notes
 | `src/auth.js`, `src/ratelimit.js` | Site auth, rate limits |
 | `src/search.js` | MiniSearch index |
 | `src/bases.js` | Obsidian Bases |
+| `src/sections.js` | Folder pages and generated section lists |
 | `src/graph.js` | Graph data |
 | `src/seo.js` | Sitemap, robots, OpenGraph |
 | `src/hooks.js` | Purge and git webhook |

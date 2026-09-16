@@ -58,6 +58,7 @@ vault when you are ready.
 | `excludeStatus` | e.g. `["draft"]` — notes whose frontmatter `status` matches are not served or listed |
 | `onlyPublished` | `true` → only notes with `publish: true` in frontmatter are served. `publish: false` always hides a note |
 | `folderNames` | Display names for folders in the sidebar (`10-presentation` becomes "Presentation" automatically) |
+| `sectionIndex` | `false` turns generated folder pages off (default on) — [Navigation and sections](docs/01%20Guide/Navigation%20and%20sections.md) |
 | `codeLinks` | Rewrites relative links that leave the vault (`../../addons/x.py:221`) to your repository (`…/addons/x.py#L221`) |
 | `auth` | Restrict a site: `{ "users": { "name": "password" } }` for a browser login prompt (HTTP Basic), and/or `{ "token": "secret" }` for share links (`…/odoohms/?token=secret` sets a cookie for 30 days). Protected sites are `noindex` and excluded from robots/sitemap |
 | `snippets` | Vault CSS snippets from `.obsidian/snippets` to include on every page: `true` (default, the ones enabled in Obsidian; `false` by default on `untrusted` sites), `"all"`, `["name", …]`, or `false` |
@@ -78,6 +79,16 @@ vault when you are ready.
 | `warm` | Pre-render every note in the background at start-up (213 notes take ~0.4 s) |
 
 Add more vaults by adding entries to `sites`. With more than one site `/` shows an index and the header gets a site switcher.
+
+## Navigation you do not maintain by hand
+
+The sidebar is alphabetical until you say otherwise. `order:` in a note's frontmatter places it, and a note named after its folder (`Guide/Guide.md`, or `Guide/index.md`) becomes that folder's page, served at `/site/Guide/`.
+
+Either way the list of what is in a section is **generated** from the vault, with each note's `description:` and `updated:`, so it cannot fall out of step with the folder. A folder with no folder note gets the whole page generated instead of a 404.
+
+![A generated section page: the folder note's own text, then "In this section" listing every note in reading order with its date](docs/attachments/site-section-page.png)
+
+Full reference: [Navigation and sections](docs/01%20Guide/Navigation%20and%20sections.md).
 
 ## What Obsidian syntax is supported
 

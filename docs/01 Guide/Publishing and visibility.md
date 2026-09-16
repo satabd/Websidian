@@ -2,6 +2,8 @@
 title: Publishing and visibility
 tags: [websidian, guide]
 updated: 2026-09-13
+order: 5
+description: Drafts, hidden notes, who sees what
 ---
 # Publishing and visibility
 
