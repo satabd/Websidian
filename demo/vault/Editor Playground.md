@@ -55,3 +55,10 @@ flowchart LR
 3. Type `#` and a letter for tags, or `/` at the start of a line for the slash menu.
 4. Select a word and press **Ctrl+B**, or type `=` over it to highlight it.
 5. Toggle **Live Preview / Source mode** in the status bar; **Ctrl+E** for the reading view.
+
+## Drawings
+An Excalidraw drawing from the vault, shown by the built-in viewer (click it to pan and zoom, `Esc` to release):
+
+![[Websidian architecture.excalidraw]]
+
+Or open it on its own page: [[Websidian architecture.excalidraw|Websidian architecture]].

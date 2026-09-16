@@ -96,8 +96,37 @@ redirects it to `/developer-guide/plugins` (`website/docs/developer-guide/plugin
 - `terminal` (`tools/terminal_tool.py:1270`): `command`, `background`, `timeout`, `workdir`, `pty`, `notify`.
 - Relative file-tool paths resolve against the session cwd (`tools/file_tools_paths.py:161-177`:
   `get_session_cwd(task_id)`, then `$TERMINAL_CWD`, then process cwd). The plugin mirrors this.
-- Other writers the plugin does not inspect: `skill_manage` (writes skills), `memory` (MEMORY.md/USER.md
-  through its own store), `execute_code` (arbitrary Python).
+- Other writers the plugin does not inspect: `execute_code` (arbitrary Python), MCP tools.
+
+## `memory` and `skill_manage` (guarded since 2026-09-16)
+
+Read in the native install at `%LOCALAPPDATA%\hermes\hermes-agent` (Hermes Agent, Python 3.11 venv, package
+`hermes_cli`; the tool modules live in the top-level `tools/` package). Line numbers refer to that tree.
+
+- **`memory`** - `tools/memory_tool.py:1263` `MEMORY_SCHEMA`, registered at `:1376`
+  (`registry.register(name="memory", toolset="memory", ...)`). Args: `action`
+  (`add` | `replace` | `remove`), `target` (`memory` | `user`, default `memory`), `content` (`new_text` is
+  an accepted alias, `:1115`), `old_text`, and `operations` - a list of `{action, content?, new_text?,
+  old_text?}` applied atomically in one call (`:1129`, and `apply_memory_pending` handles a staged
+  `action: "batch"` at `:1237`). Files: `get_memory_dir()` is `<hermes home>/memories` (`:64`) and
+  `_path_for(target)` picks `USER.md` / `MEMORY.md` (`:340`). Character limits (2200 memory, 1375 user,
+  `:178`, overridable in `memory.memory_char_limit` / `memory.user_char_limit`) are enforced by the store
+  itself, so the guard does not repeat them. Hermes has its own optional approval gate for memory writes
+  (`_apply_write_gate`, `:949`); the plugin's directive is independent of it.
+- **`skill_manage`** - `tools/skill_manager_tool.py:1711` `SKILL_MANAGE_SCHEMA`, registered at `:1833`
+  (`toolset="skills"`). Args: `action` (`create` | `patch` | `edit` | `delete` | `write_file` |
+  `remove_file`), `name` (required), `content` (full SKILL.md for create/edit), `old_string`, `new_string`,
+  `replace_all`, `category` (create only), `file_path` (a supporting file under `references/`, `templates/`,
+  `scripts/`, `assets/`, or `SKILL.md`; for `patch` it defaults to SKILL.md, `:1802`), `file_content`,
+  `absorbed_into`. Paths: `_skills_dir()` is `<hermes home>/skills` (`:160`) and `_resolve_skill_dir(name,
+  category)` is `<skills dir>/[<category>/]<name>` (`:638`); an existing skill is looked up across
+  `get_all_skills_dirs()`, which includes `skills.external_dirs` (`_find_skill`, `:645`) - the guard cannot
+  resolve those without Hermes and judges them at the default location.
+- Reading is done by other tools (`skills_list`, `skill_view`), so nothing read-only passes through
+  `skill_manage`; `memory` has no read action in this version. The guard treats any action it does not
+  know as "not a write" and stays out of the way.
+- Nothing has to be registered for these: `pre_tool_call` fires for every tool call (the plugin filters on
+  `tool_name`), and `plugin.yaml` lists hooks, not the tool names they watch.
 - Hermes already has its own always-ask gate for `AGENTS.md`, `CLAUDE.md`, `SOUL.md`, `.cursorrules` in
   project directories (`tools/file_tools_write_guards.py:139`), but it explicitly skips files inside the
   Hermes home (:186). This plugin covers the Hermes home and vaults, with a longer list.
@@ -191,6 +220,19 @@ exercised by the in-container integration test: the real `hermes_cli.web_server`
   `302 /login?next=%2Fwebsidian%3Fsite%3Dtest%26note%3DPlain%2520Note%26edit%3D1`, and the login answer's
   `next` is `/websidian?site=scratch&note=Plain Note` (decoded once, so `%26`, `%23`, `%2B`, `%25` inside a note
   name do not survive a login redirect).
+  The decode happens **twice in total**: the gate quotes `path?query` once, the HTTP layer decodes the
+  `next` query value when the login route reads it, and `_validate_post_login_target` unquotes it again.
+  Net effect, one extra decode. Fixed 2026-09-16 by making the value decode-stable instead of fighting the
+  redirect: `sites.note_query` / `search_query` keep the plain `note=`/`q=` form only when it needs no
+  percent-escape, and otherwise send `note64=`/`q64=` with the value as unpadded base64url (`[A-Za-z0-9_-]`,
+  which percent-decoding cannot change); `sites.note_from_query` / `search_from_query` and
+  `dashboard/dist/index.js` (`readQuery`, `dashboardSearch`) read and write both forms.
+  `tests/test_links.py::DeepLinks::test_survives_the_real_login_redirect` runs a link through the real
+  `_safe_next_target` and `_validate_post_login_target` of a native install (found via `HERMES_AGENT_SRC`,
+  `%LOCALAPPDATA%\hermes\hermes-agent` or `~/.hermes/hermes-agent`; imported in-process when this
+  interpreter has fastapi, else run in the install's own venv, skipped when neither is available) and
+  asserts that the old plain form loses `&`, `#`, `+` and `%`-escapes while the new one comes back intact.
+  Verified here against Hermes's native install on 2026-09-16 (the test runs, it does not skip).
 
 ### Auth for plugin routes and iframe navigations
 

@@ -82,6 +82,7 @@ class Vault {
     this.webhook = site.webhook || null;
     this.edit = site.edit;          // editor settings; resolved in editor.js against the global `edit`
     this.untrusted = !!site.untrusted;
+    this.excalidraw = site.excalidraw === false || site.excalidraw === 'image' ? 'image' : 'viewer'; // "image": only the plugin's exported picture, no viewer
     this.snippetsCfg = site.snippets === undefined ? !site.untrusted : site.snippets; // untrusted: an agent could write CSS, so off unless asked // true = Obsidian's enabled ones, "all", [names], or false
     this.snippets = [];          // [{ name, abs, mtimeMs }] CSS snippets to include on every page
     this.backlinks = new Map();  // rel -> [rel of notes linking here]
@@ -151,10 +152,13 @@ class Vault {
         this.metaCache.set(n.rel, meta);
       }
       n.title = meta.title; n.data = meta.data; n.tags = meta.tags;
-      n.hidden = (this.excludeStatus.size > 0 && this.excludeStatus.has(String(meta.data.status)))
+      // An Excalidraw drawing note: embedded with ![[…]] and opened through the
+      // viewer, but never a note in the navigation, search or graph.
+      n.drawing = /\.excalidraw$/i.test(n.base) || meta.data['excalidraw-plugin'] !== undefined;
+      n.unpublished = (this.excludeStatus.size > 0 && this.excludeStatus.has(String(meta.data.status)))
         || (this.onlyPublished && meta.data.publish !== true)
-        || meta.data.publish === false
-        || /\.excalidraw$/i.test(n.base) || meta.data['excalidraw-plugin'] !== undefined; // drawings are embedded, never pages
+        || meta.data.publish === false;
+      n.hidden = n.unpublished || n.drawing;
     }
     for (const rel of this.metaCache.keys()) if (!notes.has(rel)) this.metaCache.delete(rel);
     await this._scanSnippets();
@@ -308,6 +312,25 @@ class Vault {
     return this._best(this.fileByBase.get(name.toLowerCase()), fromRel);
   }
 
+  // The drawing behind `Sketch.excalidraw` (or `Sketch`): the plugin's
+  // `Sketch.excalidraw.md` note when it is published, else a plain
+  // `.excalidraw` JSON file. Null when there is none, or when the site shows
+  // drawings as images only.
+  resolveDrawing(target, fromRel) {
+    if (this.excalidraw === 'image') return null;
+    const stem = target.trim().replace(/\.excalidraw(\.md)?$/i, '');
+    const n = this.resolveNote(stem + '.excalidraw', fromRel);
+    if (n) { const note = this.notes.get(n); if (note && note.drawing && !note.unpublished) return n; }
+    const f = this.resolveFile(stem + '.excalidraw', fromRel);
+    return f || null;
+  }
+  isDrawing(rel) {
+    const n = this.notes.get(rel);
+    if (n) return this.excalidraw !== 'image' && n.drawing && !n.unpublished;
+    const f = this.files.get(rel);
+    return !!f && f.ext === '.excalidraw' && this.excalidraw !== 'image';
+  }
+
   // Resolve a wikilink target to { kind: 'note'|'file', rel } or null.
   resolve(target, fromRel) {
     const ext = path.posix.extname(target).toLowerCase();
@@ -332,6 +355,7 @@ class Vault {
     return this.siteUrl() + rel.replace(/\.md$/i, '').split('/').map(encodeURIComponent).join('/');
   }
   fileUrl(rel) { return this.siteUrl() + rel.split('/').map(encodeURIComponent).join('/'); }
+  drawingUrl(rel) { return this.siteUrl() + '_drawing/' + rel.split('/').map(encodeURIComponent).join('/'); }
   folderUrl(folder) { return folder ? this.siteUrl() + folder.split('/').map(encodeURIComponent).join('/') + '/' : this.siteUrl(); }
 
   // ---- folder notes ---------------------------------------------------------

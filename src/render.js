@@ -13,9 +13,10 @@
 const fsp = require('fs/promises');
 const MarkdownIt = require('markdown-it');
 const { parseFrontmatter } = require('./vault');
+const { viewerHtml } = require('./excalidraw');
 
 // Bump when the renderer's output changes, so stale cache entries are dropped.
-const RENDER_VERSION = 6;
+const RENDER_VERSION = 7;   // 7: Excalidraw embeds become live viewers
 const MAX_EMBED_DEPTH = 3;
 const EXCALIDRAW_RE = /\.excalidraw(\.md)?$/i;
 
@@ -85,11 +86,18 @@ function pluginWikilinks(md) {
     const target = (hash >= 0 ? targetPart.slice(0, hash) : targetPart).trim();
     const fragment = hash >= 0 ? targetPart.slice(hash + 1).trim() : '';
 
-    // Excalidraw drawings: use the plugin's auto-exported .svg/.png next to the drawing.
+    // Excalidraw drawings: the live viewer when the drawing itself is in the
+    // vault (src/excalidraw.js), else the plugin's auto-exported .svg/.png.
     if (EXCALIDRAW_RE.test(target)) {
       const stem = target.replace(EXCALIDRAW_RE, '.excalidraw');
       const exp = env.vault.resolveFile(stem + '.svg', env.rel) || env.vault.resolveFile(stem + '.png', env.rel);
-      if (exp) { const m = extra.match(/^(\d+)/); return `<img class="excalidraw" src="${env.vault.fileUrl(exp)}" alt="${escapeHtml(target)}" loading="lazy"${m ? ` width="${m[1]}"` : ''}>`; }
+      const m = extra.match(/^(\d+)(?:x(\d+))?/);
+      const drawing = env.vault.resolveDrawing(target, env.rel);
+      if (drawing) {
+        env.deps.add(drawing);   // re-render when the drawing is edited or unpublished
+        return viewerHtml({ vault: env.vault, drawing, exportRel: exp, title: stem.replace(/^.*\//, ''), width: m ? Number(m[1]) : 0, height: m && m[2] ? Number(m[2]) : 0 });
+      }
+      if (exp) return `<img class="excalidraw" src="${env.vault.fileUrl(exp)}" alt="${escapeHtml(target)}" loading="lazy"${m ? ` width="${m[1]}"` : ''}>`;
       const note = env.vault.resolveNote(target, env.rel) || env.vault.resolveNote(stem + '.md', env.rel);
       return `<span class="embed excalidraw-missing" title="Enable auto-export to SVG/PNG in the Excalidraw plugin to show this drawing on the web">✎ Drawing: ${escapeHtml(note ? note.replace(/\.md$/, '') : target)}</span>`;
     }

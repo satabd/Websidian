@@ -7,10 +7,11 @@ so the links the agent shares point at the sites the dashboard serves.
 
 from __future__ import annotations
 
+import base64
 import os
 import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional
-from urllib.parse import quote, urlsplit
+from urllib.parse import parse_qs, quote, urlsplit
 
 # Websidian is mounted at this basePath (after any dashboard URL prefix) inside the dashboard.
 DASHBOARD_TAB_PATH = "/websidian"
@@ -20,7 +21,15 @@ DEFAULT_PORT = 8095
 DEFAULT_PUBLIC_BASE = "http://localhost:9119"
 LINK_STYLES = ("dashboard", "direct")
 
+# Deep-link query parameters of the dashboard tab. The ``64`` ones carry the same value as base64url;
+# see :func:`note_query`. ``dashboard/dist/index.js`` reads and writes both.
+NOTE_PARAM, NOTE_B64_PARAM = "note", "note64"
+QUERY_PARAM, QUERY_B64_PARAM = "q", "q64"
+
 _URI_COMPONENT_SAFE = "!*'()"
+# Characters a percent-decode never changes (unreserved plus the query punctuation an iframe query uses).
+# "%", "&", "+", "#" and anything needing escaping are deliberately absent.
+_DECODE_STABLE = re.compile(r"[A-Za-z0-9\-._~!*'()=,:/]*\Z")
 
 
 def _enc(value: str) -> str:
@@ -134,17 +143,74 @@ def direct_site_url(public_base: str, slug: str) -> str:
     return str(public_base).rstrip("/") + WEBSIDIAN_MOUNT + "/" + slug + "/"
 
 
+def note_rel(rel: str) -> str:
+    """``Folder\\My Note.md`` -> ``Folder/My Note`` (forward slashes, no surrounding slashes, ``.md`` dropped)."""
+    rel = str(rel).replace("\\", "/").strip("/")
+    return rel[:-3] if rel.lower().endswith(".md") else rel
+
+
 def note_param(rel: str) -> str:
     """``Folder/My Note.md`` -> ``Folder/My%20Note`` (each segment encodeURIComponent-ed, ``.md`` dropped)."""
-    rel = str(rel).replace("\\", "/").strip("/")
-    if rel.lower().endswith(".md"):
-        rel = rel[:-3]
-    return "/".join(_enc(seg) for seg in rel.split("/"))
+    return "/".join(_enc(seg) for seg in note_rel(rel).split("/"))
+
+
+def b64_param(value: str) -> str:
+    """``value`` as base64url without padding: only ``[A-Za-z0-9_-]``, which percent-decoding never changes."""
+    return base64.urlsafe_b64encode(str(value).encode("utf-8", "surrogatepass")).decode("ascii").rstrip("=")
+
+
+def decode_b64_param(value: str) -> str:
+    """Inverse of :func:`b64_param` (``""`` when ``value`` is not base64url)."""
+    s = str(value or "")
+    try:
+        return base64.urlsafe_b64decode((s + "=" * (-len(s) % 4)).encode("ascii")).decode("utf-8", "surrogatepass")
+    except ValueError:  # binascii.Error and UnicodeError are both ValueError
+        return ""
+
+
+def note_query(rel: str) -> str:
+    """The ``note=``/``note64=`` part of a deep link for ``rel``.
+
+    A deep link opened without a session goes through the login page, and Hermes decodes the target one
+    time more than it encoded it (the gate percent-encodes ``path?query`` into ``/login?next=``, the HTTP
+    layer decodes that query value, and ``_validate_post_login_target`` unquotes it again). So a value is
+    only safe there when no percent-escape has to survive: names that need none keep the readable plain
+    form, the rest travel as base64url in ``note64``. Both forms work when already signed in.
+    """
+    norm = note_rel(rel)
+    plain = note_param(norm)
+    return f"{NOTE_PARAM}={plain}" if plain == norm else f"{NOTE_B64_PARAM}={b64_param(norm)}"
+
+
+def search_query(q: str) -> str:
+    """The ``q=``/``q64=`` part of a deep link (the iframe's own query string); see :func:`note_query`."""
+    q = str(q or "").lstrip("?")
+    return f"{QUERY_PARAM}={q}" if _DECODE_STABLE.match(q) else f"{QUERY_B64_PARAM}={b64_param(q)}"
+
+
+def _from_query(query: str, param: str, b64_param_name: str) -> str:
+    """Value of ``param`` in a deep link's query string, preferring the base64url form. Reference
+    implementation of what ``dashboard/dist/index.js`` (``readQuery``) does in the browser."""
+    params = parse_qs(str(query or "").lstrip("?"), keep_blank_values=True)
+    if params.get(b64_param_name):
+        return decode_b64_param(params[b64_param_name][0])
+    return params.get(param, [""])[0]
+
+
+def note_from_query(query: str) -> str:
+    """The note a deep link points at (``note64`` wins over the older plain ``note``)."""
+    return _from_query(query, NOTE_PARAM, NOTE_B64_PARAM)
+
+
+def search_from_query(query: str) -> str:
+    """The iframe query string a deep link carries (``q64`` wins over the older plain ``q``)."""
+    return _from_query(query, QUERY_PARAM, QUERY_B64_PARAM)
 
 
 def dashboard_note_url(public_base: str, slug: str, rel: str, edit: bool = False) -> str:
-    """``<public_base>/websidian?site=<slug>&note=<rel without .md>[&edit=1]`` (the dashboard tab deep link)."""
-    url = f"{str(public_base).rstrip('/')}{DASHBOARD_TAB_PATH}?site={_enc(slug)}&note={note_param(rel)}"
+    """``<public_base>/websidian?site=<slug>&note=<rel without .md>[&edit=1]`` (the dashboard tab deep link);
+    the note travels as ``note64=<base64url>`` when its name would not survive the login redirect."""
+    url = f"{str(public_base).rstrip('/')}{DASHBOARD_TAB_PATH}?site={_enc(slug)}&{note_query(rel)}"
     return url + "&edit=1" if edit else url
 
 

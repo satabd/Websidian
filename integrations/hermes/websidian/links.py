@@ -6,7 +6,8 @@ edit URL ``https://brain.example.com/hermes/_edit/Folder/My%20Note`` (Websidian'
 ``rel.replace(/\\.md$/i, '').split('/').map(encodeURIComponent).join('/')``).
 
 With the ``dashboard`` link style the links open the note in the Hermes dashboard's Websidian tab instead:
-``<public_base>/websidian?site=<slug>&note=Folder/My%20Note`` (``&edit=1`` for the editor); see sites.py.
+``<public_base>/websidian?site=<slug>&note=Folder/My%20Note`` (``&edit=1`` for the editor; a name that needs
+percent-escaping travels as ``note64=<base64url>`` so the link survives the dashboard login); see sites.py.
 """
 
 from __future__ import annotations
@@ -74,7 +75,8 @@ def edit_url(base_url: str, rel: str) -> str:
 
 def note_links(vault: Mapping[str, Any], rel: str) -> Tuple[str, str]:
     """``(view, edit)`` for ``rel`` in ``vault`` following its link ``style`` (see ``sites.resolve_links``):
-    ``dashboard`` -> ``<public_base>/websidian?site=<slug>&note=<rel>[&edit=1]``; otherwise the direct Websidian
+    ``dashboard`` -> ``<public_base>/websidian?site=<slug>&note=<rel>[&edit=1]`` (or ``note64=``, see
+    :func:`sites.note_query`); otherwise the direct Websidian
     ``url`` (``<url><note>`` and ``<url>_edit/<note>``); ``("", "")`` without either."""
     if vault.get("style") == "dashboard" and vault.get("slug"):
         base = vault.get("public_base") or sites.DEFAULT_PUBLIC_BASE

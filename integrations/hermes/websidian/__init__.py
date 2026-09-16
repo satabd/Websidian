@@ -2,7 +2,8 @@
 
 What ``register(ctx)`` wires up (every call is feature-probed, so an older Hermes degrades gracefully):
 
-- ``pre_tool_call``: :mod:`guard` - agent instruction files need human approval; vault writes must be
+- ``pre_tool_call``: :mod:`guard` - agent instruction files need human approval (``write_file``, ``patch``,
+  ``terminal``, and Hermes's own writers of them: ``memory`` and ``skill_manage``); vault writes must be
   plain Markdown (no scripts, frames, event handlers, javascript: URLs, .html/.svg/.js files).
 - ``post_tool_call``: remember notes written inside a vault, per session.
 - ``transform_llm_output``: append "Notes updated:" with view and edit links to the final reply.
@@ -36,6 +37,13 @@ logger = logging.getLogger(__name__)
 
 PLUGIN_DIR = Path(__file__).resolve().parent
 SKILL_PATH = PLUGIN_DIR / "skills" / "websidian" / "SKILL.md"
+# Skills registered with the agent: writing notes, and the install/update runbook for this integration.
+SKILLS = (
+    ("websidian", SKILL_PATH,
+     "Write notes into the Websidian vault as plain Obsidian Markdown and share their links."),
+    ("websidian-install", PLUGIN_DIR / "skills" / "websidian-install" / "SKILL.md",
+     "Install, update or verify the Websidian plugin and its Node runtime, with the restart matrix and the checks that prove it works."),
+)
 TOOL_NAME = "websidian_links"
 MAX_TRACKED_PER_SESSION = 200
 MAX_SESSIONS = 256
@@ -150,7 +158,7 @@ class WebsidianPlugin:
 
     def on_post_tool_call(self, tool_name: str = "", args: Any = None, result: Any = None, task_id: str = "",
                           status: Optional[str] = None, **kwargs: Any) -> None:
-        if tool_name not in guard.FILE_TOOLS or not _result_ok(result, status):
+        if tool_name not in guard.TRACKED_TOOLS or not _result_ok(result, status):
             return None
         try:
             settings = self.settings()
@@ -158,7 +166,7 @@ class WebsidianPlugin:
                 return None
             base = _workdir(task_id)
             sid = _session_key({"task_id": task_id, **kwargs})
-            for path in guard.written_paths(tool_name, args):
+            for path in guard.written_paths(tool_name, args, settings.hermes_homes):
                 entry = links.links_for_path(path, settings.vaults, base)
                 if entry:
                     self.tracker.record(sid, entry)
@@ -271,12 +279,14 @@ def register(ctx: Any) -> None:
                              description="List recently modified Websidian notes with links (/brain <query> to filter)",
                              args_hint="[query]")
 
-    if hasattr(ctx, "register_skill") and SKILL_PATH.exists():
-        try:
-            ctx.register_skill("websidian", SKILL_PATH,
-                               description="Write notes into the Websidian vault as plain Obsidian Markdown and share their links.")
-        except Exception as exc:
-            logger.warning("websidian: could not register skill: %s", exc)
+    if hasattr(ctx, "register_skill"):
+        for name, path, description in SKILLS:
+            if not path.exists():
+                continue
+            try:
+                ctx.register_skill(name, path, description=description)
+            except Exception as exc:
+                logger.warning("websidian: could not register skill %s: %s", name, exc)
 
     if hasattr(ctx, "register_system_prompt_section"):
         try:

@@ -247,6 +247,146 @@ class VaultWrites(GuardCase):
         self.assertEqual(guard.written_paths("write_file", {"path": "x.md", "content": ""}), ["x.md"])
 
 
+class MemoryTool(GuardCase):
+    """Hermes's ``memory`` tool writes <hermes home>/memories/MEMORY.md and USER.md."""
+
+    def evaluate(self, args, settings=None):
+        return guard.evaluate("memory", args, settings or self.settings)
+
+    def test_add_needs_approval(self):
+        d = self.evaluate({"action": "add", "target": "memory", "content": "The user prefers tea."})
+        self.assertEqual(d["action"], "approve")
+        self.assertIn("MEMORY.md", d["message"])
+        self.assertIn(os.path.join(self.home, "memories"), d["message"])
+
+    def test_user_profile_target(self):
+        d = self.evaluate({"action": "replace", "target": "user", "old_text": "a", "content": "b"})
+        self.assertEqual(d["action"], "approve")
+        self.assertIn("USER.md", d["message"])
+
+    def test_remove_and_batch(self):
+        self.assertEqual(self.evaluate({"action": "remove", "target": "memory", "old_text": "a"})["action"], "approve")
+        batch = {"target": "memory", "operations": [{"action": "remove", "old_text": "stale"},
+                                                    {"action": "add", "content": "fresh"}]}
+        self.assertEqual(self.evaluate(batch)["action"], "approve")
+
+    def test_block_mode(self):
+        s = guard.Settings(vaults=[], hermes_homes=[self.home], protect_mode="block")
+        d = self.evaluate({"action": "add", "target": "memory", "content": "x"}, s)
+        self.assertEqual(d["action"], "block")
+
+    def test_protect_list_without_memory_files(self):
+        s = guard.Settings(vaults=[], hermes_homes=[self.home], protect=["SOUL.md"])
+        self.assertIsNone(self.evaluate({"action": "add", "target": "memory", "content": "x"}, s))
+
+    def test_read_only_actions_pass(self):
+        for args in ({"action": "read", "target": "memory"}, {"action": "search", "query": "tea"},
+                     {"target": "memory"}, {"action": "list"}):
+            with self.subTest(args=args):
+                self.assertIsNone(self.evaluate(args))
+
+    def test_active_content_refused(self):
+        for args in ({"action": "add", "target": "memory", "content": "Use <script>alert(1)</script>"},
+                     {"action": "replace", "target": "user", "old_text": "a", "new_text": "[x](javascript:alert(1))"},
+                     {"target": "memory", "operations": [{"action": "add", "content": "<iframe src=x></iframe>"}]}):
+            with self.subTest(args=args):
+                d = self.evaluate(args)
+                self.assertEqual(d["action"], "block")          # a refusal wins over the approval prompt
+                self.assertIn("active HTML", d["message"])
+        s = guard.Settings(vaults=[], hermes_homes=[self.home], block_active_content=False)
+        self.assertEqual(self.evaluate({"action": "add", "content": "<script>x</script>"}, s)["action"], "approve")
+
+    def test_unknown_shapes_fail_open(self):
+        for args in ("not a mapping", ["add"], {"action": "frobnicate", "content": "x"},
+                     {"action": 7, "content": "x"}, {"operations": ["junk"]}, {"operations": []}):
+            with self.subTest(args=args):
+                self.assertIsNone(self.evaluate(args))
+
+    def test_written_paths(self):
+        self.assertEqual(guard.written_paths("memory", {"action": "add", "content": "x"}, [self.home]),
+                         [os.path.join(self.home, "memories", "MEMORY.md")])
+        self.assertEqual(guard.written_paths("memory", {"action": "add", "target": "user", "content": "x"}, [self.home]),
+                         [os.path.join(self.home, "memories", "USER.md")])
+        self.assertEqual(guard.written_paths("memory", {"action": "read"}, [self.home]), [])
+
+
+class SkillManageTool(GuardCase):
+    """Hermes's ``skill_manage`` tool writes <hermes home>/skills/[<category>/]<name>/SKILL.md and files
+    under that folder."""
+
+    GOOD = "---\nname: x\ndescription: d\n---\n# Steps\n1. Run `npm test`.\n"
+
+    def evaluate(self, args, settings=None):
+        return guard.evaluate("skill_manage", args, settings or self.settings)
+
+    def test_create_and_edit_need_approval(self):
+        for action in ("create", "edit"):
+            with self.subTest(action):
+                d = self.evaluate({"action": action, "name": "deploy", "content": self.GOOD})
+                self.assertEqual(d["action"], "approve")
+                self.assertIn(os.path.join(self.home, "skills", "deploy", "SKILL.md"), d["message"])
+
+    def test_category_and_patch(self):
+        d = self.evaluate({"action": "create", "name": "deploy", "category": "devops", "content": self.GOOD})
+        self.assertIn(os.path.join(self.home, "skills", "devops", "deploy", "SKILL.md"), d["message"])
+        d = self.evaluate({"action": "patch", "name": "deploy", "old_string": "a", "new_string": "b"})
+        self.assertEqual(d["action"], "approve")
+        self.assertIn("SKILL.md", d["message"])
+
+    def test_supporting_file_names_the_file_it_writes(self):
+        d = self.evaluate({"action": "write_file", "name": "deploy", "file_path": "references/hosts.md",
+                           "file_content": "# Hosts\n"})
+        self.assertEqual(d["action"], "approve")
+        self.assertIn(os.path.join("references", "hosts.md"), d["message"])
+        self.assertIn("SKILL.md", d["message"])
+
+    def test_delete_needs_approval_without_content_check(self):
+        for action in ("delete", "remove_file"):
+            with self.subTest(action):
+                args = {"action": action, "name": "deploy", "absorbed_into": ""}
+                if action == "remove_file":
+                    args["file_path"] = "scripts/run.sh"
+                self.assertEqual(self.evaluate(args)["action"], "approve")
+
+    def test_active_content_refused(self):
+        for args in ({"action": "create", "name": "x", "content": "---\nname: x\n---\n<script>alert(1)</script>"},
+                     {"action": "write_file", "name": "x", "file_path": "references/a.md",
+                      "file_content": '<img src=x onerror=alert(1)>'},
+                     {"action": "patch", "name": "x", "old_string": "a", "new_string": "<iframe src=y>"}):
+            with self.subTest(args=args):
+                d = self.evaluate(args)
+                self.assertEqual(d["action"], "block")
+                self.assertIn("active HTML", d["message"])
+        self.assertEqual(self.evaluate({"action": "create", "name": "x", "content": "<script>x</script>"},
+                                       guard.Settings(vaults=[], hermes_homes=[self.home],
+                                                      block_active_content=False))["action"], "approve")
+
+    def test_block_mode(self):
+        s = guard.Settings(vaults=[], hermes_homes=[self.home], protect_mode="block")
+        self.assertEqual(self.evaluate({"action": "create", "name": "x", "content": self.GOOD}, s)["action"], "block")
+
+    def test_read_only_and_unknown_shapes_pass(self):
+        for args in ({"action": "list"}, {"action": "view", "name": "deploy"}, {"name": "deploy"},
+                     {"action": "frobnicate", "name": "deploy", "content": "x"}, "not a mapping",
+                     {"action": "create", "content": self.GOOD}):  # no name: the folder is unknown
+            with self.subTest(args=args):
+                self.assertIsNone(self.evaluate(args))
+
+    def test_written_paths(self):
+        self.assertEqual(guard.written_paths("skill_manage", {"action": "create", "name": "deploy",
+                                                              "category": "devops"}, [self.home]),
+                         [os.path.join(self.home, "skills", "devops", "deploy", "SKILL.md")])
+        self.assertEqual(guard.written_paths("skill_manage", {"action": "write_file", "name": "deploy",
+                                                              "file_path": "references/a.md"}, [self.home]),
+                         [os.path.join(self.home, "skills", "deploy", "references", "a.md")])
+        self.assertEqual(guard.written_paths("skill_manage", {"action": "patch", "name": "deploy"}, [self.home]),
+                         [os.path.join(self.home, "skills", "deploy", "SKILL.md")])
+        for args in ({"action": "delete", "name": "deploy"}, {"action": "remove_file", "name": "d", "file_path": "a.md"},
+                     {"action": "view", "name": "deploy"}, {"action": "create"}):
+            with self.subTest(args=args):
+                self.assertEqual(guard.written_paths("skill_manage", args, [self.home]), [])
+
+
 class ShellCommands(GuardCase):
     def test_redirect_to_protected(self):
         d = guard.evaluate("terminal", {"command": "echo hi >> ~/.hermes/SOUL.md"}, self.settings)
@@ -334,6 +474,21 @@ class ShellHookCli(GuardCase):
                               input=payload, capture_output=True, text=True, timeout=60)
         self.assertEqual(proc.returncode, 2, proc.stderr)
         self.assertEqual(json.loads(proc.stdout)["action"], "block")
+
+    def test_memory_and_skill_go_through_the_cli(self):
+        for tool, tool_input in (("memory", {"action": "add", "target": "memory", "content": "x"}),
+                                 ("skill_manage", {"action": "create", "name": "deploy", "content": "x"})):
+            with self.subTest(tool):
+                out = io.StringIO()
+                code = guard.main(["--stdin", "--config", self._config()],
+                                  stdin=io.StringIO(self._payload(tool, tool_input)), stdout=out, env={})
+                # A shell hook has no approve channel, so the protect directive is reported as a block.
+                self.assertEqual(code, 2)
+                self.assertIn("instruction file", json.loads(out.getvalue())["message"])
+        out = io.StringIO()
+        self.assertEqual(guard.main(["--stdin", "--config", self._config()],
+                                    stdin=io.StringIO(self._payload("memory", {"action": "read"})),
+                                    stdout=out, env={}), 0)
 
     def test_non_tool_event_ignored(self):
         out = io.StringIO()

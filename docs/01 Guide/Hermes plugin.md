@@ -64,6 +64,36 @@ Checks 2, 5 and 6 run in CI as `test/hermes-install.test.js` — [[Testing]]. Ch
 >
 > Four states are independent: plugin **enabled**, Websidian **healthy**, dashboard session **authenticated**, protected routes **reachable through that session**. The fix for a 401 is to put the dashboard in its gated mode — basic auth on a trusted LAN or VPN, OAuth for anything internet-facing — never to weaken or remove the gate. The iframe is same-origin with the dashboard, so anything the gate lets through runs with the signed-in user's privileges; keep agent-facing vaults `untrusted: true`.
 
+## Updating
+
+```bash
+git pull && bash integrations/hermes/websidian/deploy/install-local.sh --restart-runtime
+```
+
+Re-running the installer *is* the update: it clears `app_dir/src` and `app_dir/public` before re-copying, re-runs `npm ci` and replaces the plugin folder.
+
+> [!important] Copying files updates nothing that is already running
+> The supervisor restarts Websidian only when the generated config changes or `/_health` stops answering — never because the code on disk changed.
+
+| Changed | What has to restart |
+|---|---|
+| `src/`, `public/`, dependencies | the supervised Websidian process — `--restart-runtime` / `-RestartRuntime`, or `kill $(cat ~/.hermes/plugin-data/websidian/server.pid)`; the supervisor brings it back within ~15 s |
+| `dashboard/*.py`, `dashboard/dist/` | the dashboard (plugin routes mount at start-up only) |
+| `__init__.py`, `guard.py`, `links.py`, `sites.py`, `skills/` | the gateway (guard, links, `/brain`, skills) |
+
+`--restart-runtime` touches that one process and nothing else, and refuses to signal a PID it cannot identify as Websidian.
+
+### Which revision is installed
+The installers stamp both copies in `websidian.version` (`{revision, installed_at, source, component}`):
+
+- `/_health` returns it as `version` — `null` for a git checkout or a hand copy, which is not an error;
+- the dashboard status reports `app_version`, `plugin_version` and `version_skew`, and the tab shows both plus a warning banner when they differ.
+
+The plugin (Python) and the runtime (Node) are separate copies, so half an upgrade would otherwise have no symptom but odd behaviour.
+
+### The agent can do this itself
+The plugin registers a second skill, `websidian:websidian-install`: the same runbook written for an agent — install, update, the restart matrix, the acceptance checks, and the things never to do (no restarting the dashboard or gateway on its own, no weakening the dashboard gate, no `untrusted: false`, no `edit: true` unless asked).
+
 ## Installation in hermes01
 Done 2026-09-13 by session `md2html-fd`:
 
@@ -89,7 +119,7 @@ Done 2026-09-13 by session `md2html-fd`:
 
 **Open it:** Hermes dashboard → **Websidian** in the sidebar (`http://localhost:9119/websidian`). No second login: the dashboard backend signs you in as `hermes` through Websidian's `proxyAuth` ([[Configuration#Behind a trusted proxy]]). Websidian runs under the basePath `/api/plugins/websidian/w`.
 
-**Deep links:** `?site=memories&note=MEMORY&edit=1` opens that note in the editor.
+**Deep links:** `?site=memories&note=MEMORY&edit=1` opens that note in the editor. A note whose name needs percent-escaping (a space, `&`, `#`, `+`, `%`, non-Latin letters) travels as `?site=…&note64=<base64url>` instead, because the login redirect decodes the target one time too many and would corrupt a `note=` value; plain names stay readable, and old `note=`/`q=` links still work. The same applies to `q=` / `q64=` (the iframe's own query string).
 
 | Site | Folder | Notes | Mode |
 |---|---|---|---|
@@ -150,11 +180,12 @@ plugins:
 | `append_links` | `true` | Add "Notes updated:" links to replies |
 
 ## What it does
-- **Guard before writes** (`pre_tool_call` on `write_file` and `patch`, including multi-file patches):
+- **Guard before writes** (`pre_tool_call` on `write_file`, `patch` — including multi-file patches — `terminal`, `memory` and `skill_manage`):
   - instruction files → approval (or block);
   - notes with active HTML (`<script>`, `on…=` handlers, `javascript:`, `<iframe>`, `<meta>`, `<base>`, `<form>`…) → blocked; code fences and inline code are ignored. Fuzz-tested on ~100k documents against Websidian's renderer;
   - `.html`, `.svg`, `.js`, `.xml` files inside a vault → blocked.
   - `terminal` commands: best effort only.
+- **The agent's own instruction writers go through the same gate.** `memory` (add / replace / remove, single or in an `operations` batch) is treated as a write to `<hermes home>/memories/MEMORY.md` or `USER.md`, and `skill_manage` (`create`, `edit`, `patch`, `write_file`, `delete`, `remove_file`) as a write to `<hermes home>/skills/[<category>/]<name>/SKILL.md` and the files of that folder: same `protect_mode` (`approve` asks you, `block` refuses). The text they write is checked for active HTML too, and that check **blocks** even in `approve` mode — approving an entry would not make a script in it safe. Read-only actions (memory read/search, `skills_list`, `skill_view`) and argument shapes the guard does not recognise pass straight through.
 - **Links after writes**: records notes written in the turn and appends *Notes updated:* with **view** · **edit** links.
 - Tool `websidian_links`; command **`/brain [query]`** lists the 10 most recent notes; skill `websidian:websidian` plus a system-prompt section.
 
@@ -162,7 +193,9 @@ plugins:
 Use the shell hook `python guard.py --stdin`. Shell hooks cannot ask for approval, so `approve` becomes `block`.
 
 ## Limits
-- Not inspected: `skill_manage`, `memory`, `execute_code`, MCP tools — the agent can still change memory through its memory tool.
+- Not inspected: `execute_code`, MCP tools and anything else that writes files without going through the tools above.
+- A skill kept outside the Hermes home (`skills.external_dirs`) is judged at its default location: the decision (a human approves changes to that skill) is right, but the path in the message is not where the file lives.
+- Memory entries and skill content are held to the same "plain Markdown" rule as vault notes, so text *about* HTML (`<script>` outside a code fence) is refused there too.
 - Session id consistency between hooks is unverified (falls back to task id).
 - Runs in-process in Hermes, no sandbox.
 

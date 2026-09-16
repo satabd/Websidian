@@ -13,7 +13,7 @@ const { folderTitle } = require('./vault');
 const { pageTags } = require('./seo');
 const { nonceAttr, withNonce } = require('./untrusted');
 
-const LAYOUT_VERSION = 16;   // 16: editor gains replaceSelection + writing-help commands
+const LAYOUT_VERSION = 17;   // 17: Excalidraw viewer script, `assets` in the page global
 
 // JSON inside <script>: a note path containing "</script>" must not close the tag.
 const scriptJson = v => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -296,8 +296,10 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
 function scripts(vault, rel, embed, assets, body, nonce, siteSwitch) {
   const math = /class="math /.test(body) ? `<script src="${assets}/_vendor/katex/katex.min.js" defer></script>\n` : '';
   const graph = /data-graph=/.test(body) || (!embed && rel && vault.notes.has(rel)) ? `<script src="${assets}/_static/graph.js?v=${LAYOUT_VERSION}" defer></script>\n` : '';
-  return `<script${nonceAttr(nonce)}>window.WEBSIDIAN=window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(rel)},base:${scriptJson(vault.siteUrl())},embed:${embed}};</script>
-${graph}
+  // The Excalidraw viewer loads its (large) library itself, and only on pages that have a drawing.
+  const drawings = /class="excalidraw-view/.test(body) ? `<script src="${assets}/_static/excalidraw-view.js?v=${LAYOUT_VERSION}" defer></script>\n` : '';
+  return `<script${nonceAttr(nonce)}>window.WEBSIDIAN=window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(rel)},base:${scriptJson(vault.siteUrl())},assets:${scriptJson(assets)},embed:${embed}};</script>
+${graph}${drawings}
 <script src="${assets}/_vendor/mermaid/mermaid.min.js" defer></script>
 <script src="${assets}/_vendor/hljs/highlight.min.js" defer></script>
 ${math}<script src="${assets}/_static/app.js?v=${LAYOUT_VERSION}" defer></script>${siteSwitch ? `

@@ -9,6 +9,8 @@
 #   --app-dir DIR       Websidian runtime  (default: <hermes-home>/plugin-data/websidian/app)
 #   --plugin-dir DIR    Plugin files       (default: <hermes-home>/plugins/websidian)
 #   --no-smoke          Skip the /_health smoke test
+#   --restart-runtime   After installing, stop the supervised Websidian process so the dashboard's
+#                       supervisor starts the new code (it never touches the dashboard or the gateway)
 #   --dry-run           Print what would happen, change nothing
 #   -h, --help          This text
 #
@@ -26,12 +28,14 @@ APP_DIR=""
 PLUGIN_DIR=""
 SMOKE=1
 DRY=0
+RESTART=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --hermes-home) HERMES_HOME="$2"; shift 2 ;;
     --app-dir) APP_DIR="$2"; shift 2 ;;
     --plugin-dir) PLUGIN_DIR="$2"; shift 2 ;;
     --no-smoke) SMOKE=0; shift ;;
+    --restart-runtime) RESTART=1; shift ;;
     --dry-run) DRY=1; shift ;;
     -h|--help) usage 0 ;;
     *) echo "Unknown option: $1" >&2; usage 1 ;;
@@ -79,6 +83,23 @@ echo "==> Installing runtime dependencies in $APP_DIR (npm ci --omit=dev)"
 # --prefix is what puts node_modules in app_dir rather than in the caller's working directory.
 npm --prefix "$APP_DIR" ci --omit=dev --ignore-scripts
 
+# The plugin (Python) and the runtime (Node) are separate copies: stamp both so half an upgrade is visible
+# in the dashboard's status instead of showing up as odd behaviour. A checkout outside git stamps "unknown".
+REV="$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || true)"
+if [ -n "$REV" ] && [ -n "$(git -C "$REPO" status --porcelain 2>/dev/null || true)" ]; then REV="$REV-dirty"; fi
+NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+write_stamp() {
+  cat > "$1" <<EOF
+{
+  "revision": "${REV:-unknown}",
+  "installed_at": "$NOW",
+  "source": "$REPO",
+  "component": "$2"
+}
+EOF
+}
+write_stamp "$APP_DIR/websidian.version" runtime
+
 echo "==> Copying the plugin into $PLUGIN_DIR"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
@@ -87,14 +108,16 @@ mkdir -p "$STAGE/x" "$(dirname "$PLUGIN_DIR")"
 tar -xf "$STAGE/plugin.tar" -C "$STAGE/x"
 rm -rf "$PLUGIN_DIR"
 mv "$STAGE/x/websidian" "$PLUGIN_DIR"
+write_stamp "$PLUGIN_DIR/websidian.version" plugin
 
 echo "==> Checking the installed layout"
 fail=0
-for f in "$APP_DIR/src/server.js" "$APP_DIR/package.json" "$PLUGIN_DIR/plugin.yaml" "$PLUGIN_DIR/dashboard/manifest.json" "$PLUGIN_DIR/dashboard/plugin_api.py"; do
+for f in "$APP_DIR/src/server.js" "$APP_DIR/package.json" "$APP_DIR/websidian.version" "$PLUGIN_DIR/plugin.yaml" "$PLUGIN_DIR/websidian.version" "$PLUGIN_DIR/dashboard/manifest.json" "$PLUGIN_DIR/dashboard/plugin_api.py"; do
   if [ -e "$f" ]; then echo "    ok  $f"; else echo "    MISSING  $f"; fail=1; fi
 done
 if [ -d "$APP_DIR/node_modules" ]; then echo "    ok  $APP_DIR/node_modules"; else echo "    MISSING  $APP_DIR/node_modules"; fail=1; fi
 [ "$fail" = 0 ] || { echo "Installation is incomplete." >&2; exit 1; }
+echo "    revision ${REV:-unknown}"
 
 if [ "$SMOKE" = 1 ]; then
   echo "==> Smoke test: starting the installed Websidian on a throw-away vault"
@@ -126,9 +149,34 @@ EOF
   fi
 fi
 
+PID_FILE="$HERMES_HOME/plugin-data/websidian/server.pid"
+RESTARTED="no"
+if [ "$RESTART" = 1 ]; then
+  echo "==> Restarting the supervised Websidian process (that process only)"
+  PID="$(cat "$PID_FILE" 2>/dev/null || true)"
+  # A stale PID file can name an unrelated process, so the command line has to say server.js before we
+  # signal anything. MSYS/Git Bash has no `ps -o`, so there identity cannot be proven and we do not kill.
+  CMDLINE="$(ps -p "$PID" -o args= 2>/dev/null || true)"
+  if [ -z "$PID" ]; then
+    echo "    no $PID_FILE: nothing is running, and the dashboard starts the new code when it needs it"
+  elif [ -z "$CMDLINE" ] && ! ps -p "$PID" >/dev/null 2>&1; then
+    echo "    PID $PID is not running (stale $PID_FILE): nothing to restart"
+  elif [ -z "$CMDLINE" ]; then
+    echo "    cannot read the command line of PID $PID here (no 'ps -o' on this shell), so it was left alone."
+    echo "    Use install-local.ps1 -RestartRuntime on Windows, or stop it yourself."
+  elif ! printf '%s' "$CMDLINE" | grep -q 'server\.js'; then
+    echo "    PID $PID is not a Websidian process (stale $PID_FILE): left alone"
+  elif kill "$PID" 2>/dev/null; then
+    echo "    SIGTERM sent to $PID; the dashboard's supervisor starts the new code within ~15 s"
+    RESTARTED="yes"
+  else
+    echo "    could not signal PID $PID (different user?): restart it yourself"
+  fi
+fi
+
 cat <<EOF
 
-Done. Nothing was enabled or restarted and config.yaml was not touched.
+Done. Nothing was enabled and config.yaml was not touched. The dashboard and the gateway were not restarted.
 
 Next steps (yours to run, in this order):
 
@@ -145,9 +193,12 @@ Next steps (yours to run, in this order):
      writes to. Browser editing is off unless you add "edit": true to a vault — and then every signed-in
      dashboard user can rewrite it, so turn it on only for a vault you chose deliberately.
 
-  3. Restart, when it suits you. Enabled is not the same as active:
-       - the dashboard must restart before the Websidian tab and its supervised server exist;
-       - the gateway must restart before the write guard and the reply links load in chat.
+  3. Restart what holds the old code in memory. Enabled is not the same as active, and copying files
+     updates nothing that is already running:
+       - the supervised Websidian process, for changes under src/ or public/ (--restart-runtime does
+         this for you; restarted now: $RESTARTED). Or: kill \$(cat $PID_FILE)
+       - the dashboard, for dashboard/*.py or dist/ — its plugin routes mount only at start-up;
+       - the gateway, for the write guard, links, /brain and the skill.
        hermes dashboard --status
      Then open http://localhost:9119/websidian.
 

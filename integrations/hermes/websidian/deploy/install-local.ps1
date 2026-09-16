@@ -21,6 +21,7 @@ param(
   [string]$PluginDir,              # default: <HermesHome>\plugins\websidian
   [string]$NodeExe = 'node',
   [switch]$NoSmoke,
+  [switch]$RestartRuntime,        # stop the supervised Websidian process so the supervisor starts the new code
   [switch]$DryRun
 )
 
@@ -76,6 +77,17 @@ Write-Host "==> Installing runtime dependencies in $AppDir (npm ci --omit=dev)"
 & npm --prefix $AppDir ci --omit=dev --ignore-scripts
 if ($LASTEXITCODE -ne 0) { throw "npm ci failed in $AppDir" }
 
+# The plugin (Python) and the runtime (Node) are separate copies: stamp both so half an upgrade is visible
+# in the dashboard's status instead of showing up as odd behaviour.
+$rev = (& git -C $repo rev-parse --short HEAD 2>$null)
+if ($LASTEXITCODE -ne 0 -or -not $rev) { $rev = 'unknown' }
+elseif (& git -C $repo status --porcelain 2>$null) { $rev = "$rev-dirty" }
+$stamp = @{ revision = "$rev".Trim(); installed_at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); source = $repo }
+function Write-Stamp($path, $component) {
+  Set-Content -Path $path -Value (($stamp + @{ component = $component }) | ConvertTo-Json)
+}
+Write-Stamp (Join-Path $AppDir 'websidian.version') 'runtime'
+
 Write-Host "==> Copying the plugin into $PluginDir"
 $src = Join-Path $repo 'integrations\hermes\websidian'
 if (Test-Path $PluginDir) { Remove-Item -Recurse -Force $PluginDir }
@@ -87,13 +99,17 @@ foreach ($junk in 'tests', '__pycache__', 'deploy') {
     Sort-Object { $_.FullName.Length } -Descending | Remove-Item -Recurse -Force
 }
 
+Write-Stamp (Join-Path $PluginDir 'websidian.version') 'plugin'
+
 Write-Host "==> Checking the installed layout"
 $fail = $false
 $checks = @(
   (Join-Path $AppDir 'src\server.js'),
   (Join-Path $AppDir 'package.json'),
   (Join-Path $AppDir 'node_modules'),
+  (Join-Path $AppDir 'websidian.version'),
   (Join-Path $PluginDir 'plugin.yaml'),
+  (Join-Path $PluginDir 'websidian.version'),
   (Join-Path $PluginDir 'dashboard\manifest.json'),
   (Join-Path $PluginDir 'dashboard\plugin_api.py')
 )
@@ -101,6 +117,7 @@ foreach ($c in $checks) {
   if (Test-Path $c) { Write-Host "    ok  $c" } else { Write-Host "    MISSING  $c"; $fail = $true }
 }
 if ($fail) { throw "Installation is incomplete." }
+Write-Host "    revision $($stamp.revision)"
 
 if (-not $NoSmoke) {
   Write-Host "==> Smoke test: starting the installed Websidian on a throw-away vault"
@@ -135,11 +152,31 @@ if (-not $NoSmoke) {
   }
 }
 
+$pidFile = Join-Path $HermesHome 'plugin-data\websidian\server.pid'
+$restarted = 'no'
+if ($RestartRuntime) {
+  Write-Host "==> Restarting the supervised Websidian process (that process only)"
+  $running = if (Test-Path $pidFile) { (Get-Content $pidFile -Raw).Trim() } else { '' }
+  if (-not $running) {
+    Write-Host "    no ${pidFile}: nothing is running, and the dashboard starts the new code when it needs it"
+  } else {
+    # A stale PID file can name an unrelated process; never stop one we cannot identify.
+    $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId=$running" -ErrorAction SilentlyContinue).CommandLine
+    if ($cmd -and $cmd -match 'server\.js') {
+      Stop-Process -Id ([int]$running) -Force -ErrorAction SilentlyContinue
+      Write-Host "    stopped $running; the dashboard's supervisor starts the new code within ~15 s"
+      $restarted = 'yes'
+    } else {
+      Write-Host "    PID $running is not a Websidian process (stale $pidFile): left alone"
+    }
+  }
+}
+
 $appJson = $AppDir -replace '\\', '/'
 $homeJson = $env:USERPROFILE -replace '\\', '/'
 Write-Host @"
 
-Done. Nothing was enabled or restarted and config.yaml was not touched.
+Done. Nothing was enabled and config.yaml was not touched. The dashboard and the gateway were not restarted.
 
 Next steps (yours to run, in this order):
 
@@ -156,9 +193,12 @@ Next steps (yours to run, in this order):
      writes to. Browser editing is off unless you add "edit": true to a vault — and then every signed-in
      dashboard user can rewrite it, so turn it on only for a vault you chose deliberately.
 
-  3. Restart, when it suits you. Enabled is not the same as active:
-       - the dashboard must restart before the Websidian tab and its supervised server exist;
-       - the gateway must restart before the write guard and the reply links load in chat.
+  3. Restart what holds the old code in memory. Enabled is not the same as active, and copying files
+     updates nothing that is already running:
+       - the supervised Websidian process, for changes under src/ or public/ (-RestartRuntime does this
+         for you; restarted now: $restarted);
+       - the dashboard, for dashboard/*.py or dist/ — its plugin routes mount only at start-up;
+       - the gateway, for the write guard, links, /brain and the skill.
        hermes dashboard --status
      Then open http://localhost:9119/websidian.
 

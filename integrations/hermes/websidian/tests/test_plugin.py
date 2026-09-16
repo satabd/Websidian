@@ -73,6 +73,10 @@ class RegisterTests(unittest.TestCase):
         self.assertEqual(self.ctx.tools["websidian_links"]["schema"]["name"], "websidian_links")
         self.assertIn("brain", self.ctx.commands)
         self.assertIn("websidian", self.ctx.skills)
+        # The install/update runbook is a second skill, so an agent asked to upgrade has the steps.
+        self.assertIn("websidian-install", self.ctx.skills)
+        for path in self.ctx.skills.values():
+            self.assertTrue(Path(path).is_file(), f"registered skill file missing: {path}")
         self.assertIn("websidian.vaults", self.ctx.prompt_sections)
         prompt = self.ctx.prompt_sections["websidian.vaults"]({})
         self.assertIn(self.vault, prompt)

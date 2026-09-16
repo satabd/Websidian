@@ -40,7 +40,10 @@ Suggestions ranked by value for effort. **P1** = next, **P2** = soon, **P3** = l
 |---|---|
 | 15 | Obsidian themes on the public site (`.obsidian/themes`, `appearance.json`) — needs the reading view to emit Obsidian's DOM |
 | 16 | Tag pages and a tag pane |
-| 17 | Canvas (`.canvas`) as pan/zoom pages |
+| 17 | Canvas (`.canvas`) as pan/zoom pages — the Excalidraw viewer's box, lazy loading and click-to-interact shield can be reused |
+| 17b | Excalidraw: move to a current release once one ships a bundler-free browser build again (or vendor one built once and committed), for the newer fonts and elbow arrows ([[Known issues]]) |
+| 17c | Excalidraw: LaTeX blocks (render with KaTeX to an image for the `files` map) and nested drawings without an export |
+| 17d | Excalidraw: a static PNG per drawing rendered on the server for `og:image`, print and JavaScript-off pages when the plugin exported nothing |
 | 18 | Dataview subset (`TABLE`, `LIST`, `TASK`, `FROM`, `WHERE`, `SORT`) |
 | 19 | Split view of two notes (English / Arabic side by side) |
 | 20 | **MCP server** so agents read, search and edit the vault with editor permissions |

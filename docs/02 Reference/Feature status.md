@@ -16,7 +16,7 @@ description: Done, partial, in progress, missing
 | Callouts, math, mermaid, footnotes, highlights, comments | ✅ | |
 | Frontmatter chips, `cssclasses`, CSS snippets | ✅ | |
 | Obsidian Bases (table views) | 🟡 | Cards and other view types skipped |
-| Excalidraw | 🟡 | Needs the plugin's auto-exported image |
+| Excalidraw: live viewer for `![[x.excalidraw]]` and drawing pages, images, links, dark mode | ✅ | Browser-tested on two real drawings 2026-09-16 — [[Excalidraw drawings]]. Fonts newer than Excalidraw 0.17 are approximated |
 | Search (fuzzy, snippets) | 🟡 | No Obsidian operators (`tag:`, `path:`…) |
 | Graph view, Explore view, local graph | ✅ | |
 | Backlinks, previous/next, table of contents | ✅ | |
@@ -54,7 +54,7 @@ description: Done, partial, in progress, missing
 | Agent memory size warnings (`edit.memoryLimits`) | ✅ | 2026-09-13 |
 | Refuses writes through symlinks / junctions that leave the vault | ✅ | 2026-09-13 |
 | Git commit per save, history panel | ⬜ | Top of the backlog |
-| Writing help in the editor (Claude): improve, shorten, expand, summarise, translate, suggest | 🟡 | Opt-in and shipped; not yet exercised against a live API key — [[Writing help]] |
+| Writing help in the editor: improve, shorten, expand, summarise, translate, suggest — via the `claude` CLI (default), the `hermes` CLI, or the API | 🟡 | `hermes-cli` verified end to end on a real subscription (a wikilink survived a rewrite; a translation came back in Arabic). `claude-cli` wired and tested with a fake process; a live run still needs `claude login` on this machine — [[Writing help]] |
 | Paste / drop images | ⬜ | |
 | Rename or move with link updates | ⬜ | |
 | Hover page preview | ⬜ | |
@@ -70,6 +70,9 @@ description: Done, partial, in progress, missing
 | Git webhook pull | ✅ |
 | Hermes plugin (`integrations/hermes/websidian`) — [[Hermes plugin]] | ✅ tested in the real Hermes; real vaults configured; gateway restart pending for chat links |
 | Hermes dashboard tab (Websidian inside the Hermes dashboard, via `proxyAuth`) — [[Hermes plugin#Dashboard tab]] | ✅ deployed in `hermes01`, browser-tested |
+| Hermes plugin: write guard covers `memory` and `skill_manage` (approve/block, active-content check); deep links survive the login redirect (`note64=`) | ✅ 2026-09-16, 98 plugin tests incl. a round-trip through Hermes's real redirect functions; protected save browser-checked through the dashboard |
 | Hermes plugin: native profile installers (`deploy/install-local.sh`, `install-local.ps1`) — [[Hermes plugin#Install]] | ✅ both run end to end 2026-09-16 (Git Bash, PowerShell), each ending in a real `/_health` smoke test; layout covered by `test/hermes-install.test.js` |
+| Hermes plugin: update path — version stamps, `--restart-runtime`, restart matrix — [[Hermes plugin#Updating]] | ✅ stamps written and read back through `/_health`; the restart path exercised against a live process |
+| Hermes plugin: agent skills (`websidian:websidian`, `websidian:websidian-install`) | ✅ both registered and checked in the plugin suite |
 | Hermes plugin packaged for `hermes plugins install` | ⬜ the manifest is nested, so the normal installer cannot take this repository ([[Improvements backlog]] 14c) |
 | MCP server for agents | ⬜ |

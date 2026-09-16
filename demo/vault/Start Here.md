@@ -15,3 +15,4 @@ Anyone checking how the browser editor feels next to Obsidian.
 - [[Glossary]] — aliases, headings and block ids to link to
 - [[Projects/Websidian roadmap|Roadmap]] — tasks with different statuses
 - [[Arabic/مرحبا|العربية]] — right-to-left text next to English
+- [[Drawings/Websidian architecture.excalidraw|Websidian architecture]] — an Excalidraw drawing in the viewer

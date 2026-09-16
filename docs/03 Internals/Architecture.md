@@ -44,6 +44,8 @@ A page re-renders only when its file changes, a note it embeds changes, or notes
 | `src/hooks.js` | Purge and git webhook |
 | `src/proxyauth.js` | Sign-in through a trusted reverse proxy (`proxyAuth`) |
 | `src/untrusted.js` | CSP, attachment allowlist for `untrusted` sites |
+| `src/excalidraw.js` | Excalidraw: the plugin's file format (LZ-String, `## Drawing`, `## Embedded Files`), the safe scene JSON, the viewer markup |
+| `public/excalidraw-view.js` | Loads Excalidraw + React from `/_vendor` on demand and mounts the viewer — [[Excalidraw drawings]] |
 | `src/editor.js` | Editor login, sessions, IP gate, API, vault settings |
 | `src/esm.js` | Serves CodeMirror modules and the import map |
 | `public/editor.js`, `public/editor.css` | Editor page shell |

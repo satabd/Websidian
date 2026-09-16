@@ -45,6 +45,7 @@ after(() => { if (proc) proc.kill(); if (tmp) tmp.rm(); });
 test('health and stats', async () => {
   const h = await (await get('/_health')).json();
   assert.equal(h.ok, true); assert.equal(h.sites.length, 3); assert.equal(h.sites[0].notes, 4);
+  assert.equal(h.version, null);   // a checkout has no install stamp, and that is not an error
   const s = await (await get('/_stats')).json();
   assert.equal(s.cache.maxEntries, 2000); assert.deepEqual(s.sites[0].snippets, ['brand']); assert.equal(s.sites[1].auth, true);
 });

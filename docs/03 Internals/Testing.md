@@ -10,13 +10,14 @@ description: Running and extending the suite
 ```bash
 npm test
 ```
-Node's built-in test runner: 180 tests on 2026-09-16 (156 on 2026-09-13, 123 on 2026-09-11).
+Node's built-in test runner: 213 tests on 2026-09-16 (156 on 2026-09-13, 123 on 2026-09-11).
 
-Hermes plugin: `cd integrations/hermes/websidian` then `python -m unittest discover` — 71 tests (54 before the dashboard tab); the macOS install on 2026-09-16 ran the same 71 ([[Hermes plugin]]).
+Hermes plugin: `cd integrations/hermes/websidian` then `python -m unittest discover` — 98 tests on 2026-09-16 (71 before the version stamps and the second skill) ([[Hermes plugin]]).
 
 | File | Covers |
 |---|---|
 | `test/render.test.js`, `features.test.js` | Every Obsidian construct on the site |
+| `test/excalidraw.test.js` | Excalidraw: the plugin's file format, the safe scene, embed markup, drawing pages, the JSON route, `untrusted` and `excalidraw: "image"` sites, the editor preview |
 | `test/bases.test.js` | Bases expressions and tables |
 | `test/graph.test.js`, `graph-ui.test.js` | Graph data and layout |
 | `test/vault.test.js` | Index and link resolution |

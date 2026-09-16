@@ -377,6 +377,7 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
 <script src="${assets}/_vendor/mermaid/mermaid.min.js" defer></script>
 <script src="${assets}/_vendor/hljs/highlight.min.js" defer></script>
 <script src="${assets}/_vendor/katex/katex.min.js" defer></script>
+<script src="${assets}/_static/excalidraw-view.js?v=${layoutVersion}" defer></script>
 <script src="${assets}/_static/editor.js?v=${assetVersion('editor.js', layoutVersion)}" defer></script>${vaults.length > 1 ? `\n<script src="${assets}/_static/site-switch.js?v=${layoutVersion}" defer></script>` : ''}
 </body>
 </html>`;

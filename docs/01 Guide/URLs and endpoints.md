@@ -19,6 +19,7 @@ Examples use the site slug `notes`.
 | `/notes/reference/Glossary?raw` | Markdown source |
 | `/notes/reference/Glossary?embed=1` | Article only, for iframes — [[Embedding in your website]] |
 | `/notes/Catalogue.base` | Obsidian Base as tables |
+| `/notes/Drawings/Sketch.excalidraw` | An Excalidraw drawing in the viewer — [[Excalidraw drawings]] |
 | `/notes/_graph?focus=<rel>` | Graph view — [[Graph and Explore]] |
 | `/notes/_explore?focus=<rel>` | Explore view — [[Graph and Explore]] |
 | `/notes/_edit/<note>` | Editor — [[Editing in the browser]] |
@@ -29,6 +30,8 @@ Examples use the site slug `notes`.
 |---|---|
 | `/notes/_search?q=…` | Search results |
 | `/notes/_graph.json?rel=&depth=&tags=1` | Graph data — [[Graph and Explore#The data behind them]] |
+| `/notes/_drawing/Drawings/Sketch.excalidraw.md` | A drawing's scene as JSON for the viewer (ETagged; 404 when the drawing is hidden or the site says `excalidraw: "image"`) |
+| `/_vendor/excalidraw/`, `/_vendor/react/`, `/_vendor/react-dom/` | The Excalidraw viewer and its fonts, from `node_modules` |
 | `/notes/_api/…` | Editor API — [[Editor API]] |
 | `/notes/sitemap.xml`, `/robots.txt` | For search engines |
 | `/_health` | Liveness |

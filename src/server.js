@@ -29,6 +29,7 @@ const { createEsm } = require('./esm');
 const { resolveProxyAuth, middleware: proxyAuthMiddleware } = require('./proxyauth');
 const { isServableAttachment, SVG_CSP, makeNonce, pageCsp } = require('./untrusted');
 const { resolveAssist } = require('./assist');
+const { loadDrawing, viewerHtml } = require('./excalidraw');
 
 // ---- configuration --------------------------------------------------------
 // Websidian (formerly md2html): both env var and config file names are accepted.
@@ -37,6 +38,13 @@ let config;
 try { config = JSON.parse(fs.readFileSync(configPath, 'utf8')); }
 catch (e) { console.error(`Cannot read config ${configPath}: ${e.message}`); process.exit(1); }
 if (!Array.isArray(config.sites) || !config.sites.length) { console.error('config.sites must list at least one vault'); process.exit(1); }
+
+// Written by the Hermes installers next to src/ and public/, so /_health says which revision this copy is.
+// Absent in a git checkout, and that is not an error.
+const INSTALLED = (() => {
+  try { return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'websidian.version'), 'utf8')); }
+  catch { return null; }
+})();
 
 const PORT = Number(process.env.PORT || config.port || 8080);
 const HOST = process.env.HOST || config.host || '0.0.0.0';
@@ -67,7 +75,7 @@ async function stampOf(vault, rel) {
   try { const st = await fsp.stat(path.join(vault.root, rel)); return `${st.mtimeMs}-${st.size}`; } catch { return 'missing'; }
 }
 // Untrusted sites render with a different Markdown parser (no raw HTML): never share cache entries.
-function fullStamp(vault, stamp) { return `${stamp}|${vault.listHash}|r${RENDER_VERSION}${vault.untrusted ? 'u' : ''}`; }
+function fullStamp(vault, stamp) { return `${stamp}|${vault.listHash}|r${RENDER_VERSION}${vault.untrusted ? 'u' : ''}${vault.excalidraw === 'image' ? 'i' : ''}`; }
 
 async function getRendered(vault, rel) {
   const stamp = fullStamp(vault, await stampOf(vault, rel));
@@ -123,6 +131,10 @@ r.use('/_static', express.static(path.join(__dirname, '..', 'public'), { maxAge:
 r.use('/_vendor/mermaid', express.static(path.join(__dirname, '..', 'node_modules', 'mermaid', 'dist'), { maxAge: '30d', immutable: true }));
 r.use('/_vendor/hljs', express.static(path.join(__dirname, '..', 'node_modules', '@highlightjs', 'cdn-assets'), { maxAge: '30d', immutable: true }));
 r.use('/_vendor/katex', express.static(path.join(__dirname, '..', 'node_modules', 'katex', 'dist'), { maxAge: '30d', immutable: true }));
+// Excalidraw viewer (0.17.6: the last release with a browser build that needs no bundler) and the React it needs.
+r.use('/_vendor/excalidraw', express.static(path.join(__dirname, '..', 'node_modules', '@excalidraw', 'excalidraw', 'dist'), { maxAge: '30d', immutable: true }));
+r.use('/_vendor/react', express.static(path.join(__dirname, '..', 'node_modules', 'react', 'umd'), { maxAge: '30d', immutable: true }));
+r.use('/_vendor/react-dom', express.static(path.join(__dirname, '..', 'node_modules', 'react-dom', 'umd'), { maxAge: '30d', immutable: true }));
 // CodeMirror 6 and friends as plain ES modules, resolved by an import map (no bundler).
 const esm = createEsm({ root: path.join(__dirname, '..') });
 r.use('/_vendor/esm', esm.handler);
@@ -133,7 +145,7 @@ r.get('/', (req, res) => {
 });
 
 r.get('/_health', (req, res) => {
-  res.json({ ok: true, uptimeSec: Math.round((Date.now() - STARTED) / 1000), sites: vaults.map(v => ({ slug: v.slug, notes: v.notes.size, ok: fs.existsSync(v.root) })), cacheEntries: cache.size() });
+  res.json({ ok: true, uptimeSec: Math.round((Date.now() - STARTED) / 1000), version: INSTALLED, sites: vaults.map(v => ({ slug: v.slug, notes: v.notes.size, ok: fs.existsSync(v.root) })), cacheEntries: cache.size() });
 });
 
 r.get('/_stats', (req, res) => {
@@ -205,6 +217,23 @@ r.get('/:site/_search', searchLimiter.middleware(), async (req, res, next) => {
   } catch (e) { console.error('search failed:', e); res.status(500).json({ error: 'search failed' }); }
 });
 
+// Excalidraw: a drawing's scene as safe JSON for the browser viewer (src/excalidraw.js).
+r.get('/:site/_drawing/*', async (req, res, next) => {
+  const vault = bySlug.get(req.params.site); if (!vault) return next();
+  let rel;
+  try { rel = decodeURIComponent(req.params[0] || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''); } catch { return res.status(404).json({ error: 'bad path' }); }
+  if (rel.split('/').includes('..') || !vault.isDrawing(rel)) return res.status(404).json({ error: 'no such drawing' });
+  const stamp = await stampOf(vault, rel);
+  if (stamp === 'missing') return res.status(404).json({ error: 'no such drawing' });
+  const etag = etagFor(['x1', stamp, vault.listHash, vault.untrusted ? 'u' : '']);
+  if (sendConditional(req, res, etag)) return;
+  let scene;
+  try { scene = await loadDrawing(vault, rel); }
+  catch (e) { log('error', { path: req.originalUrl, message: e.message }); return res.status(500).json({ error: 'could not read the drawing' }); }
+  if (!scene) return res.status(404).json({ error: 'no drawing data in this file' });
+  res.json(scene);
+});
+
 // Browser editor (own login, own URLs); must come before the note route so /_edit and /_api are never treated as notes.
 const editing = editor.install(r, { config, vaults, bySlug, renderer, log, layoutVersion: LAYOUT_VERSION, esm, proxyAuth, assist });
 
@@ -214,11 +243,23 @@ r.get('/:site/*', async (req, res, next) => {
   let rel;
   try { rel = decodeURIComponent(req.params[0] || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''); } catch { return notFound(res, vault, 'Bad path'); }
   if (rel.split('/').includes('..')) return notFound(res, vault, 'Bad path');
-  if (req.query.raw !== undefined && !/\.(md|base)$/i.test(rel)) rel += '.md';
+  if (req.query.raw !== undefined && !/\.(md|base)$/i.test(rel) && !vault.file(rel)) rel += '.md';
   const embed = req.query.embed !== undefined && req.query.embed !== '0';
+
+  // A drawing (the plugin's `.excalidraw.md` note, or a plain `.excalidraw` file) is a page with the viewer.
+  const drawingPage = async (drawingRel, title) => {
+    const stamp = await stampOf(vault, drawingRel);
+    const etag = etagFor(['d1', stamp, vault.listHash, 'l' + LAYOUT_VERSION, embed ? 'e' : '', vault.snippets.map(s => s.mtimeMs).join(',')]);
+    if (sendConditional(req, res, etag)) return;
+    const stem = drawingRel.replace(/\.md$/i, '');
+    const exp = vault.resolveFile(stem + '.svg', drawingRel) || vault.resolveFile(stem + '.png', drawingRel);
+    const body = viewerHtml({ vault, drawing: drawingRel, exportRel: exp, title, page: true });
+    res.type('html').send(page({ vault, vaults, config, rel: drawingRel, title: title.replace(/\.excalidraw$/i, ''), body, data: {}, headings: [], siteLang: config.lang, embed, nonce: res.locals.cspNonce }));
+  };
 
   // 1. Attachments (images, PDFs...): served straight from the vault with caching. Bases are rendered.
   const file = vault.file(rel);
+  if (file && file.ext === '.excalidraw' && req.query.raw === undefined && vault.isDrawing(rel)) return drawingPage(rel, file.base);
   if (file && file.ext === '.base' && req.query.raw === undefined) {
     const stamp = await stampOf(vault, rel);
     const notesStamp = vault.visibleNotesSorted().map(n => `${n.mtimeMs}-${n.size}`).join(',');
@@ -258,11 +299,12 @@ r.get('/:site/*', async (req, res, next) => {
   let noteRel = rel === '' ? vault.homeRel() : (vault.note(rel) ? rel : vault.note(rel + '.md') ? rel + '.md' : vault.resolveNote(rel, ''));
   if (!noteRel) return notFound(res, vault, `No page at “${rel}”. Check the sidebar, or the note may have been renamed.`, editUser && /^[^.]/.test(rel) ? `<p><a href="${escapeHtml(vault.editUrl(rel + '.md'))}">Create “${escapeHtml(rel)}” in the editor</a></p>` : '');
   const note = vault.note(noteRel);
-  if (note.hidden) return notFound(res, vault, 'This page is not published.');
+  if (note.hidden && !vault.isDrawing(noteRel)) return notFound(res, vault, 'This page is not published.');
   const canonical = vault.noteUrl(noteRel);
   if (rel !== '' && req.query.raw === undefined && BASE + req.path !== canonical) return res.redirect(301, canonical + (embed ? '?embed=1' : ''));
 
   if (req.query.raw !== undefined) return res.type('text/markdown; charset=utf-8').sendFile(note.abs);
+  if (note.drawing) return drawingPage(noteRel, note.title);
 
   // 4. HTTP cache: ETag from the note's stamp + everything that shapes the page.
   const stamp = await stampOf(vault, noteRel);

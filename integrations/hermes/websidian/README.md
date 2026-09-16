@@ -6,11 +6,19 @@ editor (`<baseUrl>/<slug>/_edit/<note>`).
 
 When the agent writes notes into the vault, the plugin:
 
-1. **Stops bad writes before they happen** (`pre_tool_call`):
+1. **Stops bad writes before they happen** (`pre_tool_call` on `write_file`, `patch`, `terminal`, `memory`
+   and `skill_manage`):
    - Writes to agent instruction files (`SKILL.md`, `SOUL.md`, `AGENTS.md`, `MEMORY.md`, `USER.md`,
      `TOOLS.md`, `IDENTITY.md`, `HEARTBEAT.md`, `BOOTSTRAP.md`; case-insensitive basename match) anywhere
      under the Hermes home or inside a configured vault need a human's approval, through Hermes's own
      approval prompt. Paths are resolved first (`~`, relative paths, `..`, symlinks).
+   - The agent's own writers of those files go through the same rule: a `memory` write (`add`, `replace`,
+     `remove`, alone or in an `operations` batch) counts as a write to `<hermes home>/memories/MEMORY.md`
+     (or `USER.md` for `target: user`), and a `skill_manage` `create`/`edit`/`patch`/`write_file`/`delete`/
+     `remove_file` as a write to `<hermes home>/skills/[<category>/]<name>/SKILL.md` and the files of that
+     folder. Their text is checked for active content as well, and a refusal there wins over the approval
+     prompt. Read-only actions (memory read/search, and the separate `skills_list`/`skill_view` tools) and
+     argument shapes the guard does not recognise pass through untouched.
    - Writes into a vault must be plain Markdown. Content with `<script>`, `<iframe>`, `<object>`,
      `<embed>`, `<form>`, `<meta>`, `<base>`, event-handler attributes (`onerror=`...), or `javascript:`,
      `vbscript:`, `data:text/html` URLs is blocked, including entity and whitespace obfuscation
@@ -25,9 +33,9 @@ When the agent writes notes into the vault, the plugin:
 3. Adds a **Websidian tab to the Hermes dashboard** ([Dashboard tab](#dashboard-tab)): the dashboard runs
    Websidian on loopback and proxies it behind the dashboard login.
 4. Adds a **`websidian_links` tool** (links for given paths, or for the notes changed this session), a
-   **`/brain [query]` command** (10 most recently modified notes with links), a **skill**
-   (`websidian:websidian`) with the vault writing rules, and a short system-prompt section telling the
-   agent where the vaults are.
+   **`/brain [query]` command** (10 most recently modified notes with links), **two skills**
+   (`websidian:websidian` with the vault writing rules, `websidian:websidian-install` with the
+   install/update runbook), and a short system-prompt section telling the agent where the vaults are.
 
 ## Install
 
@@ -47,7 +55,7 @@ It finds the profile (`$HERMES_HOME`, else `~/.hermes`), copies the plugin to `<
 and the Websidian runtime to `<profile>/plugin-data/websidian/app`, runs `npm --prefix <app_dir> ci
 --omit=dev --ignore-scripts` **in app_dir**, checks the layout, then starts the installed server once on a
 throw-away vault and asks it for `/_health`. Options: `--hermes-home`, `--app-dir`, `--plugin-dir`,
-`--no-smoke`, `--dry-run`.
+`--no-smoke`, `--dry-run`, `--restart-runtime` (see [Update](#update)).
 
 ### Native profile (Windows PowerShell)
 
@@ -56,7 +64,7 @@ powershell -ExecutionPolicy Bypass -File integrations\hermes\websidian\deploy\in
 ```
 
 Same steps and the same checks; options are `-HermesHome`, `-AppDir`, `-PluginDir`, `-NodeExe`, `-NoSmoke`,
-`-DryRun`. The profile is `$env:HERMES_HOME`, else `~\.hermes`, else `%LOCALAPPDATA%\hermes`.
+`-DryRun`, `-RestartRuntime`. The profile is `$env:HERMES_HOME`, else `~\.hermes`, else `%LOCALAPPDATA%\hermes`.
 
 ### Docker container
 
@@ -132,6 +140,46 @@ that session**.
 > and keep agent-facing vaults `untrusted: true`. The iframe is same-origin with the dashboard, so a page the
 > gate lets through runs with the signed-in user's privileges.
 
+## Update
+
+```bash
+git pull && bash integrations/hermes/websidian/deploy/install-local.sh --restart-runtime
+```
+
+Re-running the installer *is* the update: it removes `app_dir/src` and `app_dir/public` before re-copying,
+re-runs `npm ci` (so a lockfile change is picked up) and replaces the plugin folder.
+
+**Copying files updates nothing that is already running.** The supervisor restarts Websidian only when the
+generated config changes or `/_health` stops answering — never because the code on disk changed. Match the
+restart to what changed:
+
+| Changed upstream | What has to restart |
+|---|---|
+| `src/`, `public/`, dependencies | the supervised Websidian process: `--restart-runtime` / `-RestartRuntime`, or `kill $(cat ~/.hermes/plugin-data/websidian/server.pid)`. The supervisor starts it again within ~15 s |
+| `dashboard/*.py`, `dashboard/dist/` | the dashboard — plugin routes mount only at start-up |
+| `__init__.py`, `guard.py`, `links.py`, `sites.py`, `skills/` | the gateway — write guard, links, `/brain`, skills |
+
+`--restart-runtime` stops that one process and nothing else; the dashboard and the gateway are never
+restarted for you. It refuses to signal a PID whose command line it cannot read or that is not Websidian,
+so a stale `server.pid` is harmless. (`ps -o` does not exist on MSYS/Git Bash, so there it declines and
+tells you; use the PowerShell installer or stop the process yourself.)
+
+### Which revision is installed
+
+Both copies are stamped with a `websidian.version` written by the installers:
+
+```json
+{ "revision": "a55bcf0", "installed_at": "2026-09-16T01:44:33Z", "source": "/home/me/websidian", "component": "runtime" }
+```
+
+- `GET /_health` returns it as `version` (`null` in a git checkout or a hand copy — not an error).
+- The dashboard's `/status` reports `app_version`, `plugin_version` and `version_skew`, and the tab shows
+  both under **Runtime** and **Plugin** plus a warning banner when the two revisions differ.
+
+The plugin (Python) and the runtime (Node) are installed as separate copies, so half an upgrade otherwise
+has no symptom other than odd behaviour. `version_skew` is only raised when both stamps name a revision and
+the two differ; unknown is never treated as skew.
+
 ## Configure
 
 In `~/.hermes/config.yaml`:
@@ -167,8 +215,9 @@ Environment variables are used for any key not set in config.yaml: `WEBSIDIAN_VA
 `WEBSIDIAN_BLOCK_ACTIVE_CONTENT`, `WEBSIDIAN_APPEND_LINKS`, `WEBSIDIAN_LINK_STYLE`, and `WEBSIDIAN_PUBLIC_BASE`
 (stands in for `dashboard.public_base`).
 
-The skill is registered as `websidian:websidian` (plugin skills are loaded explicitly; the system-prompt
-section tells the agent to load it). On a Hermes without `register_skill`, copy
+Two skills are registered: `websidian:websidian` (writing vault notes) and `websidian:websidian-install`
+(installing, updating and verifying this integration). Plugin skills are loaded explicitly; the
+system-prompt section tells the agent to load the first. On a Hermes without `register_skill`, copy
 `skills/websidian/SKILL.md` to `~/.hermes/skills/websidian/SKILL.md`.
 
 ## Dashboard tab
@@ -221,8 +270,13 @@ browser --(dashboard session cookie)--> hermes dashboard :9119
   found"), so the state lives in the query string: `/websidian?site=<slug>&note=<Folder/Note>` (no `.md`),
   `&edit=1` for the editor, `&q=` for the iframe's own query string. Navigating inside the iframe updates the
   dashboard URL (`history.replaceState`). Opening a deep link without a session goes through the login page and
-  comes back to it, but the login route decodes the target once, so a note whose name contains `&`, `#`, `+`
-  or `%` can land on the wrong page after a login redirect (the link works once you are signed in).
+  comes back to it — and on that trip Hermes decodes the target one time more than it encoded it (the gate
+  percent-encodes `path?query` into `/login?next=`, the HTTP layer decodes that value, and
+  `_validate_post_login_target` unquotes it again). So a value only survives if it carries no percent-escape:
+  a name that needs none keeps the readable `note=Folder/Note`, and any other (a space, `&`, `#`, `+`, `%`,
+  non-Latin letters) travels as `note64=<base64url>` — `[A-Za-z0-9_-]` only, which decoding cannot change.
+  `q64=` is the same for the iframe query. Both forms are accepted, so links made by older versions keep
+  working; `sites.note_query` / `note_from_query` and `dist/index.js` implement the same rule on each side.
 
 ### Settings
 
@@ -314,12 +368,13 @@ The links the agent shares (reply footer, `websidian_links`, `/brain`) follow `l
 
 | `link_style` | View link | Edit link |
 |---|---|---|
-| `dashboard` | `<public_base>/websidian?site=<slug>&note=Folder/My%20Note` | the same with `&edit=1` |
+| `dashboard` | `<public_base>/websidian?site=<slug>&note=Folder/Note`, or `&note64=<base64url>` when the name needs escaping | the same with `&edit=1` |
 | `direct` | the vault's `url` + `Folder/My%20Note`; without `url`, `<public_base>/api/plugins/websidian/w/<slug>/Folder/My%20Note` | `<site>/_edit/Folder/My%20Note` |
 | unset | a vault with an explicit `url` keeps direct links to it (the original behaviour); without `url`, `dashboard` when the `dashboard` setting exists, else no links | |
 
-Dashboard links go through the login page when needed and come back (with the `&`, `#`, `+`, `%` caveat
-above). Direct links to `/api/plugins/...` also need a dashboard session; without one they answer 401 JSON.
+Dashboard links go through the login page when needed and come back, including notes whose name contains
+`&`, `#`, `+`, `%`, a space or non-Latin letters (the `note64` encoding under [Dashboard tab](#dashboard-tab)). Direct
+links to `/api/plugins/...` also need a dashboard session; without one they answer 401 JSON.
 
 ## Pair it with Websidian's untrusted mode (external Websidian)
 
@@ -355,9 +410,16 @@ Use both. Neither replaces the other.
   for a command that both writes (`>`, `>>`, `tee`, `sed -i`, `cp`, `mv`, `Set-Content`...) and names a
   protected basename or a vault path, or runs with its working directory inside a vault. Variables,
   scripts, `cd` earlier in the session, encodings, and interpreters (`python -c`, `execute_code`) get
-  around it. The same applies to other tools that write files (`skill_manage`, `memory`, MCP tools,
-  `execute_code`): they are not inspected. Websidian's untrusted mode is what protects readers from
-  content that arrives this way.
+  around it. Other writers are still not inspected at all (`execute_code`, MCP tools, an editor, a sync):
+  Websidian's untrusted mode is what protects readers from content that arrives this way.
+- **`memory` and `skill_manage` are judged from their arguments**, not from what Hermes finally writes.
+  The guard reconstructs the target path (`<hermes home>/memories/…`, `<hermes home>/skills/…`), so a skill
+  kept in a `skills.external_dirs` folder is judged at its default location: the decision is the same, but
+  the path in the message is not where the file lives. Memory's own character limits are enforced by the
+  memory tool, not here.
+- **Memory entries and skill content are held to the same "plain Markdown" rule as vault notes**, wherever
+  they are stored - they end up in the agent's prompt, and those folders are often served as a vault. Text
+  *about* HTML outside a code fence is refused there too.
 - **Plugins run in-process with no sandbox.** This plugin is ordinary Python inside the Hermes process; it
   guards against mistakes and prompt-injected content reaching the vault, not against a compromised
   Hermes or a malicious plugin.
@@ -377,7 +439,7 @@ instead of escalated.
 # ~/.hermes/config.yaml
 hooks:
   pre_tool_call:
-    - matcher: "write_file|patch|terminal"
+    - matcher: "write_file|patch|terminal|memory|skill_manage"
       command: "python /home/me/.hermes/plugins/websidian/guard.py --stdin"
       timeout: 10
       fail_closed: true
@@ -396,14 +458,15 @@ importable by that `python`, else from the `WEBSIDIAN_*` environment variables, 
 | `__init__.py` | `register(ctx)`: hooks, tool, command, skill, system-prompt section |
 | `guard.py` | Pure write-guard logic and the shell-hook CLI (standard library only) |
 | `links.py` | URL building (`encodeURIComponent`-exact, both link styles) and note listing (standard library only) |
-| `sites.py` | Vault-to-site mapping (slugs, defaults, link styles) shared by the agent plugin and the dashboard |
+| `sites.py` | Vault-to-site mapping (slugs, defaults, link styles) and the deep-link encoding (`note`/`note64`, `q`/`q64`), shared by the agent plugin and the dashboard |
 | `dashboard/manifest.json` | Dashboard tab manifest |
 | `dashboard/plugin_api.py` | Dashboard backend: `/status` and the `/w/` reverse proxy (FastAPI `router`) |
 | `dashboard/wsd_core.py` | Config generation, secrets, proxy header rules, Node supervisor (standard library only) |
 | `dashboard/dist/index.js`, `dashboard/dist/style.css` | The tab: plain IIFE on the dashboard plugin SDK, no build |
-| `deploy/install-local.sh` | Installs the plugin and the runtime into a native Hermes profile (macOS, Linux, Git Bash), with a `/_health` smoke test |
+| `deploy/install-local.sh` | Installs or updates the plugin and the runtime in a native Hermes profile (macOS, Linux, Git Bash): npm in `app_dir`, version stamps, a `/_health` smoke test, optional runtime-only restart |
 | `deploy/install-local.ps1` | The same for Windows PowerShell |
 | `deploy/install-into-container.sh` | Copies Websidian and the plugin into a Docker container |
 | `skills/websidian/SKILL.md` | Agent instructions for writing vault notes |
+| `skills/websidian-install/SKILL.md` | Agent runbook for installing, updating and verifying this integration (restart matrix, acceptance checks, what never to do) |
 | `NOTES-api.md` | The Hermes APIs this plugin relies on, with source references |
 | `tests/` | `python -m unittest discover` from this folder |

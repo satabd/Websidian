@@ -30,6 +30,9 @@ before(async () => {
   // Stands in for `npm --prefix <app_dir> ci --omit=dev`: same location, without the network.
   fs.symlinkSync(path.join(REPO, 'node_modules'), path.join(appDir, 'node_modules'),
     process.platform === 'win32' ? 'junction' : 'dir');
+  // The installers stamp the copy so the dashboard can tell runtime and plugin apart when they drift.
+  fs.writeFileSync(path.join(appDir, 'websidian.version'), JSON.stringify(
+    { revision: 'abc1234', installed_at: '2026-09-16T00:00:00Z', source: REPO, component: 'runtime' }));
 
   const vault = path.join(tmp, 'vault');
   fs.mkdirSync(vault, { recursive: true });
@@ -66,6 +69,12 @@ test('/_health answers from the installed copy', async () => {
   assert.deepEqual(body.sites.map(s => [s.slug, s.notes, s.ok]), [['smoke', 1, true]]);
 });
 
+test('/_health reports the install stamp, so a half-upgraded pair is visible', async () => {
+  const body = await (await get('/_health')).json();
+  assert.equal(body.version.revision, 'abc1234');
+  assert.equal(body.version.component, 'runtime');
+});
+
 test('an untrusted note renders with nosniff and a CSP', async () => {
   const r = await get('/smoke/Hello');
   assert.equal(r.status, 200);
@@ -93,5 +102,7 @@ test('both installers copy the same runtime files', () => {
       assert.match(text, new RegExp(entry.replace('.', '\\.')), `${script} should install ${entry}`);
     }
     assert.match(text, /npm .*--prefix|--prefix \$AppDir/, `${script} should run npm ci inside app_dir`);
+    assert.match(text, /websidian\.version/, `${script} should stamp both copies with the revision`);
+    assert.match(text, /restart-runtime|RestartRuntime/, `${script} should offer the runtime-only restart`);
   }
 });

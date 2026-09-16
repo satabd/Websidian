@@ -8,10 +8,14 @@ Two rules:
 1. Protected files. Writes to agent instruction files (``SKILL.md``, ``SOUL.md``, ``AGENTS.md`` ...,
    matched by basename, case-insensitively) anywhere under the Hermes home or inside a configured
    vault need a human: an ``approve`` directive (or ``block`` when ``protect_mode`` is "block").
+   Hermes's own writers of such files go through the same rule: the ``memory`` tool (``MEMORY.md`` /
+   ``USER.md``) and ``skill_manage`` (``SKILL.md`` and the files of a skill folder).
 2. Active content. Writes into a configured vault must be plain Markdown: raw ``<script>``,
    ``<iframe>``, event-handler attributes, ``javascript:`` URLs and friends are blocked, and so are
    ``.html``/``.svg``/``.js``... files. Code inside fenced code blocks and inline code spans is
-   ignored, but only where Markdown really renders it as code.
+   ignored, but only where Markdown really renders it as code. Memory entries and skill content are
+   checked the same way wherever they are stored: they go into the agent's own prompt, and the folders
+   that hold them are often served as a vault.
 
 Shell (``terminal``) commands are checked best-effort only. This is a guard rail against mistakes and
 prompt-injected content, not a security boundary.
@@ -48,7 +52,30 @@ BLOCKED_EXTENSIONS: Tuple[str, ...] = (
 
 FILE_TOOLS = ("write_file", "patch")
 SHELL_TOOLS = ("terminal",)
-GUARDED_TOOLS = FILE_TOOLS + SHELL_TOOLS
+# Hermes's own writers of agent instruction files. Tool names and argument keys read from the native
+# install: ``memory`` (tools/memory_tool.py:1263 MEMORY_SCHEMA, registered :1376) writes
+# ``<hermes home>/memories/MEMORY.md`` or ``USER.md``; ``skill_manage``
+# (tools/skill_manager_tool.py:1711 SKILL_MANAGE_SCHEMA, registered :1833) writes
+# ``<hermes home>/skills/[<category>/]<name>/SKILL.md`` and the files under that folder.
+MEMORY_TOOLS = ("memory",)
+SKILL_TOOLS = ("skill_manage",)
+GUARDED_TOOLS = FILE_TOOLS + SHELL_TOOLS + MEMORY_TOOLS + SKILL_TOOLS
+# Tools whose successful calls write files the plugin can turn into links (``post_tool_call``).
+TRACKED_TOOLS = FILE_TOOLS + MEMORY_TOOLS + SKILL_TOOLS
+
+# memory: ``action`` on its own, or the same actions inside an atomic ``operations`` batch
+# (memory_tool.py:1129). A read/search surface (another Hermes may have one) is not in this list, so it
+# passes through, and so does any shape this guard does not recognize.
+MEMORY_WRITE_ACTIONS = ("add", "replace", "remove", "batch")
+MEMORY_DIR = "memories"                                        # memory_tool.py:64 get_memory_dir()
+MEMORY_FILES = {"memory": "MEMORY.md", "user": "USER.md"}      # memory_tool.py:341 _path_for(target)
+
+# skill_manage actions (skill_manager_tool.py:1755): the first four carry content, the last two only
+# remove files. ``skills_list`` / ``skill_view`` are separate, unguarded tools.
+SKILL_CONTENT_ACTIONS = ("create", "edit", "patch", "write_file")
+SKILL_DELETE_ACTIONS = ("delete", "remove_file")
+SKILLS_DIR = "skills"                                          # skill_manager_tool.py:160 _skills_dir()
+SKILL_FILE = "SKILL.md"
 
 _MAX_SCAN_CHARS = 2_000_000
 
@@ -570,8 +597,8 @@ def parse_v4a(patch_text: str) -> List[Dict[str, Any]]:
 # --------------------------------------------------------------------------------------------------
 
 def _protect_directive(path: str, name: str, settings: Settings, tool_name: str,
-                        base: Optional[str] = None) -> Dict[str, str]:
-    what = f"{name} is an agent instruction file ({path})"
+                        base: Optional[str] = None, detail: str = "") -> Dict[str, str]:
+    what = f"{name} is an agent instruction file ({path})" + (f"; {detail}" if detail else "")
     if settings.protect_mode == "block":
         return {"action": "block",
                 "message": f"websidian: {what}; writes to it are blocked. A human must make this change - "
@@ -612,6 +639,129 @@ def check_file_write(path: str, new_text: Optional[str], settings: Settings, *, 
         if reasons:
             return _block(f"the content for {path} contains active HTML ({', '.join(reasons)}). " + _PLAIN_MD_HINT)
     return None
+
+
+# --------------------------------------------------------------------------------------------------
+# memory and skill_manage: Hermes's own writers of agent instruction files
+# --------------------------------------------------------------------------------------------------
+
+_INSTRUCTION_MD_HINT = ("Write plain Markdown instead; raw HTML with scripts, frames, forms, event handlers "
+                        "or javascript: URLs does not belong in an agent instruction file - it is injected "
+                        "into the agent's own prompt, and these folders are often served as a vault.")
+
+
+def _active_content_directive(text: Any, what: str, settings: Settings) -> Optional[Dict[str, str]]:
+    """Block directive when ``text`` is not plain Markdown (``None`` when it is, or when the check is off)."""
+    if not settings.block_active_content or not isinstance(text, str) or not text:
+        return None
+    reasons = find_active_content(text)
+    if not reasons:
+        return None
+    return _block(f"{what} contains active HTML ({', '.join(reasons)}). " + _INSTRUCTION_MD_HINT)
+
+
+def _first_existing(paths: List[str]) -> str:
+    """The first path that exists, else the first path (``""`` for an empty list)."""
+    return next((p for p in paths if os.path.exists(p)), paths[0] if paths else "")
+
+
+def _homes(hermes_homes: Optional[Iterable[str]]) -> List[str]:
+    return sorted({real(h) for h in (default_hermes_homes() if hermes_homes is None else hermes_homes) if h})
+
+
+def memory_texts(args: Mapping[str, Any]) -> Optional[List[str]]:
+    """The entry text a ``memory`` call writes, or ``None`` when the call writes nothing we recognize
+    (a read-only action, or an argument shape this guard does not understand: those fail open, as
+    malformed ``write_file``/``patch`` args do)."""
+    ops = args.get("operations")
+    if isinstance(ops, list) and ops:
+        if not all(isinstance(op, Mapping) for op in ops):
+            return None
+        if not any(str(op.get("action") or "").strip().lower() in MEMORY_WRITE_ACTIONS for op in ops):
+            return None
+        return [t for op in ops for t in (op.get("content"), op.get("new_text")) if isinstance(t, str)]
+    if str(args.get("action") or "").strip().lower() not in MEMORY_WRITE_ACTIONS:
+        return None
+    return [t for t in (args.get("content"), args.get("new_text")) if isinstance(t, str)]
+
+
+def memory_file(args: Mapping[str, Any], hermes_homes: Optional[Iterable[str]] = None) -> str:
+    """``<hermes home>/memories/MEMORY.md`` (``USER.md`` for ``target: user``), an existing one first."""
+    name = MEMORY_FILES.get(str(args.get("target") or "memory").strip().lower(), MEMORY_FILES["memory"])
+    return _first_existing([os.path.join(h, MEMORY_DIR, name) for h in _homes(hermes_homes)])
+
+
+def check_memory_write(args: Mapping[str, Any], settings: Settings,
+                       base: Optional[str] = None) -> Optional[Dict[str, str]]:
+    """Directive for a ``memory`` call: the entry lands in ``MEMORY.md`` / ``USER.md``, so it needs the same
+    human approval as writing that file directly, and the text itself must be plain Markdown. A refusal
+    wins over an approval prompt - approving an entry does not make a script in it safe."""
+    texts = memory_texts(args)
+    if texts is None:
+        return None
+    for text in texts:
+        directive = _active_content_directive(text, "the memory entry", settings)
+        if directive:
+            return directive
+    path = memory_file(args, settings.hermes_homes)
+    name = protected_name(path, settings, base) if path else None
+    return _protect_directive(path, name, settings, "memory", base) if name else None
+
+
+def skill_dir(args: Mapping[str, Any], hermes_homes: Optional[Iterable[str]] = None) -> str:
+    """The folder a ``skill_manage`` call touches: ``<hermes home>/skills/[<category>/]<name>``, an existing
+    one first. A skill kept in ``skills.external_dirs`` cannot be located without Hermes, so the guard sees
+    the default location for it (its SKILL.md is protected there, which is the decision that matters)."""
+    name = str(args.get("name") or "").strip()
+    if not name:
+        return ""
+    category = str(args.get("category") or "").strip()
+    parts = [SKILLS_DIR] + ([category] if category else []) + [name]
+    return _first_existing([os.path.join(h, *parts) for h in _homes(hermes_homes)])
+
+
+def skill_written_files(args: Mapping[str, Any], hermes_homes: Optional[Iterable[str]] = None) -> List[str]:
+    """The files a ``skill_manage`` call writes: the supporting file for the file actions (and for a
+    ``patch`` that names one), else the skill's ``SKILL.md`` (the tool's own default)."""
+    folder = skill_dir(args, hermes_homes)
+    if not folder:
+        return []
+    action = str(args.get("action") or "").strip().lower()
+    rel = args.get("file_path")
+    rel = rel.strip().replace("\\", "/").strip("/") if isinstance(rel, str) else ""
+    if action in ("write_file", "remove_file") or (action == "patch" and rel):
+        return [os.path.join(folder, *rel.split("/"))] if rel else []
+    return [os.path.join(folder, SKILL_FILE)]
+
+
+def check_skill_write(args: Mapping[str, Any], settings: Settings,
+                      base: Optional[str] = None) -> Optional[Dict[str, str]]:
+    """Directive for a ``skill_manage`` call: creating, editing or deleting a skill writes ``SKILL.md`` and
+    the files of its folder, which the agent loads as instructions, so a human decides; the content must be
+    plain Markdown. Read-only actions (``skills_list``/``skill_view`` are separate tools) and unknown action
+    shapes pass through."""
+    action = str(args.get("action") or "").strip().lower()
+    if action not in SKILL_CONTENT_ACTIONS + SKILL_DELETE_ACTIONS:
+        return None
+    if action in SKILL_CONTENT_ACTIONS:
+        for text in (args.get("content"), args.get("file_content"), args.get("new_string")):
+            directive = _active_content_directive(text, "the skill content", settings)
+            if directive:
+                return directive
+    written = skill_written_files(args, settings.hermes_homes)
+    for path in written:  # a supporting file whose own name is protected (references/AGENTS.md...)
+        name = protected_name(path, settings, base)
+        if name:
+            return _protect_directive(path, name, settings, "skill_manage", base)
+    folder = skill_dir(args, settings.hermes_homes)
+    skill_md = os.path.join(folder, SKILL_FILE) if folder else ""
+    name = protected_name(skill_md, settings, base) if skill_md else None
+    if not name:
+        return None
+    verb = "removes" if action in SKILL_DELETE_ACTIONS else "writes"
+    detail = (f"this call {verb} {written[0]} in that skill's folder"
+              if written and _key(written[0]) != _key(skill_md) else "")
+    return _protect_directive(skill_md, name, settings, "skill_manage", base, detail=detail)
 
 
 def _read_text(path: str, base: Optional[str]) -> Optional[str]:
@@ -733,11 +883,16 @@ def evaluate(tool_name: str, args: Any, settings: Settings, *, base: Optional[st
         return _check_patch(args, settings, base)
     if tool_name in SHELL_TOOLS:
         return check_shell_command(args.get("command"), settings, workdir=args.get("workdir"), base=base)
+    if tool_name in MEMORY_TOOLS:
+        return check_memory_write(args, settings, base=base)
+    if tool_name in SKILL_TOOLS:
+        return check_skill_write(args, settings, base=base)
     return None
 
 
-def written_paths(tool_name: str, args: Any) -> List[str]:
-    """Paths a successful ``write_file``/``patch`` call wrote (used by ``post_tool_call``)."""
+def written_paths(tool_name: str, args: Any, hermes_homes: Optional[Iterable[str]] = None) -> List[str]:
+    """Paths a successful call wrote (used by ``post_tool_call`` to link the notes). ``hermes_homes`` locates
+    the ``memory`` and ``skill_manage`` files; it defaults to :func:`default_hermes_homes`."""
     if not isinstance(args, Mapping):
         return []
     if tool_name == "write_file":
@@ -746,6 +901,12 @@ def written_paths(tool_name: str, args: Any) -> List[str]:
         if str(args.get("mode") or "replace").lower() == "patch" or (args.get("patch") and not args.get("path")):
             return [op["new_path"] or op["path"] for op in parse_v4a(args.get("patch") or "") if op["op"] != "delete"]
         return [args["path"]] if isinstance(args.get("path"), str) else []
+    if tool_name in MEMORY_TOOLS:
+        path = memory_file(args, hermes_homes) if memory_texts(args) is not None else ""
+        return [path] if path else []
+    if tool_name in SKILL_TOOLS:
+        action = str(args.get("action") or "").strip().lower()
+        return skill_written_files(args, hermes_homes) if action in SKILL_CONTENT_ACTIONS else []
     return []
 
 

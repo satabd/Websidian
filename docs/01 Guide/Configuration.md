@@ -40,6 +40,7 @@ names are in `.gitignore`: the real one holds passwords, tokens and webhook secr
 | `auth` | Protect viewing: `{ "users": {…} }` (browser login) and/or `{ "token": "…" }` (share links) |
 | `snippets` | `.obsidian/snippets` CSS to include: `true` (the enabled ones; default), `"all"`, a list, or `false`. Default `false` on `untrusted` sites |
 | `untrusted` | `true` for folders you did not write yourself (AI agents): no raw HTML, only images/PDF/audio/video attachments, strict Content-Security-Policy and mermaid, snippets off — [[Agent memory and second brain]] |
+| `excalidraw` | `"image"` (or `false`) shows only the plugin's exported picture instead of the live viewer, and turns drawing pages off — [[Excalidraw drawings]]. Default: the viewer |
 | `webhook` | `{ "secret", "command" }` enables the git webhook — see [[Deploying]] |
 | `edit` | Editor settings for this site (overrides the top-level one); `false` turns editing off |
 | `brand` | `name`, `logo`, `color`, `font`, `favicon`, `homeUrl`, `backLink`, `footer`, `headHtml`, `css` |

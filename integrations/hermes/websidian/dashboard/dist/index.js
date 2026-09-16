@@ -6,6 +6,9 @@
  *
  * Deep links (the dashboard router matches the tab path exactly, so state lives in the query string):
  *   /websidian?site=<slug>&note=<Folder/Note, no .md>[&edit=1][&q=<encoded iframe query>]
+ * A note or query whose plain form would need percent-escaping travels as base64url in note64/q64 instead,
+ * so the link also survives the login redirect (see noteQuery below and note_query in sites.py). Both forms
+ * are accepted; older note=/q= links keep working.
  * The dashboard URL follows navigation inside the iframe (history.replaceState).
  *
  * The iframe is NOT sandboxed: Websidian's pages and editor fetch their own JSON API with the dashboard session
@@ -40,9 +43,57 @@
       .map(encodeURIComponent).join("/");
   }
 
+  function noteText(note) {
+    return String(note || "").split("/").filter(function (s) { return s !== ""; }).join("/");
+  }
+
+  // --- base64url (no padding), the decode-stable form of a deep-link value -----------------------------
+  // A deep link opened without a session goes through /login?next=<the whole path?query, percent-encoded>,
+  // and Hermes decodes that one time more than it encoded it, so percent-escapes inside a value are lost
+  // ("Plan%20%232" comes back as "Plan #2" and the query falls apart on the "#"). Values that need no
+  // escaping are left readable; the rest go as base64url ([A-Za-z0-9_-], which decoding never changes) in
+  // note64/q64. sites.py (note_query / search_query / note_from_query) builds and parses the same links.
+  var STABLE_QUERY = /^[A-Za-z0-9\-._~!*'()=,:/]*$/;
+
+  function b64encode(text) {
+    var bytes = new TextEncoder().encode(String(text || ""));
+    var bin = "";
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function b64decode(value) {
+    var s = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    try {
+      var bin = atob(s);
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new TextDecoder().decode(bytes);
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function noteQuery(note) {
+    var raw = noteText(note);
+    var plain = encodeNote(raw);
+    return plain === raw ? "note=" + plain : "note64=" + b64encode(raw);
+  }
+
+  function searchQuery(q) {
+    q = String(q || "").replace(/^\?/, "");
+    return STABLE_QUERY.test(q) ? "q=" + q : "q64=" + b64encode(q);
+  }
+
   function readQuery() {
     var p = new URLSearchParams(window.location.search);
-    return { site: p.get("site") || "", note: p.get("note") || "", edit: p.get("edit") === "1", q: p.get("q") || "" };
+    return {
+      site: p.get("site") || "",
+      note: p.has("note64") ? b64decode(p.get("note64")) : (p.get("note") || ""),
+      edit: p.get("edit") === "1",
+      q: p.has("q64") ? b64decode(p.get("q64")) : (p.get("q") || ""),
+    };
   }
 
   // Websidian URL (same origin, through the proxy) for a dashboard state.
@@ -70,13 +121,12 @@
   }
 
   function dashboardSearch(state) {
-    var p = new URLSearchParams();
-    if (state.site) p.set("site", state.site);
-    if (state.note) p.set("note", state.note);
-    if (state.edit) p.set("edit", "1");
-    if (state.q) p.set("q", state.q);
-    var s = p.toString();
-    return s ? "?" + s : "";
+    var parts = [];
+    if (state.site) parts.push("site=" + encodeURIComponent(state.site));
+    if (state.note) parts.push(noteQuery(state.note));
+    if (state.edit) parts.push("edit=1");
+    if (state.q) parts.push(searchQuery(state.q));
+    return parts.length ? "?" + parts.join("&") : "";
   }
 
   function selectChange(setter) {
@@ -93,6 +143,13 @@
     }, props.children);
   }
 
+  // "a55bcf0 (2026-09-16)" from an installer stamp; "unknown" for a hand copy or a checkout.
+  function versionLabel(v) {
+    if (!v || !v.revision) return "unknown";
+    var when = String(v.installed_at || "").slice(0, 10);
+    return v.revision + (when ? " (installed " + when + ")" : "");
+  }
+
   function StatusPanel(props) {
     var st = props.status;
     var err = props.error;
@@ -104,6 +161,8 @@
         h("dt", null, "Port"), h("dd", null, "127.0.0.1:" + st.port),
         h("dt", null, "App"), h("dd", null, st.app_dir + (st.app_dir_present ? "" : " (missing)")),
         h("dt", null, "Node"), h("dd", null, st.node + " " + (st.node_version || "")),
+        h("dt", null, "Runtime"), h("dd", null, versionLabel(st.app_version)),
+        h("dt", null, "Plugin"), h("dd", null, versionLabel(st.plugin_version)),
         h("dt", null, "Sites"), h("dd", null, (st.sites || []).map(function (s) { return s.slug + " → " + s.root; }).join(", ") || "none configured"),
       ) : null,
       st && st.log_tail && st.log_tail.length ? h("pre", { className: "websidian-log" }, st.log_tail.join("")) : null,
@@ -225,6 +284,10 @@
       mismatch ? h("div", { className: "websidian-warning" },
         "dashboard.public_base gives the path prefix " + JSON.stringify(status.base_path) + " but this dashboard is served under " +
         JSON.stringify(basePath() + MOUNT) + ". Fix plugins.entries.websidian.settings.dashboard.public_base.") : null,
+      status.version_skew ? h("div", { className: "websidian-warning" },
+        "Half an upgrade: this plugin is " + versionLabel(status.plugin_version) + " but the Websidian runtime in " +
+        status.app_dir + " is " + versionLabel(status.app_version) +
+        ". Re-run deploy/install-local.sh, then restart the dashboard.") : null,
       h("div", { ref: wrapRef, className: "websidian-frame-wrap", style: { height: height + "px" } },
         h("iframe", {
           ref: frameRef,

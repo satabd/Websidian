@@ -44,11 +44,25 @@ trap 'rm -rf "$TMP"' EXIT
 HOST_TMP="$TMP"
 if command -v cygpath >/dev/null 2>&1; then HOST_TMP="$(cygpath -m "$TMP")"; fi
 
-echo "==> Packing Websidian (src, public, package.json, package-lock.json, node_modules)"
+# Stamp both copies with the revision they came from: the plugin (Python) and the runtime (Node) are
+# installed separately, and the dashboard's status flags them when the two disagree.
+REV="$(git rev-parse --short HEAD 2>/dev/null || true)"
+if [ -n "$REV" ] && [ -n "$(git status --porcelain 2>/dev/null || true)" ]; then REV="$REV-dirty"; fi
+stamp() {
+  printf '{\n  "revision": "%s",\n  "installed_at": "%s",\n  "source": "%s",\n  "component": "%s"\n}\n' \
+    "${REV:-unknown}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$PWD" "$1"
+}
+mkdir -p "$TMP/app" "$TMP/stage/websidian"
+stamp runtime > "$TMP/app/websidian.version"
+stamp plugin > "$TMP/stage/websidian/websidian.version"
+
+echo "==> Packing Websidian (src, public, package.json, package-lock.json, node_modules) — revision ${REV:-unknown}"
 tar -cf "$TMP/app.tar" src public package.json package-lock.json node_modules
+tar -rf "$TMP/app.tar" -C "$TMP/app" websidian.version
 
 echo "==> Packing the plugin (without tests, __pycache__ and deploy)"
 tar -cf "$TMP/plugin.tar" --exclude=tests --exclude=__pycache__ --exclude=deploy -C integrations/hermes websidian
+tar -rf "$TMP/plugin.tar" -C "$TMP/stage" websidian/websidian.version
 
 echo "==> Copying Websidian into $CONTAINER:$APP_DIR"
 docker cp "$HOST_TMP/app.tar" "$CONTAINER:/tmp/websidian-app.tar"

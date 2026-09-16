@@ -259,6 +259,38 @@ def tail_lines(path: Path, n: int = 20, max_bytes: int = 64_000) -> List[str]:
 
 
 # --------------------------------------------------------------------------------------------------
+# Install stamps
+# --------------------------------------------------------------------------------------------------
+
+VERSION_FILE = "websidian.version"
+
+
+def read_version_stamp(path: Any) -> Optional[Dict[str, Any]]:
+    """``{revision, installed_at, source, component}`` written by the installers, or ``None``.
+
+    A git checkout has no stamp, and a hand-copied install may not either, so ``None`` means "unknown" and
+    is never an error.
+    """
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def version_skew(app: Optional[Mapping[str, Any]], plugin: Optional[Mapping[str, Any]]) -> bool:
+    """True only when both stamps name a revision and the two differ.
+
+    The plugin (Python, loaded by the gateway and the dashboard) and the runtime (Node, under ``app_dir``)
+    are installed as separate copies, so half an upgrade leaves them on different revisions with no other
+    symptom. An unknown revision on either side never raises the alarm.
+    """
+    a = str((app or {}).get("revision") or "")
+    p = str((plugin or {}).get("revision") or "")
+    return bool(a and p and a != p)
+
+
+# --------------------------------------------------------------------------------------------------
 # Supervisor
 # --------------------------------------------------------------------------------------------------
 
@@ -509,6 +541,8 @@ class Supervisor:
         rt = self._runtime()
         health = self.health(rt)
         server_js = Path(rt["app_dir"]) / "src" / "server.js"
+        app_version = read_version_stamp(Path(rt["app_dir"]) / VERSION_FILE)
+        plugin_version = read_version_stamp(PLUGIN_DIR / VERSION_FILE)
         return {
             "running": bool(health),
             "pid": self.pid(rt),
@@ -519,6 +553,9 @@ class Supervisor:
                        "untrusted": s["untrusted"], "url": f"{rt['base_path']}/{s['slug']}/"} for s in rt["sites"]],
             "app_dir": str(rt["app_dir"]),
             "app_dir_present": server_js.is_file(),
+            "app_version": app_version,
+            "plugin_version": plugin_version,
+            "version_skew": version_skew(app_version, plugin_version),
             "node": rt["node"],
             "node_version": node_version(rt["node"]),
             "error": "" if health else self.last_error,

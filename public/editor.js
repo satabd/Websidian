@@ -190,6 +190,7 @@
       window.mermaid.initialize(document.documentElement.hasAttribute('data-untrusted') ? { startOnLoad: false, theme: isDark() ? 'dark' : 'default', securityLevel: 'strict', htmlLabels: false, flowchart: { htmlLabels: false } } : { startOnLoad: false, theme: isDark() ? 'dark' : 'default', securityLevel: 'loose' });
       window.mermaid.run({ nodes: blocks }).catch(function () {});
     }, 30);
+    whenReady(function () { return !!window.websidianExcalidraw; }, function () { window.websidianExcalidraw.mount(el); }, 30);
     // Internal links in the preview open the target note in the editor; external ones in a new tab.
     el.querySelectorAll('a[href]').forEach(function (a) {
       var href = a.getAttribute('href');

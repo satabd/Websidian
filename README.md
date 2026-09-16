@@ -66,6 +66,7 @@ vault when you are ready.
 | `edit` | Browser editor for the site's notes (see [Editing in the browser](#editing-in-the-browser)): `{ "users": { "name": "password" }, "allowFrom": ["10.0.0.0/8"], "token": "…", "sessionHours": 12, "secret": "…", "protect": ["SKILL.md"], "memoryLimits": { "MEMORY.md": 2200 } }` (`protect`/`memoryLimits`: see agent instruction files). Top-level applies to all sites; per site overrides it; `false` on a site turns it off. Without `edit`, no editor URLs exist |
 | `brand` | Per-site look: `name`, `logo` (URL), `color` (accent), `font`, `favicon`, `homeUrl` (where the brand link goes), `backLink: {label, url}` (link back to your product page), `footer` (HTML), `headHtml` (analytics etc.), `css` (extra rules) |
 | `untrusted` | `true` for a folder whose notes you did not write yourself, e.g. written by an AI agent: no raw HTML in notes, only images/PDF/audio/video served as attachments, a strict Content-Security-Policy and strict mermaid. See [Serving folders written by AI agents](#serving-folders-written-by-ai-agents) |
+| `excalidraw` | `"image"` (or `false`): show only the Excalidraw plugin's exported picture, no live viewer and no drawing pages. Default: the viewer |
 | `basePath` | Top-level. Mount everything under a prefix, e.g. `"/docs"` → `yoursite.com/docs/notes/…` behind a reverse proxy |
 | `publicUrl` | Top-level, e.g. `https://docs.example.com`. Makes sitemap, canonical and OpenGraph URLs absolute |
 | `adminToken` | Top-level. Enables `POST /_purge[?site=x]` with `Authorization: Bearer <token>`: clears memory + disk cache and rescans |
@@ -103,7 +104,7 @@ Full reference: [Navigation and sections](docs/01%20Guide/Navigation%20and%20sec
 | `==highlight==`, `%%comment%%`, `- [ ]` / `- [x]` | Mark, hidden, checkboxes |
 | `^block-id` on a paragraph, list item or after a table; `[[Note#^id]]`, `![[Note#^id]]` | Block anchors, links and block transclusion |
 | `[^1]` footnotes, `$inline$` and `$$display$$` math | Footnotes with back-links; math rendered by KaTeX (served locally, loaded only on pages that need it) |
-| `![[Drawing.excalidraw]]` | Shows the plugin's auto-exported `.svg`/`.png` next to the drawing (enable auto-export in the Excalidraw plugin); the drawing note itself is never a page |
+| `![[Drawing.excalidraw]]`, `![[Drawing.excalidraw\|500]]`, `[[Drawing.excalidraw]]` | The real Excalidraw viewer (0.17.6, served locally): pan and zoom, images from the vault, wikilinks on elements, dark mode; the link opens the drawing on its own page. The plugin's exported `.svg`/`.png`, if any, is the fallback, the print version and the social image. `"excalidraw": "image"` on a site goes back to the picture only — [Excalidraw drawings](docs/01%20Guide/Excalidraw%20drawings.md) |
 | `Catalogue.base` (Obsidian Bases) | Rendered as sortable tables: filters (`and`/`or`/`not`, `file.inFolder`, `file.hasTag`, `prop == "x"`, `prop.contains()`…), formulas (`if()`, `==`, `+`, `&&`…), table views with `order`, `groupBy`, `sort`, `limit`, `displayName` labels. Cards/other view types are skipped |
 | `cssclasses:` frontmatter and `.obsidian/snippets/*.css` | Classes applied to the page; the snippets enabled in Obsidian are served with the site, so brochure/print styling carries over |
 | `translation:` / `translations:` frontmatter, or two notes with different `lang` linking to each other | Language switch in the header |
@@ -111,7 +112,7 @@ Full reference: [Navigation and sections](docs/01%20Guide/Navigation%20and%20sec
 | Tables, code fences, footnote-free GFM, raw HTML (`<br>`, `<div class="page-break">`) | As in Obsidian's reading view; single newlines are line breaks (Obsidian default) |
 | Standard `[text](Other Note.md)`, `![](img.png)` links | Also resolved |
 
-Not supported: Dataview queries, Bases views other than tables, Excalidraw drawings without an exported image, Canvas files.
+Not supported: Dataview queries, Bases views other than tables, LaTeX inside Excalidraw drawings, Canvas files.
 
 ## URLs
 
@@ -128,6 +129,7 @@ Not supported: Dataview queries, Bases views other than tables, Excalidraw drawi
 | `/notes/Catalogue.base` | An Obsidian Base rendered as tables (also listed in the sidebar) |
 | `/notes/_graph`, `/notes/_graph?focus=<rel>` | **Graph view**: Obsidian's graph on the web — filters, colour groups, forces, local graph, pinning. [Full reference](docs/01%20Guide/Graph%20and%20Explore.md) |
 | `/notes/_explore`, `/notes/_explore?focus=<rel>` | **Explore view**: a second graph built for reading — folder clusters, section bubbles, radial rings, a path finder between any two notes. [Full reference](docs/01%20Guide/Graph%20and%20Explore.md) |
+| `/notes/_drawing/<path>.excalidraw.md` | An Excalidraw drawing's scene as JSON for the viewer (ETagged; links resolved, iframes stripped on `untrusted` sites) |
 | `/notes/_graph.json?rel=<rel>&depth=1&tags=1` | The graph data (ETagged; built from the index, no rendering). Nodes carry `links`, `in`, `out`, `status`, `updated`, `dist`; the result carries per-section `clusters` and cross-section `clusterLinks` |
 | `/notes/sitemap.xml`, `/robots.txt` | For search engines; protected sites are excluded |
 | `/_health` | Liveness: `{ ok, uptimeSec, sites: [...] }` |
@@ -313,7 +315,7 @@ Put nginx or Caddy in front for HTTPS, e.g. `reverse_proxy localhost:8080` in a 
 npm test
 ```
 
-Node's built-in test runner, no extra dependencies. `test/render.test.js` covers every Obsidian construct, `test/features.test.js` block references, footnotes, math, Excalidraw, translations, snippets and the layout, `test/bases.test.js` the Bases expression language and table rendering, `test/graph.test.js` the graph data and its layout hooks, `test/vault.test.js` the index and link resolution, `test/cache.test.js` both cache layers, `test/hardening.test.js` auth, rate limiting, LRU, SEO, webhook signatures and the search index, `test/cm-editor.test.js` the CodeMirror editor's own modules (Obsidian syntax parsing, link resolution and link format, editing commands, suggestions) loaded straight into Node, `test/editor.test.js` the editor's login, gates, API, import map and module serving, `test/proxy-auth.test.js` trusted-proxy sign-in and a deep `basePath` mount, and `test/server.test.js` + `test/server-ops.test.js` start the real server on scratch vaults and check routing, ETags, embed mode, auth, sitemap, snippets, bases, purge and the git webhook over HTTP.
+Node's built-in test runner, no extra dependencies. `test/render.test.js` covers every Obsidian construct, `test/features.test.js` block references, footnotes, math, translations, snippets and the layout, `test/excalidraw.test.js` the Excalidraw file format (LZ-String, embedded files), the safe scene, viewer markup, drawing pages and the JSON route, `test/bases.test.js` the Bases expression language and table rendering, `test/graph.test.js` the graph data and its layout hooks, `test/vault.test.js` the index and link resolution, `test/cache.test.js` both cache layers, `test/hardening.test.js` auth, rate limiting, LRU, SEO, webhook signatures and the search index, `test/cm-editor.test.js` the CodeMirror editor's own modules (Obsidian syntax parsing, link resolution and link format, editing commands, suggestions) loaded straight into Node, `test/editor.test.js` the editor's login, gates, API, import map and module serving, `test/proxy-auth.test.js` trusted-proxy sign-in and a deep `basePath` mount, and `test/server.test.js` + `test/server-ops.test.js` start the real server on scratch vaults and check routing, ETags, embed mode, auth, sitemap, snippets, bases, purge and the git webhook over HTTP.
 
 ## Security notes
 
@@ -345,6 +347,7 @@ public/graph.js force-directed canvas renderer for the graph views (no dependenc
 public/graph-page.js  the full-screen graph page: floating panel, colour groups, saved settings
 public/explore.js     the Explore view: section bubbles, cluster/radial layouts, colour/size by property, path finder
 src/untrusted.js  `untrusted: true` sites: attachment allowlist, CSP and nonces
+src/excalidraw.js Excalidraw drawings: the plugin's file format, safe scene JSON, viewer markup (browser side: public/excalidraw-view.js)
 src/ratelimit.js
 public/         CSS and browser JS (theme toggle, search, mermaid, TOC spy, embed helpers)
 test/           node:test suite (npm test)

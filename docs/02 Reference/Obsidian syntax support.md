@@ -1,7 +1,7 @@
 ---
 title: Obsidian syntax support
 tags: [websidian, reference]
-updated: 2026-09-13
+updated: 2026-09-16
 order: 2
 description: What renders on the site, and what does not
 ---
@@ -21,10 +21,10 @@ What the **public site** renders. The editor parses the same syntax — see [[Ed
 | `^block-id` | Block anchors for links and embeds |
 | `[^1]`, `^[inline]`, `$x$`, `$$…$$` | Footnotes and KaTeX math |
 | `#tag`, `#nested/tag` | Tags |
-| `![[Drawing.excalidraw]]` | The plugin's exported SVG/PNG |
+| `![[Drawing.excalidraw]]`, `![[Drawing.excalidraw\|500]]`, `[[Drawing.excalidraw]]` | The live Excalidraw viewer (pan, zoom, images, links, dark mode); the link opens the drawing as a page — [[Excalidraw drawings]] |
 | `Something.base` | Obsidian Bases table views |
 | Frontmatter `title`, `lang`, `status`, `tags`, `description`, `cssclasses` | Title, direction, chips, meta tag, classes |
 | `translation:` / `translations:` | Language switch |
 | Tables, code, raw HTML, `[text](Other Note.md)` | As in Obsidian's reading view |
 
-Not supported: Dataview, Canvas, Bases card views, Excalidraw without an exported image. In `untrusted` sites raw HTML is not rendered.
+Not supported: Dataview, Canvas, Bases card views, LaTeX inside Excalidraw drawings. In `untrusted` sites raw HTML is not rendered.

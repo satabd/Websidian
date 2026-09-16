@@ -202,8 +202,10 @@ class LinkStyles(unittest.TestCase):
         s = self.settings(vaults=[{"path": self.vault, "slug": "brain", "edit": True}], link_style="dashboard",
                           dashboard={"public_base": "https://hermes.example.com/"})
         e = self.entry(s)
-        self.assertEqual(e["view"], "https://hermes.example.com/websidian?site=brain&note=Projects/Plan%20%232")
-        self.assertEqual(e["edit"], "https://hermes.example.com/websidian?site=brain&note=Projects/Plan%20%232&edit=1")
+        # "Plan #2" needs percent-escaping, which a login redirect would eat: the note travels as base64url.
+        note64 = sites.b64_param("Projects/Plan #2")
+        self.assertEqual(e["view"], f"https://hermes.example.com/websidian?site=brain&note64={note64}")
+        self.assertEqual(e["edit"], f"https://hermes.example.com/websidian?site=brain&note64={note64}&edit=1")
         self.assertEqual(s.vaults[0]["url"], "https://hermes.example.com/websidian?site=brain")
 
     def test_dashboard_style_read_only_vault_has_no_edit_link(self):
@@ -211,7 +213,8 @@ class LinkStyles(unittest.TestCase):
         s = self.settings(vaults=[{"path": self.vault, "slug": "brain"}], link_style="dashboard",
                           dashboard={"public_base": "https://hermes.example.com/"})
         e = self.entry(s)
-        self.assertEqual(e["view"], "https://hermes.example.com/websidian?site=brain&note=Projects/Plan%20%232")
+        self.assertEqual(e["view"],
+                         "https://hermes.example.com/websidian?site=brain&note64=" + sites.b64_param("Projects/Plan #2"))
         self.assertEqual(e["edit"], "")
         self.assertNotIn("edit:", links.format_links_block([e]))
 
@@ -231,7 +234,8 @@ class LinkStyles(unittest.TestCase):
                           dashboard={"public_base": "http://localhost:9119"})
         self.assertEqual(self.entry(s, "a b.md")["view"], "https://brain.example.com/hermes/a%20b")
         s = self.settings(vaults=[{"path": self.vault, "url": "https://brain.example.com/hermes"}], link_style="dashboard")
-        self.assertEqual(self.entry(s, "a b.md")["view"], "http://localhost:9119/websidian?site=hermes&note=a%20b")
+        self.assertEqual(self.entry(s, "a b.md")["view"],
+                         "http://localhost:9119/websidian?site=hermes&note64=" + sites.b64_param("a b"))
 
     def test_no_links_without_url_or_dashboard(self):
         s = self.settings(vaults=[{"path": self.vault}])
@@ -243,6 +247,37 @@ class LinkStyles(unittest.TestCase):
                                                    "WEBSIDIAN_PUBLIC_BASE": "http://h:9119", "WEBSIDIAN_LINK_STYLE": "dashboard"},
                                         hermes_homes=[])
         self.assertEqual(self.entry(s, "x.md")["view"], "http://h:9119/websidian?site=b&note=x")
+
+
+class VersionStamps(unittest.TestCase):
+    """The installers stamp both copies; the dashboard uses the stamps to spot a half-finished upgrade."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="websidian-stamp-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_read_version_stamp(self):
+        self.assertIsNone(core.read_version_stamp(self.tmp / "nope.version"))   # a checkout has no stamp
+        bad = self.tmp / "bad.version"
+        bad.write_text("not json")
+        self.assertIsNone(core.read_version_stamp(bad))
+        not_a_dict = self.tmp / "list.version"
+        not_a_dict.write_text("[1, 2]")
+        self.assertIsNone(core.read_version_stamp(not_a_dict))
+        good = self.tmp / core.VERSION_FILE
+        good.write_text(json.dumps({"revision": "a55bcf0", "component": "runtime"}))
+        self.assertEqual(core.read_version_stamp(good)["revision"], "a55bcf0")
+
+    def test_version_skew(self):
+        a, b = {"revision": "a55bcf0"}, {"revision": "39ae9ba"}
+        self.assertTrue(core.version_skew(a, b))
+        self.assertFalse(core.version_skew(a, dict(a)))
+        # Unknown on either side is not evidence of skew: a hand copy has no stamp.
+        self.assertFalse(core.version_skew(a, None))
+        self.assertFalse(core.version_skew(None, b))
+        self.assertFalse(core.version_skew(a, {"revision": ""}))
 
 
 if __name__ == "__main__":
