@@ -10,6 +10,21 @@ description: What changed each session, newest first
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
 
+## 2026-09-16 — writing help through CLIs, and the Hermes plugin finished (A5–A8)
+User direction for this stage: no API keys (they cost tokens — use the `claude` / `hermes` CLIs on existing subscriptions), use Hermes itself for the plugin work, and delegate implementation to cheaper models. Two Opus agents did the code; this session directed, verified and deployed.
+
+- **Writing help now runs through a CLI** ([[Writing help]]): `assist.backend` = `claude-cli` (default) | `hermes-cli` | `api`. The CLI backends need no key; the prompt still never comes from the browser. `hermes-cli` was verified end to end on the real subscription (a wikilink survived a rewrite; a translation came back in Arabic). `claude-cli` is tested with a fake process only — this machine's Claude CLI is signed out (*Not logged in · Please run /login*), and signing in is not something this session does.
+- **`--bare` is off by default** for the Claude CLI: `claude --help` says under `--bare` auth is strictly an API key and OAuth is never read — the one thing the backend exists to use ([[Decisions]]). The agent had it on per the first brief; the correction came from its own report.
+- **A6** — the guard covers `memory` and `skill_manage` (approve/block like `write_file`, active-content check, read-only actions pass). Tool names and argument shapes were taken from the Hermes source, not guessed. **A7** — deep links carry `note64=` (base64url) when a name needs escaping, because the dashboard decodes `next` once after login; one test round-trips `& # + %` through Hermes's real `_safe_next_target` / `_validate_post_login_target`. Plugin suite 72 → 98.
+- **A8, in the browser**: through the dashboard's own signed-in session (your Chrome, no credentials handled here), a new note with a protected name showed the *Agent instruction file* banner, `Ctrl+S` raised *Save "…/MEMORY.md"?* with **Save anyway / Cancel**, and *Save anyway* wrote it (`edit … action=create` in the server log). On a scratch note under `_websidian-test/`, trashed afterwards. The iframe's DOM is invisible to the browser tooling, so the confirmation was driven on the *Open full page* view — same session, same routes.
+- **Deployed to `hermes01`** from a `git archive` of the committed tree (not the working tree, which holds another session's unfinished Excalidraw work). Plugin suite 98 in the container on its own interpreter. `config.yaml` backed up, then `edit: true` on all three vaults (the user's choice), because the new default would have made the tab read-only everywhere.
+- **A5** — the gateway is **PID 1** of the container, so "restart the gateway" is `docker restart hermes01` (dashboard, Open WebUI and the WhatsApp bridge come back with it; ~6 s to the dashboard answering). After it, a real `hermes chat -q … -t file` in the container wrote `_websidian-test/Links & Notes.md` and its reply ended with *Notes updated:* and a `note64=` dashboard link — view and edit; the link opened the note in the dashboard tab. Scratch notes trashed.
+- **Learned**: `git archive` applies CRLF conversion, which exposed that `test/docs-links.test.js` only accepted LF frontmatter — fixed to `?
+` like `parseFrontmatter`. Committing from a three-session working tree: the Excalidraw session's hunks were filtered out of the index with `git apply --cached`; the Hermes-install session's co-edits in five files were committed alongside and named in the message.
+- **Not done**: dashboard screenshots for this guide — the ones captured through Chrome show real memory and vault contents and are not committed; the Chrome tooling did not report where it saved its files. **Open**: `claude login` on the server for the default backend; the Hermes-install session was still editing the plugin (its `websidian-install` skill) when this closed.
+
+
+
 ## 2026-09-16 — Excalidraw viewer
 `![[Sketch.excalidraw]]` now shows the drawing in the real Excalidraw, in view mode, instead of needing the plugin's exported picture ([[Excalidraw drawings]]).
 
