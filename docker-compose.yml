@@ -1,13 +1,32 @@
-# Example: run md2html with a vault mounted read-only.
-# Put md2html.config.json in ./config with "root": "/vaults/odoohms".
+# Two ways to run Websidian in a container.
+#
+#   docker compose up docs        this project's own documentation, no setup
+#   docker compose up websidian   your vault, using ./config/websidian.config.json
+#
+# The `docs` service needs nothing configured: it mounts ./docs read-only and
+# serves it with deploy/docs-site.config.json. It is also the honest demo —
+# Websidian's own site is Websidian.
 services:
-  md2html:
+  docs:
+    build: .
+    ports: ["8081:8080"]
+    volumes:
+      - ./docs:/vaults/docs:ro
+      - ./deploy/docs-site.config.json:/config/websidian.config.json:ro
+      - websidian-docs-cache:/app/.cache
+    restart: unless-stopped
+
+  # Your own vault. Put websidian.config.json in ./config with "root": "/vaults/notes",
+  # and point the mount below at the folder you opened in Obsidian.
+  websidian:
     build: .
     ports: ["8080:8080"]
     volumes:
       - ./config:/config:ro
-      - D:/VibeProjects/OdooHMS/docs:/vaults/odoohms:ro   # use :rw if the config enables the browser editor ("edit")
-      - md2html-cache:/app/.cache
+      - ${WEBSIDIAN_VAULT:-./demo/vault}:/vaults/notes:ro   # :rw if the config enables the browser editor ("edit")
+      - websidian-cache:/app/.cache
     restart: unless-stopped
+
 volumes:
-  md2html-cache:
+  websidian-cache:
+  websidian-docs-cache:

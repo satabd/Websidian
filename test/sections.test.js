@@ -171,3 +171,10 @@ test('dates survive YAML parsing into the section index', () => {
   assert.match(html, /updated 2026-09-16/, 'a Date from js-yaml is still shown');
   assert.match(html, /second/, 'description: is shown when a note has one');
 });
+
+test('every page carries an icon, so nothing 404s on /favicon.ico', async () => {
+  const html = await (await get('/s/')).text();
+  assert.match(html, /<link rel="icon" href="data:image\/svg\+xml,/, 'a generated mark when brand.favicon is unset');
+  const index = await (await get('/')).text();
+  assert.match(index, /<link rel="icon"/, 'the sites index has one too');
+});

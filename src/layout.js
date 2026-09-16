@@ -13,7 +13,7 @@ const { folderTitle } = require('./vault');
 const { pageTags } = require('./seo');
 const { nonceAttr, withNonce } = require('./untrusted');
 
-const LAYOUT_VERSION = 13;   // 13: folder notes, section index pages, order: in the sidebar
+const LAYOUT_VERSION = 14;   // 14: generated favicon so no page 404s on /favicon.ico
 
 // JSON inside <script>: a note path containing "</script>" must not close the tag.
 const scriptJson = v => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -98,6 +98,21 @@ function footer(vault, rel, embed) {
   return out ? `<footer class="note-footer">${out}</footer>` : '';
 }
 
+// Without a <link rel="icon"> every browser asks for /favicon.ico and logs a
+// 404 on the first page load. A site that sets brand.favicon gets that; every
+// other site gets a generated mark in its own accent colour, inline so it costs
+// no request and works offline.
+function faviconTag(vault) {
+  if (vault.brand.favicon) return `<link rel="icon" href="${escapeHtml(vault.brand.favicon)}">`;
+  const colour = /^#[0-9a-f]{3,8}$/i.test(String(vault.brand.color || '')) ? vault.brand.color : '#7c3aed';
+  const letter = [...String(vault.brand.name || vault.title || 'W')][0] || 'W';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">`
+    + `<rect width="32" height="32" rx="7" fill="${colour}"/>`
+    + `<text x="16" y="23" font-family="system-ui,sans-serif" font-size="20" font-weight="700" fill="#fff" text-anchor="middle">${escapeHtml(letter)}</text>`
+    + `</svg>`;
+  return `<link rel="icon" href="data:image/svg+xml,${encodeURIComponent(svg)}">`;
+}
+
 // Per-site branding from config: { name, logo, color, font, favicon, homeUrl, backLink: {label, url}, footer, headHtml, css }
 function brandVars(brand) {
   const vars = [];
@@ -120,7 +135,7 @@ ${seo}
 <link rel="stylesheet" href="${assets}/_vendor/hljs/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
 ${math}${snippets}
 ${brandVars(brand)}${brand.css ? `<style>${brand.css}</style>` : ''}${withNonce(brand.headHtml || '', nonce)}
-${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}`;
+${faviconTag(vault)}`;
 }
 
 // Local graph (this note and its neighbours) in the right column. Only for
@@ -360,7 +375,7 @@ ${scripts(vault, rel, false, assets, body, nonce, vaults.length > 1)}
 }
 
 function sitesIndex(vaults, basePath = '') {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Documentation</title><link rel="stylesheet" href="${basePath}/_static/app.css?v=${LAYOUT_VERSION}"></head>
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Documentation</title><link rel="icon" href="data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#7c3aed"/><text x="16" y="23" font-family="system-ui,sans-serif" font-size="20" font-weight="700" fill="#fff" text-anchor="middle">W</text></svg>')}"><link rel="stylesheet" href="${basePath}/_static/app.css?v=${LAYOUT_VERSION}"></head>
 <body><main class="main sites"><h1>Documentation</h1><ul class="site-list">${vaults.map(v => `<li><a href="${v.siteUrl()}">${escapeHtml(v.title)}</a><span class="muted">${v.visibleNotesSorted().length} pages${v.auth ? ' · restricted' : ''}</span></li>`).join('')}</ul></main></body></html>`;
 }
 

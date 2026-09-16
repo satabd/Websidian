@@ -21,7 +21,6 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 - **Arabic `[[` suggestions** match titles and aliases, but fuzzy ranking is tuned for Latin text.
 
 ## Server and setup
-- **No `/favicon.ico`** unless a site sets `brand.favicon`, so every browser logs a 404 on the first page load. Harmless, but it is the first thing in the console.
 - **Server changes need a restart** of `npm start`; browser changes a `Ctrl+Shift+R` — [[Quick start]].
 - **Sessions end on restart** unless `edit.secret` is set.
 - **`localhost` cookie clash** between two servers on different ports: use `127.0.0.1`.
@@ -32,6 +31,7 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 
 ## Development
 - **Parallel Claude sessions share one working folder** and can overwrite each other's files. The project is in git now (<https://github.com/satabd/Websidian>), so there is an undo; a worktree per session is still recommended — [[Improvements backlog]].
+- **`git add -A` sweeps up the other session's work.** It happened on 2026-09-16: commit `9fc6734` carries a parallel session's Hermes installer without mentioning it. Stage explicitly, or use a worktree.
 - **Tests run outside a dot-folder can miss path bugs**: under `~/.hermes`, Express's `dotfiles` check looked at the whole absolute path and refused editor modules and attachments (fixed 2026-09-13, `test/dotpath.test.js`). The in-container tests ran from `/tmp` and did not catch it.
 - **The browser preview pane is shared** between sessions: another session can navigate or resize it mid-test.
 

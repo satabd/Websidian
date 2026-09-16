@@ -22,6 +22,15 @@ Newest first. One entry per working session: what changed, what was learned, wha
 - **Still open**: `hermes plugins install <repo>` cannot take this repository — the manifest is nested at `integrations/hermes/websidian/plugin.yaml` ([[Improvements backlog]], [[Known issues]]). And whether agent-facing vaults should default to `edit: false` instead of `true` is an open question for the user.
 - **Next**: navigation order and folder notes ([[Improvements backlog]] #1) is still the top item.
 
+## 2026-09-16 — Websidian's own public site
+- **`docker compose up docs`** serves this vault on :8081 with `deploy/docs-site.config.json` — public, read-only, no `edit` block at all, so `/_edit/` and `/_api/` are simply not routed (checked: both 404). Websidian's own site is Websidian.
+- **Generated favicon**: every page carries `<link rel="icon">` built from `brand.color` and the site's initial, inline as a `data:` URI (allowed by the untrusted CSP's `img-src 'self' data:`). The `/favicon.ico` 404 in [[Known issues]] is gone.
+- **Link previews already worked** — `og:image` takes the first image in a note, so [[Start Here]] and [[Tour]] now share as large preview cards with a real screenshot. Confirmed: `https://…/docs/attachments/site-reading-view.png`.
+- `docker-compose.yml` still hard-coded `D:/VibeProjects/OdooHMS/docs` — the last local path in the repo. Now `${WEBSIDIAN_VAULT:-./demo/vault}`.
+- `Dockerfile`: `WEBSIDIAN_CONFIG` instead of the old `MD2HTML_CONFIG`, plus a `HEALTHCHECK` on `/_health`.
+- [[Deploying]] gains the container recipe and a "public, read-only site" section.
+- **Note on commit `9fc6734`**: a parallel Claude session was working in this same folder and its Hermes local installer (`deploy/install-local.{sh,ps1}`, `test/hermes-install.test.js`) plus an express 4.22.3 lock bump were swept into that commit by `git add -A`. The commit message describes only the navigation work. Nothing was lost, and the Hermes stage of this session was skipped to avoid editing files that session holds — [[Known issues]].
+
 ## 2026-09-16 — navigation order, folder notes, generated section pages
 Phase 1 #6 in [[Roadmap]], and the reason the docs did not read in order.
 

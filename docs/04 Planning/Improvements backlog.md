@@ -31,7 +31,6 @@ Suggestions ranked by value for effort. **P1** = next, **P2** = soon, **P3** = l
 | 12 | Tables inside callouts and lists as grids; richer cell rendering; column resize; row drag | Complete the table editor |
 | 13 | Search operators (`tag:`, `path:`, `file:`, `[prop:value]`) in site search and quick switcher | Obsidian users expect them |
 | 14 | Mobile toolbar (bold, link, list, checkbox, undo) above the keyboard | Editing from a phone |
-| 14b | A default `/favicon.ico` so a site without `brand.favicon` does not 404 | First thing in every browser console ([[Known issues]]) |
 | 14c | **Package the Hermes plugin for `hermes plugins install`** — a standalone plugin repository, or a root manifest that points at the nested one | Today the only routes are `deploy/install-local.sh` / `.ps1`, the container script, or copying a subfolder by hand ([[Hermes plugin]]) |
 | 14d | **Decide the default for `vaults[].edit`** in the Hermes plugin: `true` today, `false` proposed for agent-facing vaults | A vault the agent writes to is also a vault every dashboard user can rewrite ([[Known issues]]) |
 

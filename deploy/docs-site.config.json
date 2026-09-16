@@ -1,0 +1,33 @@
+{
+  "_comment": "Websidian serving its own documentation as a public site. Read-only: no edit block, so the editor does not exist. Used by the `docs` service in docker-compose.yml.",
+  "port": 8080,
+  "host": "0.0.0.0",
+  "cacheDir": "/app/.cache",
+  "warm": true,
+  "log": "json",
+  "trustProxy": true,
+  "publicUrl": "https://websidian.example.com",
+  "sites": [
+    {
+      "slug": "docs",
+      "title": "Websidian",
+      "root": "/vaults/docs",
+      "home": "Start Here",
+      "folderNames": {
+        "01 Guide": "Guide",
+        "02 Reference": "Reference",
+        "03 Internals": "Internals",
+        "04 Planning": "Planning"
+      },
+      "codeLinks": {
+        "base": "https://github.com/satabd/Websidian/blob/main/",
+        "vaultPathInRepo": "docs"
+      },
+      "brand": {
+        "name": "Websidian",
+        "color": "#7c3aed",
+        "footer": "Websidian serving its own documentation. No build step — these pages render from the .md files in docs/ on request."
+      }
+    }
+  ]
+}
