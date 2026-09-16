@@ -1,6 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
+    { "name": "websidian-demo", "runtimeExecutable": "npm", "runtimeArgs": ["run", "demo"], "port": 8093, "url": "http://127.0.0.1:8093" },
     { "name": "md2html", "runtimeExecutable": "node", "runtimeArgs": ["src/server.js"], "port": 8080, "autoPort": true },
     { "name": "md2html-8089", "runtimeExecutable": "node", "runtimeArgs": ["-e", "process.env.PORT='8089';require('./src/server.js')"], "port": 8089 }
   ]

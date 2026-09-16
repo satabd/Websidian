@@ -1,22 +1,68 @@
 ---
 title: Roadmap
 tags: [websidian, planning]
-updated: 2026-09-13
+updated: 2026-09-16
 ---
 # Roadmap
 
-> Obsidian on the desktop, Websidian on the web, **one vault**.
-
-The long-form thinking is in `ROADMAP.md` at the project root. Summary:
+Where Websidian goes, in phases. What it can honestly become is in [[Scope and positioning]]; the ranked next steps are in [[Improvements backlog]]; what shipped is in [[Work log]].
 
 | Phase | Goal | State |
 |---|---|---|
-| 0 | Rename to Websidian | 🟡 package and README done; config/cookie/global names still old |
-| 1 | CMS essentials: git per save, attachments, rename, properties, publishing states, roles, live reload, slash commands | 🟡 properties and slash commands done |
-| 2 | An editor an Obsidian user feels at home in | 🟡 most done — see [[Feature status]] |
+| 0 | Rename to Websidian | 🟡 package, README, config filename and env var done; cookie and client-global names still old |
+| 1 | CMS essentials: git per save, attachments, rename, properties, publishing states, roles, live reload, slash commands | 🟡 properties, slash commands and publishing states done |
+| 2 | An editor an Obsidian user feels at home in | 🟡 most of it — see [[Feature status]] |
 | 3 | Reading view completeness and Obsidian themes | ⬜ |
-| 4 | Platform: plugin API, MCP server, multi-vault, i18n, export | ⬜ (agent integration started) |
+| 4 | Platform: plugin API, MCP server, multi-vault, i18n, export | 🟡 agent integration started ([[Hermes plugin]]) |
 
-Where "full Obsidian" is realistic: 100 % of the reading view, the core vault features, a comfortable editor, and built-in equivalents of what the top plugins produce. Not community plugins themselves.
+## Phase 0 — Rename to Websidian
+Done: `package.json`, README, the `WEBSIDIAN_CONFIG` env var and the `websidian.config.json` default filename (both old names still work as aliases).
 
-Next concrete steps: [[Improvements backlog#P1 — do next]].
+Left: cookie prefix `websidian_`, the `window.WEBSIDIAN` client global (alias kept), Docker image name, domain. None are urgent — do them in one sweep with a compatibility note.
+
+## Phase 1 — CMS essentials
+Make the editor something you use every day.
+
+1. **Git commit per save**, history panel (list, diff, restore), author = the signed-in editor. Decided in [[Decisions]], not built.
+2. **Attachments**: paste and drag-drop images into the editor → upload to the attachment folder from `.obsidian/app.json` → `![[name.png]]` inserted; a media browser to reuse existing files.
+3. **Rename / move** with wikilink rewriting across the vault, and an automatic `301` from the old URL (`redirect_from` written to frontmatter).
+4. ✅ **Properties panel** — form above the editor, types from `.obsidian/types.json`, raw YAML still editable.
+5. **Publishing states and scheduling** — `status` and `publish` already drive visibility ([[Publishing and visibility]]); still to add `publishAt` / `unpublishAt`, an "unpublished changes" badge, and a signed preview link for showing a draft to a reviewer.
+6. **Navigation control** — `order:` in frontmatter, folder notes (`Folder/Folder.md` becomes the folder's page), collapsed and expanded defaults.
+7. **Roles** — `viewer` (sees drafts, cannot save), `editor`, `admin` (config, purge, users). Per-folder rights later.
+8. **Live reload for editors** through server-sent events when the vault changes on disk — Obsidian on the desktop just saved the note you are reading.
+9. ✅ **Slash commands** for callouts, tables, code fences, embeds, today's date.
+
+## Phase 2 — An editor an Obsidian user feels at home in
+1. ✅ **CodeMirror 6**: Obsidian Markdown parsed as syntax nodes, Obsidian class names and hotkeys, auto-pairing and wrap-selection, list continuation, search and replace, folding, `.obsidian/app.json` settings, quick switcher, command palette, slash commands, status bar.
+2. ✅ **Autocomplete** for `[[notes]]` (aliases, attachments, fuzzy), `#tags`, `[[note#heading]]`, `[[note#^block]]`, properties and their values.
+3. ✅ **Live-preview decorations** — syntax hides away from the cursor; links, checkboxes, callouts, images, embeds, math and mermaid render. Tables as grids and the Properties panel landed 2026-09-11.
+   Left: note transclusion (`![[note]]` renders the note, not a chip), page preview on hover, richer table-cell formatting.
+4. **Templates** — `Templates/` from `.obsidian/templates.json`, `{{title}}`, `{{date}}`, `{{time}}`; new-note location from `app.json`; daily notes from `daily-notes.json`.
+5. **Panels** — outline, backlinks, outgoing links, local graph, properties, as collapsible side panels rather than tabs, so a laptop screen still works.
+6. **Split view of two notes**, for the English / Arabic mirror, with "open translation" from the language switch.
+7. **Mobile** — the editor already collapses to one pane; make the toolbar thumb-friendly.
+
+## Phase 3 — Reading view completeness and themes
+1. Obsidian DOM and class names throughout, plus a ported Obsidian default theme; load `.obsidian/themes/<name>/theme.css` when `appearance.json` selects one; `cssTheme` per site.
+2. Tag pages (`/tags/x`), a tag pane, nested tags.
+3. Search operators — `tag:`, `path:`, `file:`, `[property:value]`, `line:`, quoted phrases, regex; results grouped by note with context.
+4. `.canvas` files as pan/zoom HTML (the JSON Canvas spec is open).
+5. Embedded search blocks, embedded PDF page ranges, `![[image.png|left]]` alignment classes.
+6. A **Dataview subset** — `TABLE`, `LIST`, `TASK` over frontmatter and tasks, `FROM #tag / "folder"`, `WHERE`, `SORT`, `LIMIT`. No DataviewJS. Bases is the official successor and already renders ([[Feature status]]); recommend Bases for new content.
+7. Slides (`---` separated) as a presentation page. Kanban boards as columns.
+
+## Phase 4 — Platform
+1. **Plugin API** — server side (markdown-it plugin, routes, lifecycle hooks) and client side (editor extension). Ship the built-ins as plugins to prove the API.
+2. **MCP server** — the JSON API already exists ([[Editor API]]); expose it as MCP so an agent reads, searches and edits the vault with the same permissions as a person. [[Hermes plugin]] is the first step.
+3. **Multi-vault workspaces** with per-site themes and domains; UI translation, Arabic first.
+4. **`websidian export`** — crawl into a static folder for CDN-only hosting, using the same renderer.
+5. **Comments and review annotations** for reviewers who should not edit.
+
+## What to do first
+
+1. **Git commit per save + history panel.** Cheapest, highest CMS value, and it makes every later feature safe to try because everything can be undone.
+2. **Paste-to-upload images.** Nobody writes real documentation in a browser without it.
+3. **Rename with link rewriting and a `301`.** Without it people avoid renaming, and the vault rots.
+
+Then decide the public site's default look — the first open question in [[Scope and positioning#Open questions]] — before more CSS accumulates.

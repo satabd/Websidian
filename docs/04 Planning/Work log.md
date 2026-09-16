@@ -8,6 +8,18 @@ updated: 2026-09-16
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
 
+## 2026-09-16 — documentation overhaul and the first screenshots
+- **The vault had no images at all.** 11 screenshots now live in `docs/attachments/`, every one captured from `npm run demo` with Playwright at 1440×900 — reading view, syntax, RTL, search, graph, explore, editor login, Live Preview, properties, table grid, command palette.
+- **New notes**: [[Tour]] (screenshot-led showcase, the answer to "what does it look like"), [[Your first site]] (point it at your own vault, end to end), [[Graph and Explore]] (two features that existed only as 400-word README table cells), [[Scope and positioning]] (what "full Obsidian" can honestly mean, the CMS half, why this over Obsidian Publish / MkDocs / Notion).
+- **[[Start Here]] rewritten** as four reader paths — run it, write in it, connect an agent, work on the code — instead of one flat link list.
+- **`ROADMAP.md` was 13 KB of thinking the website could not serve.** Moved into the vault ([[Roadmap]] + [[Scope and positioning]]); the root file is now a pointer. The target-architecture diagram went to [[Architecture]].
+- **`test/docs-links.test.js`** enforces the `CLAUDE.md` rule automatically: every `[[wikilink]]` resolves, every embedded screenshot exists, every note has `title`/`tags`/`updated`. It strips code spans first, because notes about wikilink syntax write `[[Note]]` as an example.
+- README: hero screenshot, editor screenshot, both graph views; the two giant graph cells replaced by pointers to [[Graph and Explore]].
+- **Learned**: a note cannot embed a screenshot of itself — the first hero shot came out containing a picture of itself. [[Architecture]] is the hero now, and its mermaid diagram shows more anyway.
+- **Learned**: CodeMirror only renders visible lines, so screenshotting a table widget means scrolling `.cm-scroller` first, not the window.
+- **Found**: no `/favicon.ico` unless a site sets `brand.favicon` — a 404 in every console ([[Known issues]]).
+- **Next**: navigation order and folder notes ([[Improvements backlog]] #1) — the sidebar is alphabetical, which is why these docs do not read in order. The docs are the first real user of that feature.
+
 ## 2026-09-16 — published to GitHub
 - **The project is a git repository** and is published at <https://github.com/satabd/Websidian> (private). First commit is the whole tree as it stood, `npm test` 156/156.
 - **The real config is no longer part of the project.** `websidian.config.json` and `md2html.config.json` are both in `.gitignore` — they hold vault paths, passwords, tokens and webhook secrets, and the local one named a client vault outside this repo.

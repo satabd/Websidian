@@ -1,7 +1,7 @@
 ---
 title: Architecture
 tags: [websidian, internals]
-updated: 2026-09-13
+updated: 2026-09-16
 ---
 # Architecture
 
@@ -49,3 +49,21 @@ A page re-renders only when its file changes, a note it embeds changes, or notes
 | `test/` | [[Testing]] |
 | `demo/` | Practice vault and config for `npm run demo` |
 | `docs/` | This vault |
+
+## Where this is going
+
+The same shape, with the pieces [[Roadmap]] adds — git as the history engine, an MCP endpoint for agents, per-site themes:
+
+```
+                 ┌──────────────── one Node process ─────────────────┐
+  Obsidian ──sync──▶ vault/ (files) ──watch──▶ Vault index ──▶ Renderer ──▶ Cache ──▶ Public site  /site/...
+  git / Dropbox      .obsidian/ settings        (links,        (markdown-it   (mem +      Embeds      ?embed=1
+                     .git/ history              backlinks,      + Obsidian     disk)      Search      /_search
+                                                tags, props)    plugins)                  Graph       /_graph
+                                                    ▲                                     Sitemap
+                                                    │ write + commit
+                                     Editor  /site/_edit  ◀── login, roles, IP gate
+                                     API     /site/_api   ◀── sessions / bearer token ◀── agents (MCP)
+```
+
+Nothing in it needs a database: every box is a file read, a file write or an in-memory index rebuilt from files — [[Scope and positioning#The CMS half]].

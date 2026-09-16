@@ -1,7 +1,7 @@
 ---
 title: URLs and endpoints
 tags: [websidian, reference]
-updated: 2026-09-13
+updated: 2026-09-16
 ---
 # URLs and endpoints
 
@@ -17,8 +17,8 @@ Examples use the site slug `odoohms`.
 | `/odoohms/00-overview/Glossary?raw` | Markdown source |
 | `/odoohms/00-overview/Glossary?embed=1` | Article only, for iframes — [[Embedding in your website]] |
 | `/odoohms/Catalogue.base` | Obsidian Base as tables |
-| `/odoohms/_graph?focus=<rel>` | Graph view |
-| `/odoohms/_explore?focus=<rel>` | Explore view (clusters, radial, path finder) |
+| `/odoohms/_graph?focus=<rel>` | Graph view — [[Graph and Explore]] |
+| `/odoohms/_explore?focus=<rel>` | Explore view — [[Graph and Explore]] |
 | `/odoohms/_edit/<note>` | Editor — [[Editing in the browser]] |
 | `/odoohms/_edit/_login` | Editor sign-in |
 
@@ -26,7 +26,7 @@ Examples use the site slug `odoohms`.
 | URL | Serves |
 |---|---|
 | `/odoohms/_search?q=…` | Search results |
-| `/odoohms/_graph.json?rel=&depth=&tags=1` | Graph data |
+| `/odoohms/_graph.json?rel=&depth=&tags=1` | Graph data — [[Graph and Explore#The data behind them]] |
 | `/odoohms/_api/…` | Editor API — [[Editor API]] |
 | `/odoohms/sitemap.xml`, `/robots.txt` | For search engines |
 | `/_health` | Liveness |

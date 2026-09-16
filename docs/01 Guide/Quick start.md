@@ -13,6 +13,8 @@ cp websidian.config.example.json websidian.config.json
 Needs Node 20 or newer. Your own `websidian.config.json` is never committed
 (`.gitignore`); the example it comes from serves this vault.
 
+Prefer to look before you read? [[Tour]] is every screen with screenshots.
+
 ## 2. Pick what to run
 
 | Command | Serves | Open | Sign in |
@@ -30,6 +32,8 @@ Keep the terminal open: closing it stops the server.
 - Browser-side changes (`public/…`): reload with `Ctrl+Shift+R`.
 - Server-side changes (`src/…`, config): stop the server (`Ctrl+C`) and start it again.
 
+![[site-reading-view.png]]
+
 ## 4. First things to try
 1. Open any page, click **✎ Edit** (only visible when signed in).
 2. Click into a table cell and type; press `Tab` to move.
@@ -37,4 +41,4 @@ Keep the terminal open: closing it stops the server.
 4. `Ctrl+O` to jump to another note, `Ctrl+P` for every command.
 5. `Ctrl+S` to save — the public page updates immediately.
 
-Next: [[Editing in the browser]], [[Editor hotkeys and commands]].
+Next: [[Your first site]] to point it at your own vault, or [[Editing in the browser]] for the editor in full.

@@ -4,6 +4,8 @@
 
 **Full reference:** the Obsidian vault in [`docs/`](docs/Start%20Here.md) — open the folder in Obsidian, or run `npm run demo` and browse <http://127.0.0.1:8093/websidian/>. It covers usage, hotkeys, feature status, known issues, internals and the improvements backlog, and is updated as the project changes.
 
+![The reading view: sidebar, breadcrumbs, a rendered mermaid diagram, table of contents and a local graph](docs/attachments/site-reading-view.png)
+
 Point it at one or more Obsidian vaults and it serves them as a documentation
 site. Pages are rendered from the `.md` files **on request** and cached until
 the file changes. To update the website you edit the Markdown — in Obsidian,
@@ -113,8 +115,8 @@ Not supported: Dataview queries, Bases views other than tables, Excalidraw drawi
 | `/odoohms/00-overview/Glossary?embed=1` | **Embed mode**: the article only (no header, sidebar, search), for an iframe or include in your own website. Links inside stay in embed mode |
 | `/odoohms/_edit/00-overview/Glossary` | **Editor** for that note (only when `edit` is configured and you are signed in; see below). `/odoohms/_edit/` opens the home note |
 | `/odoohms/Catalogue.base` | An Obsidian Base rendered as tables (also listed in the sidebar) |
-| `/odoohms/_graph`, `/odoohms/_graph?focus=<rel>` | **Graph view**: full-screen canvas with a floating panel like Obsidian's — Filters (search with `path:` `tag:` `-exclude`, tags, orphans, local graph + depth), Groups (colour rules by query, default colour = top folder), Display (arrows, text fade, node size, link thickness, animate), Forces (center, repel, link, link distance). Drag a node to pin it, double-click to release, right-click to highlight its neighbourhood, click to open, Ctrl+click for a new tab. Settings are remembered per browser |
-| `/odoohms/_explore`, `/odoohms/_explore?focus=<rel>` | **Explore view**: a second graph built for reading, not just looking. Layouts: *cluster* (each section in its own region), *radial* (rings by link distance from a focus note; Alt+click a node to re-centre, depth 1–4), *force*. Section bubbles: zoom out or "Collapse all" and each folder becomes one bubble sized by note count, with bands between bubbles sized by the number of cross-links; click a bubble to expand it. Colour by folder, language, status or last-modified recency; size by links, inbound, outbound or equal. Path finder: pick two notes and the shortest link path lights up with a clickable list. Plus the usual filter, orphans, tags, zoom and pin controls; settings remembered per browser |
+| `/odoohms/_graph`, `/odoohms/_graph?focus=<rel>` | **Graph view**: Obsidian's graph on the web — filters, colour groups, forces, local graph, pinning. [Full reference](docs/01%20Guide/Graph%20and%20Explore.md) |
+| `/odoohms/_explore`, `/odoohms/_explore?focus=<rel>` | **Explore view**: a second graph built for reading — folder clusters, section bubbles, radial rings, a path finder between any two notes. [Full reference](docs/01%20Guide/Graph%20and%20Explore.md) |
 | `/odoohms/_graph.json?rel=<rel>&depth=1&tags=1` | The graph data (ETagged; built from the index, no rendering). Nodes carry `links`, `in`, `out`, `status`, `updated`, `dist`; the result carries per-section `clusters` and cross-section `clusterLinks` |
 | `/odoohms/sitemap.xml`, `/robots.txt` | For search engines; protected sites are excluded |
 | `/_health` | Liveness: `{ ok, uptimeSec, sites: [...] }` |
@@ -124,11 +126,17 @@ Not supported: Dataview queries, Bases views other than tables, Excalidraw drawi
 
 Every page ends with **Previous / Next** (within its folder) and **Linked from** (backlinks), computed from the index so they are always current. Every linked note also shows a **local graph** (the note and its neighbours) in the right column, and the ◉ button opens the full graph focused on that note. The header has a **language switch** when another edition of the note exists, a **print / PDF** button, and **search** with fuzzy and prefix matching, title boosting and highlighted snippets (MiniSearch index, rebuilt automatically when notes change).
 
+![Graph view of this documentation vault: 26 notes, 124 links, coloured by folder, with the filter and forces panel](docs/attachments/site-graph.png)
+
+![Explore view: each folder collapsed into a bubble sized by note count, with bands between bubbles sized by cross-links](docs/attachments/site-explore.png)
+
 ## Keeping the server's vault current with a git webhook
 
 On GitHub: repository Settings → Webhooks → Add: payload URL `https://docs.example.com/_hooks/git/odoohms`, content type `application/json`, secret = the site's `webhook.secret`, event "Just the push event". Every push then runs `git pull --ff-only` in the vault folder on the server and rescans; the next request serves the new content. Without GitHub, any system can call `POST …/_hooks/git/odoohms?token=<secret>`.
 
 ## Editing in the browser
+
+![The browser editor in Split view: CodeMirror 6 with Live Preview on the left, the public page on the right, the Properties panel above both](docs/attachments/editor-live-preview.png)
 
 Viewing is public; editing is a separate surface that only exists when you configure it, so the same server can be your public website and your team's editor.
 

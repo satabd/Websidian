@@ -2,40 +2,76 @@
 title: Start Here
 tags: [websidian, moc]
 aliases: [Home, Websidian docs]
-updated: 2026-09-13
+updated: 2026-09-16
 ---
 # Websidian
 
 > [!abstract] In one sentence
-> Your Obsidian vault as a website you can edit from anywhere: pages render from the `.md` files on request, and a browser editor built on CodeMirror 6 (like Obsidian) writes back to the same files.
+> Your Obsidian vault as a website you can edit from anywhere: pages render from the `.md` files on request, and a browser editor built on CodeMirror 6 writes back to the same files.
 
-This vault is the living reference for the project. It is updated while we build: every working session adds to the [[Work log]], new features land in [[Feature status]], and ideas go to [[Improvements backlog]].
+![[site-reading-view.png]]
 
-## Use it
-- [[Quick start]] — run it, open it, sign in
-- [[Configuration]] — every key in `md2html.config.json`
-- [[Editing in the browser]] — the editor: Live Preview, tables, properties, links
-- [[Editor hotkeys and commands]] — the cheat sheet
-- [[Publishing and visibility]] — drafts, hidden notes, access control
-- [[URLs and endpoints]] — every page and JSON route
-- [[Embedding in your website]]
-- [[Deploying]]
-- [[Hermes plugin]] — connect Hermes Agent
+There is no build step and no publish step. You change a note — in Obsidian, in the browser editor, by `git pull`, by Dropbox sync — and the next visitor sees the new version. The files are the database; git is the history.
 
-## What we have
-- [[Feature status]] — one table: done, partial, missing
-- [[Obsidian syntax support]] — what renders on the site
-- [[Known issues]] — limits and gotchas, stated honestly
+**New here? [[Tour]]** walks through every screen with screenshots.
 
-## How it works
-- [[Architecture]] — request flow, caching, files
-- [[Editor internals]] — how the CodeMirror editor is put together
-- [[Editor API]] — the JSON API under `/_api`
-- [[Testing]]
-- [[Decisions]] — the choices we made and why
+## Pick your path
+
+> [!tip]- I want to run it
+> 1. [[Quick start]] — two commands, then a browser
+> 2. [[Your first site]] — point it at your own vault
+> 3. [[Configuration]] — every key, with examples
+> 4. [[Deploying]] — a real host, HTTPS, git webhook
+
+> [!tip]- I want to write in it
+> 1. [[Editing in the browser]] — Live Preview, tables, properties, links
+> 2. [[Editor hotkeys and commands]] — the cheat sheet
+> 3. [[Publishing and visibility]] — drafts, hidden notes, who sees what
+> 4. [[Obsidian syntax support]] — what renders, and what does not
+> 5. [[Graph and Explore]] — see how the vault connects
+
+> [!tip]- I want to connect an agent
+> 1. [[Hermes plugin]] — the plugin, the dashboard tab, the guard
+> 2. [[Agent memory and second brain]] — the thinking behind it
+> 3. [[Configuration]] → `untrusted` sites, for anything an agent writes
+
+> [!tip]- I want to work on the code
+> 1. [[Architecture]] — request flow, caching, which file does what
+> 2. [[Editor internals]] — how the CodeMirror editor is put together
+> 3. [[Editor API]] — the JSON API under `/_api`
+> 4. [[Testing]] — how to run and extend the suite
+> 5. [[Decisions]] — the choices we made, and why
+
+## The honest state of things
+
+This vault is written while the project is built, not afterwards. Three notes exist to keep it honest:
+
+| Note | Answers |
+|---|---|
+| [[Feature status]] | What is done ✅, partial 🟡, in progress 🚧, missing ⬜ |
+| [[Known issues]] | What will bite you, stated plainly |
+| [[Work log]] | What changed in each session, newest first |
+
+"Done" means tested in a browser on real content — not "the code exists".
 
 ## Where it goes
-- [[Improvements backlog]] — prioritised suggestions
-- [[Roadmap]] — phases
-- [[Agent memory and second brain]] — using it for Hermes / OpenClaw
-- [[Work log]]
+
+- [[Improvements backlog]] — suggestions ranked by value for effort
+- [[Roadmap]] — the phases, and what "full Obsidian" can honestly mean
+- [[Agent memory and second brain]] — vault as an agent's second brain
+
+## Every note
+
+| Guide | Reference | Internals | Planning |
+|---|---|---|---|
+| [[Quick start]] | [[Feature status]] | [[Architecture]] | [[Roadmap]] |
+| [[Your first site]] | [[Obsidian syntax support]] | [[Editor internals]] | [[Improvements backlog]] |
+| [[Editing in the browser]] | [[Known issues]] | [[Editor API]] | [[Agent memory and second brain]] |
+| [[Editor hotkeys and commands]] | | [[Testing]] | [[Work log]] |
+| [[Graph and Explore]] | | | [[Scope and positioning]] |
+| [[Publishing and visibility]] | | [[Decisions]] | |
+| [[Configuration]] | | | |
+| [[URLs and endpoints]] | | | |
+| [[Embedding in your website]] | | | |
+| [[Deploying]] | | | |
+| [[Hermes plugin]] | | | |

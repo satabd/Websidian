@@ -2,5 +2,6 @@
   "livePreview": true,
   "readableLineLength": true,
   "newLinkFormat": "shortest",
-  "alwaysUpdateLinks": true
+  "alwaysUpdateLinks": true,
+  "attachmentFolderPath": "attachments"
 }

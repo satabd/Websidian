@@ -1,7 +1,7 @@
 ---
 title: Editing in the browser
 tags: [websidian, guide, editor]
-updated: 2026-09-13
+updated: 2026-09-16
 ---
 # Editing in the browser
 
@@ -13,6 +13,8 @@ Viewing is public; editing is a separate, opt-in surface. It exists only when `e
 - **Middle** — the editor.
 - **Right** (Split) — the page exactly as the site renders it.
 - **Status bar** — backlinks, words, characters (of the selection too), **Live Preview / Source mode** switch.
+
+![[editor-live-preview.png]]
 
 ## Live Preview and Source mode
 Live Preview hides Markdown syntax except on the line you are editing and renders: links and wikilinks (`Note › Heading`), clickable checkboxes, bullets, callouts with icon and colour, images and `![[embeds]]` with sizes, inline and block math, mermaid diagrams, rules, and code blocks with highlighting. Source mode shows plain, highlighted Markdown. Switch with the status bar button or `Ctrl+P` → *Toggle Live Preview/Source mode*.
@@ -29,6 +31,9 @@ Live Preview hides Markdown syntax except on the line you are editing and render
 Holding `Ctrl` shows links as clickable.
 
 ## Tables
+
+![[editor-table.png]]
+
 Tables at the top level of a note are edited as a grid.
 - Click a cell: its Markdown appears with the caret where you clicked.
 - `Tab` / `Shift+Tab` next / previous cell; `Enter` cell below; at the last row both add a new row.
@@ -40,6 +45,9 @@ Tables at the top level of a note are edited as a grid.
 > [!note] Tables inside callouts or lists stay as Markdown source.
 
 ## Properties panel
+
+![[editor-properties.png]]
+
 The frontmatter shows as Obsidian's Properties panel instead of YAML.
 - Text, dates (picker), date-times, numbers, checkboxes; lists as pills (`tags`, `aliases`, any list).
 - Type a value in a list and press `Enter` or `,` to add a pill; `×` or `Backspace` removes one; suggestions come from values used elsewhere in the vault.
@@ -49,6 +57,9 @@ The frontmatter shows as Obsidian's Properties panel instead of YAML.
 - Only the edited property changes in the file.
 
 ## Suggestions (autocomplete)
+
+![[editor-command-palette.png]]
+
 | Type | You get |
 |---|---|
 | `[[` | Notes, their aliases and attachments (fuzzy) plus "link to a new note" |

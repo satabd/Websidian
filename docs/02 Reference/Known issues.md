@@ -19,6 +19,7 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 - **Arabic `[[` suggestions** match titles and aliases, but fuzzy ranking is tuned for Latin text.
 
 ## Server and setup
+- **No `/favicon.ico`** unless a site sets `brand.favicon`, so every browser logs a 404 on the first page load. Harmless, but it is the first thing in the console.
 - **Server changes need a restart** of `npm start`; browser changes a `Ctrl+Shift+R` — [[Quick start]].
 - **Sessions end on restart** unless `edit.secret` is set.
 - **`localhost` cookie clash** between two servers on different ports: use `127.0.0.1`.

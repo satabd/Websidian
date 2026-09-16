@@ -20,3 +20,5 @@ updated: 2026-09-16
 | 2026-09-13 | **These docs live in an Obsidian vault in the repo** (`docs/`), updated while building | One reference that grows with the code |
 | 2026-09-16 | **The real config is never committed**; `websidian.config.example.json` ships instead | It holds vault paths, passwords, tokens and webhook secrets |
 | 2026-09-16 | **The shipped example config serves `docs/`** | A fresh clone runs `npm start` and reads the documentation through Websidian itself |
+| 2026-09-16 | **Long-form planning lives in the vault, not in root Markdown files** | `ROADMAP.md` was 13 KB the website could not serve; it is now a pointer to [[Roadmap]] and [[Scope and positioning]] |
+| 2026-09-16 | **Screenshots are captured from the running app, never mocked** | `test/docs-links.test.js` fails if a note embeds a screenshot that does not exist, so they cannot quietly rot |
