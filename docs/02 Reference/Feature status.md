@@ -1,7 +1,7 @@
 ---
 title: Feature status
 tags: [websidian, reference, status]
-updated: 2026-09-16
+updated: 2026-09-17
 order: 1
 description: Done, partial, in progress, missing
 ---
@@ -18,7 +18,7 @@ description: Done, partial, in progress, missing
 | Obsidian Bases (table views) | 🟡 | Cards and other view types skipped |
 | Excalidraw: live viewer for `![[x.excalidraw]]` and drawing pages, images, links, dark mode | ✅ | Browser-tested on two real drawings 2026-09-16 — [[Excalidraw drawings]]. Fonts newer than Excalidraw 0.17 are approximated |
 | Search (fuzzy, snippets) | 🟡 | No Obsidian operators (`tag:`, `path:`…) |
-| Graph view, Explore view, local graph | ✅ | |
+| Graph view, Explore view, local graph | ✅ | Explore also has **reach** (upstream / downstream of a note) and **named views** from frontmatter `views:` — browser-tested on this vault and the demo, light and dark, 2026-09-17 — [[Graph and Explore#Reach]] |
 | Backlinks, previous/next, table of contents | ✅ | |
 | Navigation order (`order:`), folder notes, generated section pages | ✅ | [[Navigation and sections]] |
 | Arabic / English language switch, RTL pages | ✅ | Notes without `lang:` get their page direction from their letters (browser-checked on an untrusted site under the dashboard mount, 2026-09-16) |

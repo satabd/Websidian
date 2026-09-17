@@ -15,7 +15,7 @@ const express = require('express');
 const { Vault } = require('./vault');
 const { Renderer, RENDER_VERSION, escapeHtml } = require('./render');
 const { page, sitesIndex, graphDocument, exploreDocument, LAYOUT_VERSION } = require('./layout');
-const { buildGraph } = require('./graph');
+const { buildGraph, viewsHash } = require('./graph');
 const { RenderCache } = require('./cache');
 const { enforce } = require('./auth');
 const { RateLimiter } = require('./ratelimit');
@@ -189,7 +189,7 @@ r.get('/:site/_graph.json', (req, res, next) => {
   const rel = req.query.rel ? String(req.query.rel) : null;
   const depth = Math.min(6, Math.max(1, Number(req.query.depth) || 1));
   const tags = req.query.tags !== undefined && req.query.tags !== '0';
-  const etag = etagFor(['g', vault.listHash, vault.linkHash, rel || '', String(depth), tags ? 't' : '']);
+  const etag = etagFor(['g', vault.listHash, vault.linkHash, viewsHash(vault), rel || '', String(depth), tags ? 't' : '']);
   if (sendConditional(req, res, etag)) return;
   res.json(buildGraph(vault, { rel, depth, tags }));
 });

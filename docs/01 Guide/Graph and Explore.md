@@ -2,7 +2,7 @@
 title: Graph and Explore
 tags: [websidian, guide, graph]
 aliases: [Graph view, Explore view]
-updated: 2026-09-16
+updated: 2026-09-17
 order: 8
 description: Two full-screen views of how the vault connects
 ---
@@ -57,13 +57,48 @@ The view Obsidian does not have. A force graph shows you that the vault is conne
 
 Plus the usual filter, orphans, tags, zoom and pin controls.
 
+### Reach
+
+Pick a note and see everything that links *into* it, transitively — its **upstream**, the notes that depend on it — or everything it links *out* to — its **downstream**, what it builds on — or both. Upstream is blue, downstream green, and every lit link gets an arrow in the direction of the link. Everything else fades. The caption lists the notes by hop count; **Hops** limits how far to follow (on a dense vault, *Any* lights most of it — try 1 or 2 first).
+
+| Gesture | Does |
+|---|---|
+| **Reach** section → pick a note → *Show reach* | From the panel |
+| `R` with the pointer over a node | The same, without the panel; `R` again on the same node clears it |
+| `Esc` | Clears the reach (or the view) |
+| `F` or ⤢ | Fits the lit notes, not the whole graph, while something is lit |
+
+The URL carries it, so it can be shared: `_explore?reach=<rel>&dir=up|down|both&hops=2` (`hops` omitted means any).
+
+### Views
+
+A view is a named set of notes an author wants read together, in order — a "start here" path, the notes behind one decision, the pages a new teammate should open first. Declare views in the frontmatter of any note (a hub note is the natural place):
+
+```yaml
+views:
+  - id: run-it
+    label: I want to run it
+    note: The four notes that take you from nothing to a deployed site, in order.
+    focus: [Quick start, Your first site, Configuration, Deploying]
+```
+
+- `focus` entries are wikilink targets, resolved from the declaring note (`[[Tour]]`, `Tour` and `01 Guide/Tour` all work), in reading order.
+- `id` is optional when `label` is given; it is the word in the URL. `note` is the caption.
+- A note can also **join** a view from its own frontmatter with `views: [run-it]`. Joined notes follow the focus list, by title. A view that only has joiners takes its id as its label.
+- Hidden notes (drafts, unpublished) never appear in a view, and a view with no visible member is not shown.
+
+Views appear as chips under **Views** in the panel. Pick one: its members light up with numbered reading-order badges, the links between them stay visible, everything else fades, the canvas frames them, and the caption shows the note with a clickable list. Pick it again, or press `Esc`, to clear. `_explore?view=run-it` opens straight into it — the link to put in a welcome message.
+
+> [!example] This vault
+> [[Start Here]] declares two views: *I want to run it* and *Graph and reach*. Open this site's `_explore?view=run-it` to see one.
+
 ## The data behind them
 
 ```
 GET /<site>/_graph.json?rel=<rel>&depth=1&tags=1
 ```
 
-ETagged, built straight from the index. Each node carries `links`, `in`, `out`, `status`, `updated` and `dist`; the result also carries per-section `clusters` and cross-section `clusterLinks`. Use it if you want to draw your own view — [[Editor API]] for the rest of the JSON surface.
+ETagged, built straight from the index. Each node carries `links`, `in`, `out`, `status`, `updated` and `dist`; the result also carries per-section `clusters`, cross-section `clusterLinks`, and the declared `views` (`id`, `label`, `note`, `from`, ordered `members`). Edges are directed (source links to target), which is what reach walks. Use it if you want to draw your own view — [[Editor API]] for the rest of the JSON surface.
 
 > [!note] Hidden notes stay hidden
 > Drafts and unpublished notes are absent from the graph for anonymous visitors, exactly as they are absent from pages and search — [[Publishing and visibility]].

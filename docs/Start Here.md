@@ -4,6 +4,15 @@ tags: [websidian, moc]
 aliases: [Home, Websidian docs]
 updated: 2026-09-16
 order: 1
+views:
+  - id: run-it
+    label: I want to run it
+    note: The four notes that take you from nothing to a deployed site, in order.
+    focus: [Quick start, Your first site, Configuration, Deploying]
+  - id: graph
+    label: Graph and reach
+    note: How the vault is drawn, and the data behind it.
+    focus: [Tour, Graph and Explore, URLs and endpoints]
 ---
 # Websidian
 

@@ -2,13 +2,25 @@
 title: Work log
 tags: [websidian, log]
 aliases: [Changelog]
-updated: 2026-09-16
+updated: 2026-09-17
 order: 5
 description: What changed each session, newest first
 ---
 # Work log
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
+
+## 2026-09-17 — Explore: reach and named views (after an archify review)
+User asked how [tt-a1i/archify](https://github.com/tt-a1i/archify) draws architecture and whether it could represent the knowledge base. Answer: no — archify is an *authored*-diagram compiler (an agent writes JSON with a `pos` for every box and waypoints for every arrow; its grid helper says "Not auto-layout — fixed cell math only"), so it cannot be pointed at a vault, and Explore already does the auto-layout it refuses to. Two of its viewer ideas were worth taking; the user asked for both.
+
+- **Reach** in Explore: upstream (transitive backlinks, blue), downstream (transitive outgoing links, green) or both, with a hop limit, arrows on the lit links, a caption listing notes by hop, and `R` over a node as the hotkey. Pure helper `reach()` in `public/graph.js` next to `shortestPath()`; Explore now keeps the directed edges instead of collapsing them to pairs.
+- **Named views** from frontmatter `views:` (definition with ordered `focus`, or a note joining with a string), collected server-side in `src/graph.js` and shipped in `_graph.json`. In Explore: chips, numbered reading-order badges, framing, a caption. The active view or reach lives in the URL (`?view=`, `?reach=&dir=&hops=`), never in localStorage.
+- **One highlight model** for path, reach and view (`hl`) replaced the path-only `pathIds`; `Esc` clears it before hiding the panel; ⤢ and `F` fit the lit notes.
+- **Learned: static assets are `immutable`** and versioned by `LAYOUT_VERSION` — edits to `explore.js` or `app.css` are invisible until it is bumped (now 20). And a tab opened in the background measures the canvas at 0×0, so the first fit zoomed to nothing; Explore now fits on the first real size and frames a pending view once the layout has mostly settled (alpha ≤ 0.05) instead of at a full stop.
+- **ETag**: the graph JSON's tag now includes a hash of the views, since the list and link hashes do not see a frontmatter-only edit.
+- **Tests**: `test/graph-views.test.js` (collection rules, hash, reach helper, panel ids) — 287 in total. Browser: docs vault and demo, light and dark, panel and hotkey, URL round-trip, Escape.
+- **Not done**: views on the classic Graph view or the local graph; views from a query — [[Improvements backlog]].
+- **Next**: add a `views:` block to real hub notes, and see whether readers use the `?view=` links.
 
 ## 2026-09-17 — right-to-left fix deployed to `hermes01`, tested on the real vaults
 - **Deployed** `6749f1b` into `hermes01` with `install-into-container.sh` from a clean tree, then restarted **only** the Websidian process (PID checked against its command line first). The supervisor brought it back in 16 s; `/_health` reported `revision 6749f1b` and all three vaults (brain 211, memories 2, skills 1,037). Dashboard and gateway untouched — the change was runtime-only.

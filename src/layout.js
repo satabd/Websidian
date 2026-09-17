@@ -13,7 +13,7 @@ const { folderTitle } = require('./vault');
 const { pageTags } = require('./seo');
 const { nonceAttr, withNonce } = require('./untrusted');
 
-const LAYOUT_VERSION = 19;   // 19: dir="auto" on sidebar, table of contents and backlink titles; detected page direction
+const LAYOUT_VERSION = 20;   // 20: Explore reach + named views (explore.js, app.css); 19: dir="auto" on sidebar, table of contents and backlink titles; detected page direction
 
 // JSON inside <script>: a note path containing "</script>" must not close the tag.
 const scriptJson = v => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -253,6 +253,7 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
 <canvas id="exploreCanvas" class="graph-canvas-full" data-focus="${escapeHtml(focus)}" data-site="${escapeHtml(vault.slug)}" aria-label="Explore graph of notes"></canvas>
 <div class="graph-zoom"><button type="button" id="exzIn" title="Zoom in">+</button><button type="button" id="exzOut" title="Zoom out">−</button><button type="button" id="exzFit" title="Fit to view">⤢</button><button type="button" id="exzRelease" title="Release pinned nodes">⟲</button></div>
 <div class="graph-hover muted" id="exploreHover"></div>
+<div class="graph-caption" id="exCaption" hidden><div class="graph-caption-head"><strong id="exCaptionTitle"></strong><button type="button" id="exCaptionClose" aria-label="Clear highlight" title="Clear (Esc)">×</button></div><div class="muted" id="exCaptionNote"></div><div class="gp-path" id="exCaptionList"></div></div>
 <aside class="graph-panel" id="explorePanel" aria-label="Explore settings">
   <details class="gp-section" open><summary>Filters</summary>
     <input id="exQuery" class="gp-input" type="search" placeholder="Search files… (path: tag: -exclude)" aria-label="Filter">
@@ -283,7 +284,17 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
     <div class="gp-btnrow"><button type="button" id="exPathGo">Find path</button><button type="button" id="exPathClear">Clear</button></div>
     <div class="gp-path" id="exPathResult"></div>
   </details>
-  <div class="gp-foot"><button type="button" id="exReset">Reset to defaults</button><span class="muted">Drag to pin · double-click to release · right-click to highlight · Alt+click a node to set the radial centre · click a bubble to expand it</span></div>
+  <details class="gp-section"><summary>Reach</summary>
+    <input id="exReachFrom" class="gp-input" type="text" list="exNoteList" placeholder="From note…">
+    ${select('exReachDir', 'Direction', [['up', 'Upstream — what links here'], ['down', 'Downstream — what it links to'], ['both', 'Both']], 'up')}
+    ${select('exReachDepth', 'Hops', [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['0', 'Any']], '0')}
+    <div class="gp-btnrow"><button type="button" id="exReachGo">Show reach</button><button type="button" id="exReachClear">Clear</button></div>
+    <div class="gp-path" id="exReachResult"></div>
+  </details>
+  <details class="gp-section" open><summary>Views</summary>
+    <div class="gp-views" id="exViews"></div>
+  </details>
+  <div class="gp-foot"><button type="button" id="exReset">Reset to defaults</button><span class="muted">Drag to pin · double-click to release · right-click to highlight · Alt+click a node to set the radial centre · <kbd>R</kbd> over a node shows its reach · click a bubble to expand it</span></div>
 </aside>
 <script${nonceAttr(nonce)}>window.WEBSIDIAN=window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(focus)},base:${scriptJson(vault.siteUrl())},embed:false,graphPage:true};</script>${vaults.length > 1 ? `
 <script src="${assets}/_static/site-switch.js?v=${LAYOUT_VERSION}" defer></script>` : ''}

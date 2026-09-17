@@ -300,6 +300,22 @@ html.graph-doc, .graph-body { height: 100%; overflow: hidden; }
 .gp-path { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; font-size: 12px; }
 .gp-path a { color: var(--accent); cursor: pointer; }
 .gp-path .muted { font-size: 12px; }
+.gp-path .gp-num { display: inline-block; min-width: 16px; margin-inline-end: 4px; color: var(--muted); text-align: end; }
+.gp-path a.is-up { color: #4c8dff; } .gp-path a.is-down { color: #2fbf71; }
+.gp-views { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+.gp-views button { border: 1px solid var(--line); border-radius: 999px; background: var(--bg2); color: var(--fg); cursor: pointer; font: inherit; font-size: 12px; padding: 3px 10px; }
+.gp-views button:hover, .gp-views button.is-active { border-color: var(--accent); color: var(--accent); }
+.gp-views button.is-active { background: var(--accent-bg); }
+.gp-views .muted { font-size: 12px; }
+/* Caption for an active view or reach: sits under the top bar, stays when the panel is hidden */
+.graph-caption { position: fixed; top: calc(var(--topbar-h) + 12px); inset-inline-start: 16px; width: min(320px, calc(100vw - 32px)); max-height: 60vh; overflow-y: auto; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.18); font-size: 13px; padding: 10px 12px; }
+.graph-caption[hidden] { display: none; }
+.graph-caption-head { display: flex; align-items: center; gap: 8px; }
+.graph-caption-head strong { flex: 1; }
+.graph-caption-head button { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; }
+.graph-caption-head button:hover { color: var(--accent); }
+.graph-caption .gp-path { max-height: 40vh; overflow-y: auto; }
+@media (max-width: 700px) { .graph-caption { width: calc(100vw - 32px); max-height: 40vh; } }
 
 /* ---- edit button (only rendered for a signed-in editor) ---- */
 .edit-btn { border: 1px solid var(--accent); border-radius: 6px; color: var(--accent); font-size: 13px; padding: 3px 9px; line-height: 1.5; white-space: nowrap; }

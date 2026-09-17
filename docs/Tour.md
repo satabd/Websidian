@@ -2,7 +2,7 @@
 title: Tour
 tags: [websidian, moc, tour]
 aliases: [Screenshots, What it looks like]
-updated: 2026-09-16
+updated: 2026-09-17
 order: 2
 description: Every screen, with screenshots
 ---
@@ -37,7 +37,7 @@ The **graph** is Obsidian's, on the web: filters, groups by colour rule, forces 
 
 ![[site-graph.png]]
 
-**Explore** is the one Obsidian does not have — a graph built for reading rather than looking. Notes cluster by folder, collapse into bubbles sized by note count, and a path finder lights up the shortest chain of links between any two notes.
+**Explore** is the one Obsidian does not have — a graph built for reading rather than looking. Notes cluster by folder, collapse into bubbles sized by note count, a path finder lights up the shortest chain of links between any two notes, *reach* shows everything upstream or downstream of one note, and authors can declare named *views* — ordered reading paths a link can open directly.
 
 ![[site-explore.png]]
 

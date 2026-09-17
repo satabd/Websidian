@@ -466,9 +466,40 @@
     return path[0] === fromId ? path : null;
   }
 
+  // Directed reach from one node: everything that links into it, transitively
+  // ('up' — its upstream, the notes that depend on it), everything it links
+  // out to ('down' — what it builds on), or both. `edges` are [from, to]
+  // tuples as the server sends them (source links to target). Returns
+  // { depth: {id: hops}, edges: [[from, to]] } where depth[fromId] === 0 and
+  // the edges are the ones walked; null when fromId is unknown. maxDepth of
+  // null/0 means unlimited.
+  function reach(ids, edges, fromId, dir, maxDepth) {
+    var idSet = {}; (ids || []).forEach(function (id) { idSet[id] = true; });
+    if (!idSet[fromId]) return null;
+    var outs = {}, ins = {}; (ids || []).forEach(function (id) { outs[id] = []; ins[id] = []; });
+    (edges || []).forEach(function (e) { var a = e[0], b = e[1]; if (!idSet[a] || !idSet[b] || a === b) return; outs[a].push(b); ins[b].push(a); });
+    var limit = maxDepth > 0 ? maxDepth : Infinity;
+    var depth = {}; depth[fromId] = 0; var walked = [], seenEdge = {};
+    function walk(next, forward) {
+      var queue = [fromId], qi = 0, local = {}; local[fromId] = 0;
+      while (qi < queue.length) {
+        var cur = queue[qi++], d = local[cur]; if (d >= limit) continue;
+        next[cur].forEach(function (nb) {
+          var key = forward ? cur + '|' + nb : nb + '|' + cur;
+          if (!seenEdge[key]) { seenEdge[key] = true; walked.push(forward ? [cur, nb] : [nb, cur]); }
+          if (nb in local) return; local[nb] = d + 1; queue.push(nb);
+          if (!(nb in depth) || depth[nb] > d + 1) depth[nb] = d + 1;
+        });
+      }
+    }
+    if (dir === 'down' || dir === 'both') walk(outs, true);
+    if (dir === 'up' || dir === 'both') walk(ins, false);
+    return { depth: depth, edges: walked };
+  }
+
   window.WEBSIDIAN_GRAPH = window.MD2HTML_GRAPH = {
     mount: mount, PALETTE: PALETTE, DEFAULTS: DEFAULTS, parseQuery: parseQuery, matches: matches,
     colorFor: colorFor, recencyBucket: recencyBucket, bubbleRadius: bubbleRadius, bandWidth: bandWidth,
-    clusterHome: clusterHome, radialPositions: radialPositions, shortestPath: shortestPath
+    clusterHome: clusterHome, radialPositions: radialPositions, shortestPath: shortestPath, reach: reach
   };
 })();

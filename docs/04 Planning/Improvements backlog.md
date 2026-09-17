@@ -2,7 +2,7 @@
 title: Improvements backlog
 tags: [websidian, planning]
 aliases: [Suggestions, Backlog]
-updated: 2026-09-16
+updated: 2026-09-17
 order: 3
 description: Suggestions ranked by value for effort
 ---
@@ -43,6 +43,8 @@ Suggestions ranked by value for effort. **P1** = next, **P2** = soon, **P3** = l
 | 17 | Canvas (`.canvas`) as pan/zoom pages — the Excalidraw viewer's box, lazy loading and click-to-interact shield can be reused |
 | 17b | Excalidraw: move to a current release once one ships a bundler-free browser build again (or vendor one built once and committed), for the newer fonts and elbow arrows ([[Known issues]]) |
 | 17c | Excalidraw: LaTeX blocks (render with KaTeX to an image for the `files` map) and nested drawings without an export |
+| 17d | Explore views from a **query** (`query: tag:onboarding`) next to the `focus` list, and the view chips on the classic Graph view and the local graph too ([[Graph and Explore#Views]]) |
+| 17e | A rendered ```archify``` block for authored architecture diagrams inside notes — the tool's 775 KB viewer template is the cost; only worth it once someone writes them |
 | 17d | Excalidraw: a static PNG per drawing rendered on the server for `og:image`, print and JavaScript-off pages when the plugin exported nothing |
 | 18 | Dataview subset (`TABLE`, `LIST`, `TASK`, `FROM`, `WHERE`, `SORT`) |
 | 19 | Split view of two notes (English / Arabic side by side) |

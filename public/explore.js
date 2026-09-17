@@ -1,13 +1,17 @@
 /* Explore view: a second, separate full-screen graph page. Built on top of
  * the pure helpers exported by public/graph.js (window.WEBSIDIAN_GRAPH) —
  * parseQuery/matches/colorFor/bubbleRadius/bandWidth/clusterHome/
- * radialPositions/shortestPath — but with its own self-contained renderer,
- * so the existing graph.js mount()/graph-page.js pair is never touched.
+ * radialPositions/shortestPath/reach — but with its own self-contained
+ * renderer, so the existing graph.js mount()/graph-page.js pair is never
+ * touched.
  *
  * Adds: section bubbles (semantic zoom), cluster/radial/force layouts,
  * colour-by (folder/lang/status/recency) and size-by (links/in/out/equal),
- * and a shortest-path finder between two notes. Settings persist per site
- * in localStorage under 'md2html-explore-<site>'.
+ * a shortest-path finder between two notes, directed reach (upstream /
+ * downstream of one note) and named views declared in frontmatter.
+ * Settings persist per site in localStorage under 'md2html-explore-<site>';
+ * the active view or reach lives in the URL (?view= / ?reach=&dir=&hops=)
+ * so it can be shared, and is never persisted.
  */
 (function () {
   'use strict';
@@ -18,7 +22,7 @@
   var KEY = 'md2html-explore-' + site;
   var $ = function (id) { return document.getElementById(id); };
 
-  var DEFAULTS = { query: '', tags: false, orphans: true, depth: 1, textFade: 1.0, nodeSize: 1.0, lineWidth: 1.0, animate: true, colorBy: 'folder', sizeBy: 'links', layout: 'cluster', bubbles: true, collapsed: [] };
+  var DEFAULTS = { query: '', tags: false, orphans: true, depth: 1, textFade: 1.0, nodeSize: 1.0, lineWidth: 1.0, animate: true, colorBy: 'folder', sizeBy: 'links', layout: 'cluster', bubbles: true, collapsed: [], reachDir: 'up', reachHops: 0 };
   var saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
   var S = Object.assign({}, DEFAULTS, saved);
   var hadSavedLayout = Object.prototype.hasOwnProperty.call(saved, 'layout');
@@ -26,6 +30,7 @@
 
   var cssVars = getComputedStyle(document.documentElement);
   var theme = function () { cssVars = getComputedStyle(document.documentElement); return { fg: cssVars.getPropertyValue('--fg').trim() || '#222', muted: cssVars.getPropertyValue('--muted').trim() || '#888', line: cssVars.getPropertyValue('--line').trim() || '#ccc', bg: cssVars.getPropertyValue('--bg').trim() || '#fff', accent: cssVars.getPropertyValue('--accent').trim() || '#0969da', font: cssVars.getPropertyValue('--font') || 'sans-serif' }; };
+  var UP = '#4c8dff', DOWN = '#2fbf71'; // reach colours: upstream (links here) / downstream (linked from here)
 
   var baseUrl = (window.WEBSIDIAN || window.MD2HTML).base + '_graph.json';
   var centerId = focusAttr || null;
@@ -39,26 +44,38 @@
     return baseUrl + (q.length ? '?' + q.join('&') : '');
   }
 
-  var nodes = [], pairs = [], groups = [], byId = {}, groupInfo = {}, langList = [];
+  var nodes = [], pairs = [], dirEdges = [], groups = [], views = [], byId = {}, groupInfo = {}, langList = [];
   var clusterLinksRaw = [], fallbackLinksCache = null, homesCache = null, bubbleNodes = {};
   var W = 0, H = 0, dpr = Math.max(1, window.devicePixelRatio || 1);
   var view = { x: 0, y: 0, k: 1 };
   var hover = null, drag = null, alpha = 1, running = false, pinned = null;
   var qTerms = G.parseQuery(S.query);
   var visCache = null;
-  var pathIds = null; // ids of the highlighted shortest path, or null
+  // The one active highlight, or null:
+  //   { kind: 'path'|'reach'|'view', ids: {id: true}, edges: {a|b: 'path'|'up'|'down'|'view'},
+  //     arrows: {from|to: true}, order: [ids], root, view, dir, hops, title, note }
+  var hl = null;
+  var pendingFit = null; // ids to frame once the simulation settles (a view opened from the URL)
+  var laidOut = false; // the canvas has had a real size (a tab opened in the background starts at 0×0)
 
   var statsEl = $('exploreStats'), hoverEl = $('exploreHover'), legendEl = $('exLegend'), noteListEl = $('exNoteList'), pathResultEl = $('exPathResult');
+  var reachResultEl = $('exReachResult'), viewsEl = $('exViews');
+  var captionEl = $('exCaption'), captionTitleEl = $('exCaptionTitle'), captionNoteEl = $('exCaptionNote'), captionListEl = $('exCaptionList');
 
   function resize() {
     var r = canvas.getBoundingClientRect(); W = Math.max(1, r.width); H = Math.max(1, r.height);
-    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); draw();
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // the first real size: frame the graph now (a fit against a 0×0 canvas
+    // zooms out to nothing), and a view waiting to be framed, too
+    if (!laidOut && r.width > 1 && r.height > 1) { laidOut = true; if (nodes.length) { if (pendingFit && !running) { fitTo(pendingFit); pendingFit = null; } else fit(); } }
+    draw();
   }
 
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function edgeKey(a, b) { return a < b ? a + '|' + b : b + '|' + a; }
 
   function load(data) {
-    groups = data.groups || []; clusterLinksRaw = data.clusterLinks || [];
+    groups = data.groups || []; clusterLinksRaw = data.clusterLinks || []; views = data.views || [];
     var clustersRaw = data.clusters || [];
     var prev = byId; byId = {};
     var count = (data.nodes || []).length || 1, R0 = Math.sqrt(count) * 30 + 40;
@@ -70,9 +87,10 @@
       if (centerId && n.id === centerId) node.center = true;
       byId[n.id] = node; return node;
     });
-    var pm = {}; pairs = [];
+    var pm = {}; pairs = []; dirEdges = [];
     (data.edges || []).forEach(function (e) {
       var s = byId[e.source], t = byId[e.target]; if (!s || !t) return;
+      dirEdges.push([s.id, t.id]);
       var key = s.id < t.id ? s.id + '\n' + t.id : t.id + '\n' + s.id;
       var p = pm[key]; if (!p) { p = pm[key] = { a: s.id < t.id ? s : t, b: s.id < t.id ? t : s }; pairs.push(p); }
     });
@@ -87,11 +105,12 @@
     clustersRaw.forEach(function (c) { if (groupInfo[c.id]) groupInfo[c.id].count = c.count; });
     var langSet = {}; nodes.forEach(function (n) { if (n.lang) langSet[n.lang] = true; }); langList = Object.keys(langSet).sort();
     fallbackLinksCache = null; homesCache = null; bubbleNodes = {};
-    pathIds = null; renderPathResult();
     visCache = null; alpha = 1;
-    if (!prev || !Object.keys(prev).length) fit();
+    if ((!prev || !Object.keys(prev).length) && laidOut) fit();
     start();
     updateNoteList();
+    renderViews();
+    reapplyHighlight();
     var visN = visibleNodes();
     if (statsEl) statsEl.textContent = visN.length + (visN.length !== nodes.length ? ' of ' + nodes.length : '') + ' notes · ' + pairs.length + ' links';
     renderLegend();
@@ -274,18 +293,36 @@
     alpha = Math.max(0.015, alpha * (S.animate ? 0.988 : 0.9));
   }
   function start() { if (!running) { running = true; loop(); } }
-  function loop() { if (!running) return; tick(); draw(); if (alpha <= 0.0151 && !drag) { running = false; return; } requestAnimationFrame(loop); }
+  function loop() {
+    if (!running) return; tick(); draw();
+    // a view waiting to be framed: once the layout has mostly settled is soon
+    // enough (nodes barely move after this), and much sooner than a full stop
+    if (pendingFit && laidOut && alpha <= 0.05) { var ids = pendingFit; pendingFit = null; fitTo(ids); draw(); }
+    if (alpha <= 0.0151 && !drag) { running = false; return; }
+    requestAnimationFrame(loop);
+  }
   function reheat(a) { alpha = Math.max(alpha, a || 0.3); start(); }
 
   // ---- drawing ----
   function toScreen(x, y) { return [W / 2 + (x + view.x) * view.k, H / 2 + (y + view.y) * view.k]; }
   function toWorld(sx, sy) { return [(sx - W / 2) / view.k - view.x, (sy - H / 2) / view.k - view.y]; }
+  function fitBox(minX, minY, maxX, maxY) {
+    var k = Math.min(2.5, 0.9 * Math.min(W / Math.max(60, maxX - minX + 100), H / Math.max(60, maxY - minY + 100)));
+    view = { k: k, x: -(minX + maxX) / 2, y: -(minY + maxY) / 2 };
+  }
   function fit() {
     var sim = computeSim(); var vis = sim.nodes.concat(sim.bubbles); if (!vis.length) return;
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     vis.forEach(function (n) { var r = n.isBubble ? n.r0 : 0; minX = Math.min(minX, n.x - r); maxX = Math.max(maxX, n.x + r); minY = Math.min(minY, n.y - r); maxY = Math.max(maxY, n.y + r); });
-    var k = Math.min(2.5, 0.9 * Math.min(W / Math.max(60, maxX - minX + 100), H / Math.max(60, maxY - minY + 100)));
-    view = { k: k, x: -(minX + maxX) / 2, y: -(minY + maxY) / 2 };
+    fitBox(minX, minY, maxX, maxY);
+  }
+  // frame a set of node ids (a view's members, a reach); falls back to fit()
+  function fitTo(ids) {
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, c = 0;
+    (ids || []).forEach(function (id) { var n = byId[id]; if (!n || !n.vis) return; c++; minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x); minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y); });
+    if (!c) { fit(); return; }
+    fitBox(minX, minY, maxX, maxY);
+    view.k = Math.min(view.k, 1.6);
   }
   function drawSectionHulls(t, sim) {
     var byGroup = {};
@@ -306,6 +343,16 @@
     });
     ctx.globalAlpha = 1;
   }
+  function hlColor(kind, t) { return kind === 'up' ? UP : kind === 'down' ? DOWN : t.accent; }
+  // arrowhead at `to`, pulled back by the target node's radius
+  function drawArrow(from, to, r, color) {
+    var dx = to[0] - from[0], dy = to[1] - from[1], d = Math.hypot(dx, dy); if (d < r + 6) return;
+    var ux = dx / d, uy = dy / d, tipX = to[0] - ux * (r + 1), tipY = to[1] - uy * (r + 1), size = 6;
+    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX - ux * size - uy * size * 0.55, tipY - uy * size + ux * size * 0.55);
+    ctx.lineTo(tipX - ux * size + uy * size * 0.55, tipY - uy * size - ux * size * 0.55);
+    ctx.closePath(); ctx.fill();
+  }
   function draw() {
     var t = theme(); ctx.clearRect(0, 0, W, H);
     var sim = computeSim();
@@ -317,18 +364,17 @@
     if (S.layout === 'cluster') drawSectionHulls(t, sim);
     var focus = hover || pinned, neighbours = null;
     if (focus && !focus.isBubble) { neighbours = {}; neighbours[focus.id] = true; pairs.forEach(function (p) { if (p.a === focus) neighbours[p.b.id] = true; if (p.b === focus) neighbours[p.a.id] = true; }); }
-    var pathSet = null, pathEdgeSet = null;
-    if (pathIds && pathIds.length) {
-      pathSet = {}; pathIds.forEach(function (id) { pathSet[id] = true; });
-      pathEdgeSet = {}; for (var pi = 1; pi < pathIds.length; pi++) { pathEdgeSet[pathIds[pi - 1] + '|' + pathIds[pi]] = true; pathEdgeSet[pathIds[pi] + '|' + pathIds[pi - 1]] = true; }
-    }
+    var hlSet = hl ? hl.ids : null, hlEdges = hl ? hl.edges : null, hlArrows = hl ? hl.arrows : null;
+    var hlOrder = null;
+    if (hl && hl.kind === 'view') { hlOrder = {}; hl.order.forEach(function (id, i) { hlOrder[id] = i + 1; }); }
     var lw = Math.max(0.3, S.lineWidth * Math.min(1.1, 0.35 + view.k * 0.3));
     var sizeK = S.nodeSize * Math.pow(view.k, 0.6);
     var bridgeSeen = {};
+    var arrows = [];
     pairs.forEach(function (p) {
       if (!p.a.vis || !p.b.vis) return;
       var aHidden = sim.active[p.a.group], bHidden = sim.active[p.b.group];
-      var onPath = pathEdgeSet && pathEdgeSet[p.a.id + '|' + p.b.id];
+      var lit = hlEdges && hlEdges[edgeKey(p.a.id, p.b.id)];
       if (aHidden && bHidden) return; // bubble<->bubble handled below as an aggregated band
       if (aHidden || bHidden) {
         var bub = aHidden ? byGidBubble[p.a.group] : byGidBubble[p.b.group];
@@ -342,10 +388,15 @@
       }
       var A = toScreen(p.a.x, p.a.y), B = toScreen(p.b.x, p.b.y);
       var hot = focus && !focus.isBubble && (p.a === focus || p.b === focus);
-      ctx.strokeStyle = (onPath || hot) ? t.accent : t.line;
-      ctx.globalAlpha = pathSet ? (onPath ? 0.95 : 0.06) : (focus ? (hot ? 0.95 : 0.08) : 0.45);
-      ctx.lineWidth = (onPath || hot) ? lw * 2 : lw;
+      var color = lit ? hlColor(lit, t) : (hot ? t.accent : t.line);
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = hlSet ? (lit ? 0.95 : 0.06) : (focus ? (hot ? 0.95 : 0.08) : 0.45);
+      ctx.lineWidth = (lit || hot) ? lw * 2 : lw;
       ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+      if (lit && hlArrows) {
+        if (hlArrows[p.a.id + '|' + p.b.id]) arrows.push([A, B, nodeRadius(p.b) * sizeK, color]);
+        if (hlArrows[p.b.id + '|' + p.a.id]) arrows.push([B, A, nodeRadius(p.a) * sizeK, color]);
+      }
     });
     if (sim.bubbles.length > 1) {
       var links = clusterLinksFor(sim.active);
@@ -358,19 +409,32 @@
       });
     }
     var labelAlpha = Math.max(0, Math.min(1, (view.k - 1.0 * S.textFade) / (0.8 * S.textFade)));
-    var labels = [];
+    var labels = [], badges = [];
     sim.nodes.forEach(function (n) {
       var p = toScreen(n.x, n.y), r = nodeRadius(n) * sizeK;
       if (p[0] < -r || p[1] < -r || p[0] > W + r || p[1] > H + r) return;
-      var dim = (neighbours && !neighbours[n.id]) || (pathSet && !pathSet[n.id]);
+      var inHl = hlSet && hlSet[n.id];
+      var dim = (neighbours && !neighbours[n.id]) || (hlSet && !inHl);
       ctx.globalAlpha = dim ? 0.18 : 1;
       ctx.fillStyle = colorOf(n); ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, Math.PI * 2); ctx.fill();
-      if (pathSet && pathSet[n.id]) { ctx.strokeStyle = t.accent; ctx.lineWidth = 2.2; ctx.globalAlpha = 1; ctx.stroke(); }
+      if (inHl) {
+        var ring = hl.kind === 'reach' ? (n.id === hl.root ? t.fg : hlColor(inHl, t)) : t.accent;
+        ctx.strokeStyle = ring; ctx.lineWidth = n.id === (hl.root || '') ? 2.6 : 2.2; ctx.globalAlpha = 1; ctx.stroke();
+      }
       else if (n.center || n === focus) { ctx.strokeStyle = t.fg; ctx.lineWidth = 2; ctx.globalAlpha = 1; ctx.stroke(); }
       if (n.fixed) { ctx.strokeStyle = t.muted; ctx.lineWidth = 1; ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.arc(p[0], p[1], r + 3, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
-      var priority = n === focus || (neighbours && neighbours[n.id]) || (pathSet && pathSet[n.id]);
+      if (hlOrder && hlOrder[n.id]) badges.push({ p: p, r: r, n: hlOrder[n.id] });
+      var priority = n === focus || (neighbours && neighbours[n.id]) || inHl;
       if (priority) labels.push({ n: n, p: p, r: r, a: 1, priority: true });
       else if (labelAlpha > 0.02 && !dim) labels.push({ n: n, p: p, r: r, a: labelAlpha, priority: false });
+    });
+    ctx.globalAlpha = 1;
+    arrows.forEach(function (a) { drawArrow(a[0], a[1], a[2], a[3]); });
+    // a view's reading order, as a small numbered badge at the node's top-right
+    badges.forEach(function (b) {
+      var bx = b.p[0] + b.r * 0.8 + 4, by = b.p[1] - b.r * 0.8 - 4;
+      ctx.fillStyle = t.accent; ctx.beginPath(); ctx.arc(bx, by, 7.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = '600 9px ' + t.font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(b.n), bx, by + 0.5);
     });
     sim.bubbles.forEach(function (b) {
       var p = toScreen(b.x, b.y), r = b.r0;
@@ -469,7 +533,7 @@
 
   if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas); else window.addEventListener('resize', resize);
 
-  // ---- legend / note list / path finder ------------------------------
+  // ---- legend / note list -------------------------------------------
   function renderLegend() {
     if (!legendEl) return;
     var items;
@@ -491,15 +555,131 @@
   }
   function titleToId(title) {
     var t = String(title || '').trim().toLowerCase(); if (!t) return null;
-    var hit = nodes.filter(function (n) { return n.title.toLowerCase() === t; })[0];
+    var hit = nodes.filter(function (n) { return n.title.toLowerCase() === t || n.id.toLowerCase() === t; })[0];
     return hit ? hit.id : null;
   }
-  function renderPathResult() {
-    if (!pathResultEl) return;
-    if (!pathIds || !pathIds.length) { pathResultEl.innerHTML = ''; return; }
-    pathResultEl.innerHTML = pathIds.map(function (id) { var n = byId[id]; return '<a data-id="' + esc(id) + '">' + esc(n ? n.title : id) + '</a>'; }).join('<span class="muted"> → </span>');
-    Array.prototype.forEach.call(pathResultEl.querySelectorAll('a'), function (a) {
+  // a clickable note link for the result lists: pins and centres the node
+  function noteLink(id, cls, prefix) {
+    var n = byId[id];
+    return '<a data-id="' + esc(id) + '"' + (cls ? ' class="' + cls + '"' : '') + '>' + (prefix || '') + esc(n ? n.title : id) + '</a>';
+  }
+  function wireLinks(el) {
+    if (!el) return;
+    Array.prototype.forEach.call(el.querySelectorAll('a[data-id]'), function (a) {
       a.addEventListener('click', function () { var n = byId[a.getAttribute('data-id')]; if (!n) return; pinned = n; view.x = -n.x; view.y = -n.y; view.k = Math.max(view.k, 1.2); draw(); });
+    });
+  }
+
+  // ---- highlights: path, reach, view ----------------------------------
+  // The URL carries the active view or reach so a visitor can share it:
+  //   ?view=<id>              ?reach=<rel>&dir=up|down|both&hops=<n|0>
+  function syncUrl() {
+    if (!window.history || !history.replaceState) return;
+    var q = [];
+    if (centerId && focusAttr) q.push('focus=' + encodeURIComponent(focusAttr));
+    if (hl && hl.kind === 'view') q.push('view=' + encodeURIComponent(hl.view));
+    if (hl && hl.kind === 'reach') { q.push('reach=' + encodeURIComponent(hl.root)); q.push('dir=' + hl.dir); if (hl.hops) q.push('hops=' + hl.hops); }
+    var url = location.pathname + (q.length ? '?' + q.join('&') : '') + location.hash;
+    if (url !== location.pathname + location.search + location.hash) history.replaceState(null, '', url);
+  }
+  function setHighlight(h) {
+    hl = h; renderCaption(); renderViews(); renderReachResult(); syncUrl(); draw();
+  }
+  function clearHighlight() {
+    if (!hl) return;
+    if (hl.kind === 'path') { if (pathResultEl) pathResultEl.innerHTML = ''; }
+    setHighlight(null);
+  }
+  function showPath(fromId, toId) {
+    var visN = visibleNodes(), ids = visN.map(function (n) { return n.id; });
+    var edgePairs = []; pairs.forEach(function (p) { if (p.a.vis && p.b.vis) edgePairs.push([p.a.id, p.b.id]); });
+    var path = G.shortestPath(ids, edgePairs, fromId, toId);
+    if (!path) { setHighlight(null); if (pathResultEl) pathResultEl.innerHTML = '<span class="muted">No path between those notes (within the current filter).</span>'; return; }
+    var h = { kind: 'path', ids: {}, edges: {}, arrows: null, order: path };
+    path.forEach(function (id, i) { h.ids[id] = true; if (i) h.edges[edgeKey(path[i - 1], id)] = 'path'; });
+    setHighlight(h);
+    if (pathResultEl) { pathResultEl.innerHTML = path.map(function (id) { return noteLink(id); }).join('<span class="muted"> → </span>'); wireLinks(pathResultEl); }
+  }
+  function showReach(rootId, dir, hops) {
+    var visN = visibleNodes(), ids = visN.map(function (n) { return n.id; });
+    var edges = dirEdges.filter(function (e) { var a = byId[e[0]], b = byId[e[1]]; return a && b && a.vis && b.vis; });
+    var up = (dir === 'up' || dir === 'both') ? G.reach(ids, edges, rootId, 'up', hops) : null;
+    var down = (dir === 'down' || dir === 'both') ? G.reach(ids, edges, rootId, 'down', hops) : null;
+    if (!up && !down) { setHighlight(null); if (reachResultEl) reachResultEl.innerHTML = '<span class="muted">Pick a known note.</span>'; return; }
+    var h = { kind: 'reach', ids: {}, edges: {}, arrows: {}, order: [], root: rootId, dir: dir, hops: hops, up: [], down: [] };
+    h.ids[rootId] = 'root';
+    function take(res, kind) {
+      if (!res) return;
+      Object.keys(res.depth).forEach(function (id) { if (id !== rootId && !h.ids[id]) { h.ids[id] = kind; h[kind].push({ id: id, hops: res.depth[id] }); } });
+      res.edges.forEach(function (e) { var k = edgeKey(e[0], e[1]); if (!h.edges[k]) h.edges[k] = kind; h.arrows[e[0] + '|' + e[1]] = true; });
+    }
+    take(up, 'up'); take(down, 'down');
+    var byHops = function (a, b) { return a.hops - b.hops || (byId[a.id] && byId[b.id] ? byId[a.id].title.localeCompare(byId[b.id].title) : 0); };
+    h.up.sort(byHops); h.down.sort(byHops);
+    h.order = [rootId].concat(h.up.map(function (x) { return x.id; }), h.down.map(function (x) { return x.id; }));
+    setHighlight(h);
+    var reachFromEl = $('exReachFrom'); if (reachFromEl && byId[rootId]) reachFromEl.value = byId[rootId].title;
+  }
+  function showView(id) {
+    var v = null; views.forEach(function (x) { if (x.id === id) v = x; });
+    if (!v) { setHighlight(null); return; }
+    var h = { kind: 'view', ids: {}, edges: {}, arrows: null, order: v.members.slice(), view: v.id, title: v.label, note: v.note, missing: [] };
+    v.members.forEach(function (m) { if (byId[m]) h.ids[m] = 'view'; else h.missing.push(m); });
+    pairs.forEach(function (p) { if (h.ids[p.a.id] && h.ids[p.b.id]) h.edges[edgeKey(p.a.id, p.b.id)] = 'view'; });
+    setHighlight(h);
+    if (running) pendingFit = v.members.slice(); else { fitTo(v.members); draw(); }
+  }
+  // after a reload (tags toggled, radial depth, new centre) keep what was lit
+  function reapplyHighlight() {
+    if (!hl) return;
+    if (hl.kind === 'view') showView(hl.view);
+    else if (hl.kind === 'reach') { if (byId[hl.root]) showReach(hl.root, hl.dir, hl.hops); else setHighlight(null); }
+    else clearHighlight();
+  }
+  function reachTitle(h) {
+    var name = byId[h.root] ? byId[h.root].title : h.root;
+    return (h.dir === 'up' ? 'Upstream of ' : h.dir === 'down' ? 'Downstream of ' : 'Reach of ') + name;
+  }
+  function renderReachResult() {
+    if (!reachResultEl) return;
+    if (!hl || hl.kind !== 'reach') { reachResultEl.innerHTML = ''; return; }
+    var parts = [];
+    if (hl.dir !== 'down') parts.push('<span class="is-up">' + hl.up.length + ' upstream</span>');
+    if (hl.dir !== 'up') parts.push('<span class="is-down">' + hl.down.length + ' downstream</span>');
+    reachResultEl.innerHTML = '<span class="muted">' + parts.join(' · ') + (hl.hops ? ' · within ' + hl.hops + ' hop' + (hl.hops > 1 ? 's' : '') : '') + '</span>';
+  }
+  function renderCaption() {
+    if (!captionEl) return;
+    if (!hl || hl.kind === 'path') { captionEl.hidden = true; return; }
+    captionEl.hidden = false;
+    if (hl.kind === 'view') {
+      captionTitleEl.textContent = hl.title;
+      captionNoteEl.textContent = hl.note || '';
+      captionNoteEl.hidden = !hl.note;
+      var rows = hl.order.map(function (id, i) {
+        var known = byId[id];
+        return '<span>' + '<span class="gp-num">' + (i + 1) + '.</span>' + (known ? noteLink(id) : '<span class="muted">' + esc(id.replace(/\.md$/i, '')) + ' (not in this graph)</span>') + '</span>';
+      });
+      captionListEl.innerHTML = rows.join('');
+    } else {
+      captionTitleEl.textContent = reachTitle(hl);
+      var n = hl.up.length + hl.down.length;
+      captionNoteEl.hidden = false;
+      captionNoteEl.textContent = n ? (n + ' note' + (n > 1 ? 's' : '') + (hl.hops ? ' within ' + hl.hops + ' hop' + (hl.hops > 1 ? 's' : '') : '') + ' · arrows follow the links') : 'Nothing links ' + (hl.dir === 'up' ? 'here' : hl.dir === 'down' ? 'out of it' : 'in or out') + ' within the current filter.';
+      var html = '';
+      if (hl.up.length) html += '<span class="muted">Upstream — links here</span>' + hl.up.map(function (x) { return noteLink(x.id, 'is-up', '<span class="gp-num">' + x.hops + '</span>'); }).join('');
+      if (hl.down.length) html += '<span class="muted">Downstream — linked from here</span>' + hl.down.map(function (x) { return noteLink(x.id, 'is-down', '<span class="gp-num">' + x.hops + '</span>'); }).join('');
+      captionListEl.innerHTML = html;
+    }
+    wireLinks(captionListEl);
+  }
+  function renderViews() {
+    if (!viewsEl) return;
+    if (!views.length) { viewsEl.innerHTML = '<span class="muted">No views yet. Declare them under <code>views:</code> in a note’s frontmatter.</span>'; return; }
+    var active = hl && hl.kind === 'view' ? hl.view : null;
+    viewsEl.innerHTML = views.map(function (v) { return '<button type="button" data-view="' + esc(v.id) + '"' + (v.id === active ? ' class="is-active"' : '') + ' title="' + esc(v.note || (v.members.length + ' notes')) + '">' + esc(v.label) + '</button>'; }).join('');
+    Array.prototype.forEach.call(viewsEl.querySelectorAll('button'), function (b) {
+      b.addEventListener('click', function () { var id = b.getAttribute('data-view'); if (hl && hl.kind === 'view' && hl.view === id) clearHighlight(); else showView(id); });
     });
   }
 
@@ -522,15 +702,24 @@
   var pathGoBtn = $('exPathGo'), pathClearBtn = $('exPathClear'), pathFromEl = $('exPathFrom'), pathToEl = $('exPathTo');
   if (pathGoBtn) pathGoBtn.addEventListener('click', function () {
     var fromId = titleToId(pathFromEl && pathFromEl.value), toId = titleToId(pathToEl && pathToEl.value);
-    if (!fromId || !toId) { pathIds = null; if (pathResultEl) pathResultEl.innerHTML = '<span class="muted">Pick two known notes.</span>'; draw(); return; }
-    var visN = visibleNodes(), ids = visN.map(function (n) { return n.id; });
-    var edgePairs = []; pairs.forEach(function (p) { if (p.a.vis && p.b.vis) edgePairs.push([p.a.id, p.b.id]); });
-    var path = G.shortestPath(ids, edgePairs, fromId, toId);
-    if (!path) { pathIds = null; if (pathResultEl) pathResultEl.innerHTML = '<span class="muted">No path between those notes (within the current filter).</span>'; }
-    else { pathIds = path; renderPathResult(); }
-    draw();
+    if (!fromId || !toId) { setHighlight(null); if (pathResultEl) pathResultEl.innerHTML = '<span class="muted">Pick two known notes.</span>'; return; }
+    showPath(fromId, toId);
   });
-  if (pathClearBtn) pathClearBtn.addEventListener('click', function () { pathIds = null; if (pathFromEl) pathFromEl.value = ''; if (pathToEl) pathToEl.value = ''; if (pathResultEl) pathResultEl.innerHTML = ''; draw(); });
+  if (pathClearBtn) pathClearBtn.addEventListener('click', function () { if (pathFromEl) pathFromEl.value = ''; if (pathToEl) pathToEl.value = ''; if (hl && hl.kind === 'path') clearHighlight(); if (pathResultEl) pathResultEl.innerHTML = ''; });
+
+  // reach: direction and hop limit persist like the other settings; a live
+  // reach follows a change straight away
+  var reachGoBtn = $('exReachGo'), reachClearBtn = $('exReachClear'), reachFromEl = $('exReachFrom'), reachDirEl = $('exReachDir'), reachDepthEl = $('exReachDepth');
+  if (reachDirEl) { reachDirEl.value = S.reachDir; reachDirEl.addEventListener('change', function () { S.reachDir = reachDirEl.value; save(); if (hl && hl.kind === 'reach') showReach(hl.root, S.reachDir, S.reachHops); }); }
+  if (reachDepthEl) { reachDepthEl.value = String(S.reachHops); reachDepthEl.addEventListener('change', function () { S.reachHops = Number(reachDepthEl.value) || 0; save(); if (hl && hl.kind === 'reach') showReach(hl.root, S.reachDir, S.reachHops); }); }
+  if (reachGoBtn) reachGoBtn.addEventListener('click', function () {
+    var id = titleToId(reachFromEl && reachFromEl.value);
+    if (!id) { if (reachResultEl) reachResultEl.innerHTML = '<span class="muted">Pick a known note.</span>'; return; }
+    showReach(id, S.reachDir, S.reachHops);
+  });
+  if (reachClearBtn) reachClearBtn.addEventListener('click', function () { if (reachFromEl) reachFromEl.value = ''; if (hl && hl.kind === 'reach') clearHighlight(); if (reachResultEl) reachResultEl.innerHTML = ''; });
+  var captionCloseBtn = $('exCaptionClose');
+  if (captionCloseBtn) captionCloseBtn.addEventListener('click', clearHighlight);
 
   var resetBtn = $('exReset');
   if (resetBtn) resetBtn.addEventListener('click', function () {
@@ -544,14 +733,16 @@
     });
     var cb = $('exColorBy'), sb = $('exSizeBy'), lb = $('exLayout');
     if (cb) cb.value = DEFAULTS.colorBy; if (sb) sb.value = DEFAULTS.sizeBy; if (lb) lb.value = DEFAULTS.layout;
+    if (reachDirEl) reachDirEl.value = DEFAULTS.reachDir; if (reachDepthEl) reachDepthEl.value = String(DEFAULTS.reachHops);
     qTerms = G.parseQuery(S.query); if (qEl) qEl.value = '';
+    clearHighlight();
     visCache = null; renderLegend(); reheat(0.5); draw();
   });
 
   var zIn = $('exzIn'), zOut = $('exzOut'), zFit = $('exzFit'), zRelease = $('exzRelease');
   if (zIn) zIn.addEventListener('click', function () { view.k = Math.max(0.08, Math.min(8, view.k * 1.3)); draw(); });
   if (zOut) zOut.addEventListener('click', function () { view.k = Math.max(0.08, Math.min(8, view.k / 1.3)); draw(); });
-  if (zFit) zFit.addEventListener('click', function () { fit(); draw(); });
+  if (zFit) zFit.addEventListener('click', function () { if (hl && hl.order && hl.order.length) fitTo(hl.order); else fit(); draw(); });
   if (zRelease) zRelease.addEventListener('click', function () { nodes.forEach(function (n) { n.fixed = false; }); reheat(0.4); });
 
   var panel = $('explorePanel'), toggleBtn = $('exToggle');
@@ -562,11 +753,17 @@
   }
   document.addEventListener('keydown', function (e) {
     if (/input|textarea|select/i.test(document.activeElement.tagName)) { if (e.key === 'Escape') document.activeElement.blur(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === '/') { e.preventDefault(); if (panel) panel.classList.remove('is-hidden'); if (qEl) qEl.focus(); }
-    else if (e.key === 'f') { fit(); draw(); }
+    else if (e.key === 'f') { if (hl && hl.order && hl.order.length) fitTo(hl.order); else fit(); draw(); }
     else if (e.key === '+' || e.key === '=') { view.k = Math.min(8, view.k * 1.3); draw(); }
     else if (e.key === '-') { view.k = Math.max(0.08, view.k / 1.3); draw(); }
-    else if (e.key === 'Escape' && panel) panel.classList.add('is-hidden');
+    else if (e.key === 'r' || e.key === 'R') {
+      // reach from the node under the pointer (or the right-clicked one)
+      var n = hover || pinned; if (!n || n.isBubble || !n.url) return;
+      if (hl && hl.kind === 'reach' && hl.root === n.id) clearHighlight(); else showReach(n.id, S.reachDir, S.reachHops);
+    }
+    else if (e.key === 'Escape') { if (hl) clearHighlight(); else if (panel) panel.classList.add('is-hidden'); }
   });
 
   var root = document.documentElement;
@@ -578,7 +775,19 @@
     draw();
   });
 
+  // the URL's view or reach, applied once the first graph has loaded
+  function applyUrlHighlight() {
+    var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
+    var v = q.get('view'), r = q.get('reach');
+    if (v) { showView(v); if (hl && hl.kind === 'view') pendingFit = hl.order.slice(); }
+    else if (r && byId[r]) {
+      var dir = q.get('dir'); if (dir !== 'up' && dir !== 'down' && dir !== 'both') dir = S.reachDir;
+      var hops = Number(q.get('hops')); if (!(hops > 0)) hops = 0;
+      showReach(r, dir, hops); pendingFit = hl && hl.order ? hl.order.slice() : null;
+    }
+  }
+
   function fetchAndLoad() { return fetch(urlFor()).then(function (r) { return r.json(); }).then(load); }
   resize();
-  fetchAndLoad();
+  fetchAndLoad().then(applyUrlHighlight);
 })();

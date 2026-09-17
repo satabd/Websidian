@@ -2,6 +2,11 @@
 title: Start Here
 tags: [demo, moc]
 aliases: [Home, Welcome]
+views:
+  - id: tour
+    label: Two-minute tour
+    note: Read these three in order.
+    focus: [Editor Playground, Glossary, Projects/Websidian roadmap]
 ---
 # Start Here
 

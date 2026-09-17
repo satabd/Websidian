@@ -11,9 +11,51 @@ function topFolder(rel) { const i = rel.indexOf('/'); return i < 0 ? '' : rel.sl
 const listOf = v => Array.isArray(v) ? v : (v == null ? [] : [v]);
 const tagsOf = data => listOf(data.tags).map(t => String(t).replace(/^#/, '')).filter(Boolean);
 
+// Named views, declared in frontmatter. Two shapes, both under `views:`:
+//   - an object defines a view:  { id, label, note, focus: [note names] }
+//     (`focus` entries are wikilink targets, resolved from the declaring note)
+//   - a string joins the note to a view of that id (created if never defined)
+// Members are the definition's focus list in order, then joined notes by
+// title. Hidden notes never appear, and a view with no visible member is
+// dropped. Returned sorted by label.
+function collectViews(vault, visible) {
+  const byRel = new Map(visible.map(n => [n.rel, n]));
+  const views = new Map();
+  const viewOf = (id, from) => {
+    if (!views.has(id)) views.set(id, { id, label: id, note: '', focus: [], joined: [], from });
+    return views.get(id);
+  };
+  const slug = v => String(v).trim().toLowerCase().replace(/[^a-z0-9\u0600-\u06ff_-]+/g, '-').replace(/^-+|-+$/g, '');
+  for (const n of visible) {
+    for (const item of listOf(n.data.views)) {
+      if (item == null) continue;
+      if (typeof item !== 'object') { const id = slug(item); if (id) viewOf(id, n.rel).joined.push(n.rel); continue; }
+      const id = slug(item.id != null ? item.id : (item.label != null ? item.label : ''));
+      if (!id) continue;
+      const v = viewOf(id, n.rel); v.from = n.rel;
+      if (item.label != null) v.label = String(item.label);
+      if (item.note != null) v.note = String(item.note);
+      for (const target of listOf(item.focus)) {
+        const name = String(target).replace(/^\[\[|\]\]$/g, '').split('|')[0].split('#')[0].trim();
+        const rel = name ? vault.resolveNote(name, n.rel) : null;
+        if (rel && byRel.has(rel) && !v.focus.includes(rel)) v.focus.push(rel);
+      }
+    }
+  }
+  const out = [];
+  for (const v of views.values()) {
+    const joined = v.joined.filter(r => !v.focus.includes(r)).sort((a, b) => collator.compare(byRel.get(a).title, byRel.get(b).title));
+    const members = v.focus.concat(joined);
+    if (!members.length) continue;
+    out.push({ id: v.id, label: v.label, note: v.note, from: v.from, members });
+  }
+  return out.sort((a, b) => collator.compare(a.label, b.label));
+}
+
 function buildGraph(vault, { rel = null, depth = 1, tags = false } = {}) {
   const visible = vault.visibleNotesSorted();
   const byRel = new Map(visible.map(n => [n.rel, n]));
+  const views = collectViews(vault, visible);
 
   // Directed edges from the resolved backlinks map (target -> sources), plus
   // an undirected adjacency for degrees/neighbourhood search and directed
@@ -35,7 +77,7 @@ function buildGraph(vault, { rel = null, depth = 1, tags = false } = {}) {
   // `rel` so nodes can carry it (used for e.g. fading far-away nodes).
   let keep = null; const distOf = new Map();
   if (rel) {
-    if (!byRel.has(rel)) return { nodes: [], edges: [], groups: [], clusters: [], clusterLinks: [], center: rel };
+    if (!byRel.has(rel)) return { nodes: [], edges: [], groups: [], clusters: [], clusterLinks: [], views, center: rel };
     keep = new Set([rel]); distOf.set(rel, 0); let frontier = [rel];
     for (let d = 0; d < Math.max(0, Math.min(depth, 6)); d++) {
       const next = [];
@@ -102,7 +144,14 @@ function buildGraph(vault, { rel = null, depth = 1, tags = false } = {}) {
     .map(([key, count]) => { const [a, b] = key.split('\n').map(Number); return { a, b, count }; })
     .sort((x, y) => x.a - y.a || x.b - y.b);
 
-  return { nodes, edges: outEdges, groups, clusters, clusterLinks, center: rel || null };
+  return { nodes, edges: outEdges, groups, clusters, clusterLinks, views, center: rel || null };
 }
 
-module.exports = { buildGraph, topFolder };
+// A short hash of the declared views, for the graph JSON's ETag: the list and
+// link hashes do not see a frontmatter edit that only changes `views:`.
+function viewsHash(vault) {
+  const views = collectViews(vault, vault.visibleNotesSorted());
+  return require('crypto').createHash('sha1').update(JSON.stringify(views)).digest('hex').slice(0, 12);
+}
+
+module.exports = { buildGraph, collectViews, viewsHash, topFolder };
