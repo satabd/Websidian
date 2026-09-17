@@ -1,0 +1,77 @@
+{
+  "id": "websidian",
+  "name": "Websidian",
+  "version": "0.1.0",
+  "description": "Connect OpenClaw to Websidian (an Obsidian vault served as a website): guard writes so vault notes stay plain Markdown and agent instruction files need human approval, share view/edit links for the notes the agent writes, and serve the vaults behind the Gateway.",
+  "activation": {
+    "onStartup": true,
+    "onCommands": ["brain"]
+  },
+  "contracts": {
+    "tools": ["websidian_links"]
+  },
+  "skills": ["skills"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "vaults": {
+        "type": "array",
+        "description": "Vaults served by Websidian. Each entry: {path, url?, slug?, title?, edit?, untrusted?}. path is the vault folder; url an external Websidian site base including the slug (links point there); slug/title name the site the plugin serves itself; edit (default false) enables browser editing; untrusted (default true) keeps agent-written HTML inert.",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "url": { "type": "string" },
+            "slug": { "type": "string" },
+            "title": { "type": "string" },
+            "edit": { "type": "boolean" },
+            "untrusted": { "type": "boolean" }
+          },
+          "required": ["path"]
+        }
+      },
+      "protect": {
+        "type": "array",
+        "description": "Basename patterns of agent instruction files that need human approval (default: SKILL.md, SOUL.md, AGENTS.md, MEMORY.md, USER.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOTSTRAP.md).",
+        "items": { "type": "string" }
+      },
+      "protectMode": {
+        "type": "string",
+        "enum": ["approve", "block"],
+        "description": "approve (ask a human through plugin approvals) or block."
+      },
+      "blockActiveContent": {
+        "type": "boolean",
+        "description": "Block raw active HTML and .html/.svg/.js files in vault writes (default true)."
+      },
+      "appendLinks": {
+        "type": "boolean",
+        "description": "Append 'Notes updated:' view/edit links to outgoing replies (default true)."
+      },
+      "ui": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The Websidian pages served behind the Gateway at /plugins/websidian/.",
+        "properties": {
+          "enabled": { "type": "boolean", "description": "Run a Websidian server for the vaults and proxy it at /plugins/websidian/w/<slug>/ (default true)." },
+          "port": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "Loopback port of the supervised Websidian process (default 8095)." },
+          "appDir": { "type": "string", "description": "Websidian runtime copy (default <state dir>/plugin-data/websidian/app)." },
+          "dataDir": { "type": "string", "description": "Where the generated config, secrets, cache and log live (default <state dir>/plugin-data/websidian)." },
+          "node": { "type": "string", "description": "Node executable used for the supervised server (default: the Gateway's own node)." },
+          "publicBase": { "type": "string", "description": "How browsers reach the Gateway, used in links (default http://127.0.0.1:<gateway port>)." },
+          "auth": { "type": "string", "enum": ["gateway", "password"], "description": "Sign-in for the pages: gateway (the Gateway token or password, default) or password (ui.password)." },
+          "password": { "type": "string", "description": "Password for the pages when ui.auth is \"password\"." },
+          "sessionHours": { "type": "number", "minimum": 0.1, "maximum": 720, "description": "How long a browser sign-in lasts (default 12)." }
+        }
+      }
+    }
+  },
+  "uiHints": {
+    "vaults": { "label": "Vaults" },
+    "protect": { "label": "Protected files" },
+    "protectMode": { "label": "Protect mode" },
+    "ui": { "label": "Web pages" }
+  }
+}

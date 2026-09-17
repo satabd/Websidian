@@ -66,6 +66,10 @@ See [[Agent memory and second brain]].
 | A6 | ✅ 2026-09-16 — guard covers `memory` and `skill_manage` ([[Hermes plugin]]) |
 | A7 | ✅ 2026-09-16 — deep links carry `note64=` so `& # + %` survive the login redirect |
 | A8 | ✅ 2026-09-16 — protected save confirmed in the browser through the dashboard session, on a scratch note |
+| A9 | 🟡 deployed 2026-09-17 ([[OpenClaw plugin]] in `clawat02`, workspace vault, pages on port 18794). Still open: one real chat turn — the *Notes updated:* footer and the `SOUL.md` approval prompt are unit-tested contracts only; blocked by the OpenAI backend (`400` with the plugin enabled and disabled alike; weekly quota at 0 %, resets ~2026-09-19) |
+| A10 | OpenClaw native page: `defineControlUiPlugin` + `host.ui.registerPage`/`registerNavigation` (OpenClaw ≥ 2026.8.1, *Settings → Labs → Custom plugin UI*) framing `/plugins/websidian/` so the vaults get a sidebar entry like the Hermes tab |
+| A11 | OpenClaw plugin: check whether `message_sending` fires for the Control UI chat; if not, add `reply_payload_sending` or a `before_agent_finalize` path for the links footer |
+| A12 | OpenClaw plugin: `openclaw plugins install` from a package (npm/ClawHub) — today the plugin folder is linked or listed in `plugins.load.paths`; the runtime copy still needs the installer |
 
 ## Rejected or parked
 - **Community plugin compatibility** — plugins are arbitrary Electron JavaScript; replaced by our own plugin API (#21).

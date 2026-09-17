@@ -2,7 +2,7 @@
 title: Agent memory and second brain
 tags: [websidian, planning, agents]
 aliases: [Hermes, OpenClaw]
-updated: 2026-09-13
+updated: 2026-09-17
 order: 4
 description: A vault as an agent's second brain
 ---
@@ -41,6 +41,9 @@ Using Websidian to read and edit what AI agents write: their memory, instruction
 - **Never** point a site root at `~/.hermes` or an OpenClaw data folder itself: it holds `auth.json`, `.env`, databases. Point only at `memories/`, `skills/`, `workspace/` or a vault folder.
 
 Configuration keys: [[Configuration]].
+
+## OpenClaw (2026-09-17)
+The same protections exist for OpenClaw as an OpenClaw plugin — [[OpenClaw plugin]]: the guard runs in `before_tool_call` (approval through OpenClaw's plugin approvals), links in `message_sending`, and the vaults are served behind the Gateway at `/plugins/websidian/` with a sign-in by Gateway token. Deployed into `clawat02` on 2026-09-17 with the workspace as a read-only vault: `http://127.0.0.1:18794/plugins/websidian/` (sign in with the Gateway token). The first real chat turn through it waits for the OpenAI weekly quota ([[Improvements backlog#For agent memory|A9]]).
 
 ## Now (2026-09-13)
 The second brain (206 notes), Hermes memories and skills (1,023) open in the **Websidian tab of the Hermes dashboard**, as untrusted, editable sites with protected instruction files — [[Hermes plugin#Dashboard tab]].

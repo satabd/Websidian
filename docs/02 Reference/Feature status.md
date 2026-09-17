@@ -75,4 +75,8 @@ description: Done, partial, in progress, missing
 | Hermes plugin: update path — version stamps, `--restart-runtime`, restart matrix — [[Hermes plugin#Updating]] | ✅ stamps written and read back through `/_health`; the restart path exercised against a live process |
 | Hermes plugin: agent skills (`websidian:websidian`, `websidian:websidian-install`) | ✅ both registered and checked in the plugin suite |
 | Hermes plugin packaged for `hermes plugins install` | ⬜ the manifest is nested, so the normal installer cannot take this repository ([[Improvements backlog]] 14c) |
+| OpenClaw plugin (`integrations/openclaw/websidian`): write guard on `write`/`edit`/`apply_patch`/`exec`, links footer, `websidian_links`, `/brain`, skill — [[OpenClaw plugin]] | 🟡 deployed in `clawat02` 2026-09-17 (loaded, supervisor running, pages probed through port 18794); guard ported with zero differences from the Python one on 140 inputs; hooks exercised with a fake API only — the live chat turn waits for the OpenAI backend (`400` with or without the plugin; weekly quota at 0 %, ~2026-09-19) |
+| OpenClaw plugin: pages behind the Gateway (`/plugins/websidian/`, supervised Websidian, sign-in with the Gateway token) — [[OpenClaw plugin#Pages]] | ✅ 2026-09-17, probed over HTTP in the container: sign-in, status, proxied notes with CSP, editor gating, path validation |
+| OpenClaw plugin: installers (`deploy/install-into-container.sh`, `install-local.sh`, `.ps1`) | 🟡 the container one ran end to end twice (throw-away container, then `clawat02` with `--register`); the native ones are untested copies of the Hermes ones |
+| OpenClaw plugin: native Control UI page (`host.ui.registerPage`, OpenClaw ≥ 2026.8.1) | ⬜ [[Improvements backlog]] |
 | MCP server for agents | ⬜ |

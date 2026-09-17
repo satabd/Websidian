@@ -1,0 +1,24 @@
+{
+  "name": "@websidian/openclaw-websidian",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin for Websidian: write guard, note links and the vaults served behind the Gateway.",
+  "type": "module",
+  "license": "MIT",
+  "files": ["index.js", "lib", "skills", "openclaw.plugin.json", "README.md"],
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.6.9"
+  },
+  "openclaw": {
+    "extensions": ["./index.js"],
+    "compat": {
+      "pluginApi": ">=2026.6.9",
+      "minGatewayVersion": "2026.6.9"
+    }
+  }
+}

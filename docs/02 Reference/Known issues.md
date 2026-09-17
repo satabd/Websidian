@@ -1,7 +1,7 @@
 ---
 title: Known issues
 tags: [websidian, reference, issues]
-updated: 2026-09-16
+updated: 2026-09-17
 order: 3
 description: Limits and gotchas, stated plainly
 ---
@@ -60,3 +60,8 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 - **Vaults are read-only in the browser unless you opt in** (`vaults[].edit` defaults to `false` since 2026-09-16). A vault with `edit: true` is editable by *every* signed-in dashboard user; replies carry no edit link for read-only vaults.
 - **Hermes memories and skills were editable in the old `hermes01` config** (set before the default changed). Re-check `vaults[].edit` there after upgrading the plugin.
 - **Hermes (`hermes01`) has no volumes**: its memory, skills and Obsidian vault exist only inside the container — [[Agent memory and second brain]].
+- **The OpenClaw plugin has not seen a real model turn.** Its hooks, tool and command were driven with a fake plugin API whose contracts were read from OpenClaw 2026.6.9; the reply footer (`message_sending`) and the approval prompt (`before_tool_call` → `requireApproval`) still need one live chat to confirm. The attempt on 2026-09-17 in `clawat02` got *LLM request failed* (ChatGPT responses API `400`, no body) with the plugin enabled **and** disabled; the OpenAI subscription's weekly quota was at 0 % at the time — [[OpenClaw plugin]].
+- **The OpenClaw pages are a URL, not a tab.** OpenClaw 2026.6.9's Control UI renders no plugin-owned pages; open `/plugins/websidian/` by hand (`/brain` prints it). Native pages need OpenClaw ≥ 2026.8.1 and the *Custom plugin UI* lab — [[Improvements backlog]].
+- **`message_sending` may not cover every OpenClaw surface**: it fires on channel delivery (WhatsApp, Telegram, …). Whether the Control UI chat passes through it was not checked; `websidian_links` and `/brain` work regardless.
+- **The OpenClaw guard resolves relative tool paths against the agent's workspace** (`agents.list[].workspace`, else `agents.defaults.workspace`), because the hook does not receive the tool's cwd. Sandboxed sessions (`agents.defaults.sandbox`) write under `~/.openclaw/sandboxes`, which the guard does not know about.
+- **`exec` guarding is best-effort** on OpenClaw as on Hermes: a shell write it cannot recognise passes. `code_execution` and MCP tools are not inspected.

@@ -243,6 +243,8 @@ Recommendations:
 - **`"edit": false`** on sites that hold the agent's instruction files (skills, `AGENTS.md`, memories) unless you really want to change them from the browser; if you do, keep `edit.allowFrom` narrow.
 - Vault CSS snippets (`.obsidian/snippets`) are off by default on untrusted sites, because an agent could write them; set `"snippets": true` to use them anyway.
 
+Two agent integrations ship in `integrations/`: a **Hermes Agent plugin** (`integrations/hermes/websidian`, Python: write guard, reply links, a dashboard tab) and an **OpenClaw plugin** (`integrations/openclaw/websidian`, plain JavaScript: the same guard and links as OpenClaw hooks, a `websidian_links` tool, `/brain`, and the vaults served behind the Gateway at `/plugins/websidian/`). Each has its own README with installers.
+
 ## Showing a note inside your own website
 
 ```html

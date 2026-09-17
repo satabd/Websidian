@@ -7,7 +7,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "demo": "node -e \"process.env.WEBSIDIAN_CONFIG='demo/websidian.config.json';require('./src/server.js')\"",
-    "test": "node --test \"test/**/*.test.js\""
+    "test": "node --test \"test/**/*.test.js\" \"integrations/openclaw/websidian/test/*.test.js\""
   },
   "license": "MIT",
   "engines": {
