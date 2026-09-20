@@ -10,8 +10,25 @@ import { expandHome } from './sites.js';
 
 function looksWindowsAbs(p) { return p.length > 2 && p[1] === ':' && (p[2] === '\\' || p[2] === '/'); }
 
+// Python's os.path.realpath resolves every component that exists and leaves a missing leaf alone;
+// fs.realpathSync throws unless the WHOLE path exists. A file about to be created never exists, so a
+// plain try/catch would leave its parent symlinks unresolved and let a write escape the guard
+// (verified 2026-09-20: a junction into a protected folder was allowed). Resolve the deepest existing
+// ancestor instead and re-append the rest.
 export function realpathSafe(p) {
-  try { return fs.realpathSync.native(p); } catch { return p; }
+  const input = String(p);
+  try { return fs.realpathSync.native(input); } catch { /* the leaf (or more) does not exist yet */ }
+  if (!path.isAbsolute(input) && !looksWindowsAbs(input)) return input;
+  let cur = path.normalize(input);
+  const tail = [];
+  for (let depth = 0; depth < 64; depth++) {
+    const parent = path.dirname(cur);
+    if (parent === cur) break; // reached the root without finding anything that exists
+    tail.unshift(path.basename(cur));
+    cur = parent;
+    try { return path.join(fs.realpathSync.native(cur), ...tail); } catch { /* keep walking up */ }
+  }
+  return input;
 }
 
 function norm(p) {

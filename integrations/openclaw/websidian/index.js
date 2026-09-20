@@ -3,8 +3,16 @@
 import fs from 'node:fs';
 import { registerWebsidian } from './lib/plugin.js';
 
-// The manifest is the source of truth for the config schema; the entry carries the same schema so nothing drifts.
-const manifest = JSON.parse(fs.readFileSync(new URL('./openclaw.plugin.json', import.meta.url), 'utf8'));
+// The manifest is the source of truth for the config schema; the entry carries the same schema so nothing
+// drifts. A damaged manifest must not throw at import time: that happens before register() and would take
+// the whole Gateway load down, so fall back to identity plus a permissive schema and let OpenClaw's own
+// manifest validation report the real problem.
+const FALLBACK = { id: 'websidian', name: 'Websidian', description: 'Websidian vaults for OpenClaw.', configSchema: { type: 'object' } };
+let manifest = FALLBACK;
+try {
+  const parsed = JSON.parse(fs.readFileSync(new URL('./openclaw.plugin.json', import.meta.url), 'utf8'));
+  if (parsed && typeof parsed === 'object' && parsed.id) manifest = parsed;
+} catch { /* keep the fallback */ }
 
 // Shaped like definePluginEntry() from openclaw/plugin-sdk/plugin-entry, without importing the SDK so the plugin
 // loads the same way from an installed package, a linked checkout and plugins.load.paths.

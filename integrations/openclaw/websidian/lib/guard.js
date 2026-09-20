@@ -561,17 +561,34 @@ function checkEdit(params, settings, base) {
   if (name) return protectDirective(p, name, settings, 'edit', base);
   if (!vaultFor(p, settings, base) || !settings.blockActiveContent) return null;
   const edits = Array.isArray(params.edits) ? params.edits.filter(e => e && typeof e === 'object') : [];
+  const newTexts = edits.map(e => (typeof e.newText === 'string' ? e.newText : ''));
   const current = readText(p, base);
   // Editing an existing file: the result, not just the fragment, must stay free of active content
-  // (old "<scr" + new "ipt>"). Simulate the replacements when every oldText is found.
-  if (current !== null && edits.length && edits.every(e => typeof e.oldText === 'string' && e.oldText && current.includes(e.oldText))) {
+  // (old "<scr" + new "ipt>"). Simulate the replacements against the text as it actually evolves - an
+  // oldText the previous replacement already consumed makes the simulation untrustworthy, so it is
+  // abandoned rather than reported as clean.
+  if (current !== null && edits.length) {
     let after = current;
-    for (const e of edits) after = after.replace(e.oldText, () => (typeof e.newText === 'string' ? e.newText : ''));
-    return checkFileWrite(p, after, settings, { base, toolName: 'edit', beforeText: current, createsFile: false });
+    let exact = true;
+    for (const e of edits) {
+      if (typeof e.oldText !== 'string' || !e.oldText || !after.includes(e.oldText)) { exact = false; break; }
+      const newText = typeof e.newText === 'string' ? e.newText : '';
+      after = after.replace(e.oldText, () => newText);
+    }
+    if (exact) return checkFileWrite(p, after, settings, { base, toolName: 'edit', beforeText: current, createsFile: false });
   }
-  for (const e of edits) {
-    const directive = checkFileWrite(p, typeof e.newText === 'string' ? e.newText : '', settings, { base, toolName: 'edit', createsFile: current === null });
-    if (directive) return directive;
+  // The simulation did not apply (file unreadable, an oldText missing or consumed twice). The edits may
+  // still land, so scan them TOGETHER as well as apart: one edit ending "<scr" and the next starting
+  // "ipt>" is clean per fragment and a script tag once written.
+  const joined = newTexts.join('\n');
+  const directive = checkFileWrite(p, joined, settings, { base, toolName: 'edit', createsFile: current === null });
+  if (directive) return directive;
+  if (newTexts.length > 1) {
+    const glued = newTexts.join('');
+    if (glued !== joined) {
+      const spliced = checkFileWrite(p, glued, settings, { base, toolName: 'edit', createsFile: current === null });
+      if (spliced) return spliced;
+    }
   }
   return null;
 }

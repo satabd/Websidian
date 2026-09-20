@@ -216,7 +216,15 @@ export class Supervisor {
     const cfg = buildConfig(rt, this.secrets(rt));
     const changed = writeConfigIfChanged(rt.configPath, cfg);
     let healthy = await this.health(rt);
-    if (changed && this.pid(rt)) { await this.terminate(rt); healthy = null; }
+    // Only replace a healthy process for a config change when a start is actually allowed: killing it and
+    // then being refused by the restart budget would turn a config edit into an outage. The next tick
+    // retries once the budget frees up, and the process keeps serving the old config until then.
+    if (changed && this.pid(rt)) {
+      if (this.canSpawn()) { await this.terminate(rt); healthy = null; } else if (healthy) {
+        this.lastError = 'the config changed but the restart budget is exhausted; keeping the running process until it frees up';
+        this.log(`websidian: ${this.lastError}`);
+      }
+    }
     if (healthy) { this.failures = 0; this.lastError = ''; return { running: true, pid: this.pid(rt) }; }
     if (this.pid(rt)) { // started but not answering yet (or wedged): give it time, then replace it
       if (await this.waitHealthy(rt, this.startupTimeoutMs / 2)) return { running: true, pid: this.pid(rt) };
@@ -233,6 +241,12 @@ export class Supervisor {
       await sleep(250);
     }
     return false;
+  }
+
+  // True when a start would be allowed right now (restart budget and backoff both clear).
+  canSpawn(now = Date.now()) {
+    this.starts = this.starts.filter(t => now - t <= this.windowMs);
+    return this.starts.length < this.maxStarts && now >= this.nextAllowed;
   }
 
   async spawn(rt) {

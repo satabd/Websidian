@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { Settings, evaluate, findActiveContent, newActiveContent, parsePatch, writtenPaths, htmlUnescape, settingsFromConfig, checkShellCommand } from '../lib/guard.js';
 import { uiSettings } from '../lib/sites.js';
 
@@ -58,6 +59,25 @@ describe('protected instruction files', () => {
     const link = path.join(tmp, 'link');
     fs.symlinkSync(workspace, link, 'dir');
     assert.equal(evaluate('write', { path: path.join(link, 'SOUL.md'), content: 'x' }, settings()).action, 'approve');
+  });
+  test('a link into a protected root is caught even when the file does not exist yet', () => {
+    // fs.realpathSync throws unless the whole path exists, so a new file used to be judged by its
+    // unresolved spelling and slipped the guard. Junctions work without privileges on Windows.
+    const link = path.join(tmp, 'link2');
+    try {
+      if (process.platform === 'win32') execFileSync('cmd', ['/c', 'mklink', '/J', link, workspace], { stdio: 'ignore' });
+      else fs.symlinkSync(workspace, link, 'dir');
+    } catch { return; } // no privilege to make one: nothing to assert
+    const through = path.join(link, 'SOUL.md');
+    assert.ok(!fs.existsSync(through), 'the target must not exist for this test to mean anything');
+    assert.equal(evaluate('write', { path: through, content: 'x' }, settings()).action, 'approve');
+    // and the same for a vault write that would land inside the vault through the link
+    const vaultLink = path.join(tmp, 'vlink');
+    try {
+      if (process.platform === 'win32') execFileSync('cmd', ['/c', 'mklink', '/J', vaultLink, vault], { stdio: 'ignore' });
+      else fs.symlinkSync(vault, vaultLink, 'dir');
+    } catch { return; }
+    assert.equal(evaluate('write', { path: path.join(vaultLink, 'New.md'), content: '<script>x</script>' }, settings()).action, 'block');
   });
 });
 
@@ -123,6 +143,24 @@ describe('vault writes', () => {
     assert.equal(evaluate('edit', { path: hasScript, edits: [{ oldText: '# Has', newText: '# Has <iframe>' }] }, settings()).action, 'block');
     // oldText not found: the fragments are checked on their own
     assert.equal(evaluate('edit', { path: existing, edits: [{ oldText: 'nope', newText: '<script>' }] }, settings()).action, 'block');
+  });
+  test('edit: a payload split across edits is caught even when the simulation cannot run', () => {
+    const existing = path.join(vault, 'Existing.md');
+    // A decoy oldText that is not in the file used to send every newText through the per-fragment check,
+    // where "<scr" and "ipt>..." are each clean on their own.
+    const split = evaluate('edit', {
+      path: existing,
+      edits: [{ oldText: 'plain', newText: '<scr' }, { oldText: 'bold</b>', newText: 'ipt>evil()</script>' }, { oldText: 'NOT_IN_FILE', newText: '' }],
+    }, settings());
+    assert.equal(split.action, 'block');
+    // The same when one oldText is consumed twice (the second replacement would be a no-op).
+    const twice = evaluate('edit', {
+      path: existing,
+      edits: [{ oldText: 'plain', newText: 'clean' }, { oldText: 'plain', newText: '<script>evil()</script>' }],
+    }, settings());
+    assert.equal(twice.action, 'block');
+    // Genuinely clean multi-edit calls still pass.
+    assert.equal(evaluate('edit', { path: existing, edits: [{ oldText: 'plain', newText: 'simple' }, { oldText: 'NOT_IN_FILE', newText: 'also fine' }] }, settings()), null);
   });
   test('apply_patch: added lines are checked per file, deletes pass', () => {
     const add = `*** Begin Patch\n*** Add File: ${path.join(vault, 'New.md')}\n+# New\n+<img src=x onerror=1>\n*** End Patch`;

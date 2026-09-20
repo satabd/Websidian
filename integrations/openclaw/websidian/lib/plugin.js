@@ -109,8 +109,8 @@ export function registerWebsidian(api, { env = process.env } = {}) {
       const sid = sessionOf(ctx, event);
       if (!tracker.hasPending(sid) || typeof event.content !== 'string' || !event.content.trim()) return undefined;
       const settings = settingsFor(pluginConfigOf(event));
+      if (!settings.appendLinks) return undefined; // check before draining: the links stay for a later reply
       const pending = tracker.takePending(sid);
-      if (!settings.appendLinks) return undefined;
       const missing = pending.filter(e => !e.view || !event.content.includes(e.view));
       if (!missing.length) return undefined; // the agent already shared every link
       return { content: event.content.trimEnd() + '\n\n' + formatLinksBlock(missing) };
@@ -179,24 +179,29 @@ export function registerWebsidian(api, { env = process.env } = {}) {
     return lines.join('\n');
   }
 
-  // The vaults served behind the Gateway.
-  const ui = settingsFor().ui;
-  if (ui.enabled && typeof api.registerService === 'function' && typeof api.registerHttpRoute === 'function') {
-    const supervisor = new Supervisor(() => settingsFor(), { log: log.info });
-    api.registerService({
-      id: SERVICE_ID,
-      start: async () => { supervisor.startBackground(15_000); },
-      stop: async () => { supervisor.stopBackground(); await supervisor.stop(); },
-    });
-    api.registerHttpRoute({
-      path: ROUTE_PREFIX,
-      match: 'prefix',
-      auth: 'plugin',
-      handler: createRouteHandler({ supervisor, getSettings: () => settingsFor(), getConfig: config, log: log.warn, env }),
-    });
-    if (!api.registrationMode || api.registrationMode === 'full') log.info(`websidian: pages at ${ui.publicBase}${ROUTE_PREFIX}/ (Websidian on 127.0.0.1:${ui.port}, runtime ${ui.appDir})`);
-  } else if (!ui.enabled) {
-    log.info('websidian: ui.enabled is false; guard and links only');
+  // The vaults served behind the Gateway. Registration must not throw: the hooks above already carry the
+  // guard and the links, and a bad `ui` setting should cost the pages, not the plugin.
+  try {
+    const ui = settingsFor().ui;
+    if (ui.enabled && typeof api.registerService === 'function' && typeof api.registerHttpRoute === 'function') {
+      const supervisor = new Supervisor(() => settingsFor(), { log: log.info });
+      api.registerService({
+        id: SERVICE_ID,
+        start: async () => { supervisor.startBackground(15_000); },
+        stop: async () => { supervisor.stopBackground(); await supervisor.stop(); },
+      });
+      api.registerHttpRoute({
+        path: ROUTE_PREFIX,
+        match: 'prefix',
+        auth: 'plugin',
+        handler: createRouteHandler({ supervisor, getSettings: () => settingsFor(), getConfig: config, log: log.warn, env }),
+      });
+      if (!api.registrationMode || api.registrationMode === 'full') log.info(`websidian: pages at ${ui.publicBase}${ROUTE_PREFIX}/ (Websidian on 127.0.0.1:${ui.port}, runtime ${ui.appDir})`);
+    } else if (!ui.enabled) {
+      log.info('websidian: ui.enabled is false; guard and links only');
+    }
+  } catch (err) {
+    log.warn(`websidian: the pages could not be registered (${err && err.message ? err.message : err}); guard and links still active`);
   }
 
   return { tracker, settingsFor };
