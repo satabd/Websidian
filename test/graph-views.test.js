@@ -115,3 +115,33 @@ test('exploreDocument: reach and views controls, the caption, and the R hotkey h
   // the earlier controls are still there
   for (const id of ['exPathGo', 'exCollapseAll', 'exLayout', 'exColorBy']) assert.match(html, new RegExp(`id="${id}"`), id);
 });
+
+// ---- the per-scan cache -------------------------------------------------
+// The ETag for _graph.json folds in viewsHash, so it runs on every request including the ones that end
+// in a cheap 304. It must not re-sort the index and re-read frontmatter each time, and it must still
+// notice a frontmatter-only edit (which moves neither listHash nor linkHash).
+test('views are computed once per scan, and a frontmatter-only edit invalidates them', async () => {
+  await vault.scan(); // earlier tests leave the cache warm; start from a fresh generation
+  let sorts = 0;
+  const real = vault.visibleNotesSorted.bind(vault);
+  vault.visibleNotesSorted = () => { sorts++; return real(); };
+  try {
+    const h1 = viewsHash(vault);
+    viewsHash(vault);
+    buildGraph(vault);
+    buildGraph(vault, { rel: 'Tour.md', depth: 1 });
+    assert.equal(sorts, 1, 'one scan of the index serves every request until the vault changes');
+
+    fs.writeFileSync(path.join(tmp.root, 'guide/Deploy.md'), '---\nviews: [onboarding]\n---\n# Deploy\n[[Start]]\n');
+    await vault.scan();
+    const h2 = viewsHash(vault);
+    assert.notEqual(h1, h2, 'a frontmatter-only edit still changes the hash');
+    assert.equal(sorts, 2, 'and costs exactly one fresh scan');
+
+    fs.writeFileSync(path.join(tmp.root, 'guide/Deploy.md'), FILES['guide/Deploy.md']);
+    await vault.scan();
+    assert.equal(viewsHash(vault), h1);
+  } finally {
+    vault.visibleNotesSorted = real;
+  }
+});

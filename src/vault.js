@@ -187,6 +187,10 @@ class Vault {
     for (const list of backlinks.values()) list.sort((a, b) => collator.compare(a, b));
     this.backlinks = backlinks;
     this.linkHash = crypto.createHash('sha1').update(pairs.sort().join('\n')).digest('hex').slice(0, 12);
+    // Bumped on every scan, including one that only changed frontmatter (no file added or removed, so
+    // neither hash above moves). Derived indexes keyed on it - see graph.js viewsOf() - stay correct
+    // without rebuilding themselves per request.
+    this.indexGen = (this.indexGen || 0) + 1;
     if (changed && this.onChange) this.onChange();
     return this;
   }

@@ -52,10 +52,25 @@ function collectViews(vault, visible) {
   return out.sort((a, b) => collator.compare(a.label, b.label));
 }
 
-function buildGraph(vault, { rel = null, depth = 1, tags = false } = {}) {
+// The visible-note list and the named views, memoised per scan of the vault (vault.indexGen). Both are
+// needed twice per graph request - once for the ETag, once to build the answer - and each rebuild sorts
+// the whole index and re-reads every note's frontmatter. Without this, a conditional GET that ends in a
+// cheap 304 still paid for a full rescan.
+function viewsOf(vault) {
+  const gen = vault.indexGen || 0;
+  const cached = vault._viewsCache;
+  if (cached && cached.gen === gen) return cached;
   const visible = vault.visibleNotesSorted();
-  const byRel = new Map(visible.map(n => [n.rel, n]));
   const views = collectViews(vault, visible);
+  const hash = require('crypto').createHash('sha1').update(JSON.stringify(views)).digest('hex').slice(0, 12);
+  const entry = { gen, visible, views, hash };
+  vault._viewsCache = entry;
+  return entry;
+}
+
+function buildGraph(vault, { rel = null, depth = 1, tags = false } = {}) {
+  const { visible, views } = viewsOf(vault);
+  const byRel = new Map(visible.map(n => [n.rel, n]));
 
   // Directed edges from the resolved backlinks map (target -> sources), plus
   // an undirected adjacency for degrees/neighbourhood search and directed
@@ -149,9 +164,6 @@ function buildGraph(vault, { rel = null, depth = 1, tags = false } = {}) {
 
 // A short hash of the declared views, for the graph JSON's ETag: the list and
 // link hashes do not see a frontmatter edit that only changes `views:`.
-function viewsHash(vault) {
-  const views = collectViews(vault, vault.visibleNotesSorted());
-  return require('crypto').createHash('sha1').update(JSON.stringify(views)).digest('hex').slice(0, 12);
-}
+function viewsHash(vault) { return viewsOf(vault).hash; }
 
-module.exports = { buildGraph, collectViews, viewsHash, topFolder };
+module.exports = { buildGraph, collectViews, viewsOf, viewsHash, topFolder };
