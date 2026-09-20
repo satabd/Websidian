@@ -1,7 +1,7 @@
 ---
 title: OpenClaw plugin
 tags: [websidian, guide, agents, openclaw]
-updated: 2026-09-17
+updated: 2026-09-20
 order: 14
 description: Let OpenClaw read and write the vault, safely, and serve it behind the Gateway
 ---
@@ -27,6 +27,11 @@ Code: `integrations/openclaw/websidian/` (`openclaw.plugin.json`, `index.js`, `l
 | Pages | service `websidian-runtime` + route `/plugins/websidian` (`auth: "plugin"`) | A supervised Websidian on `127.0.0.1:8095` (config generated from the vaults, `proxyAuth`, sites `untrusted`, read-only unless `edit: true`), proxied at `/plugins/websidian/w/<slug>/…` behind a sign-in with the Gateway token. |
 
 The guard is a port of the Hermes one: the active-content detector was checked against the Python reference on 140 inputs (44 real notes from this vault and the demo, 96 crafted attacks) with zero differences.
+
+> [!danger] Two bypasses lived in the adapters around that detector until 2026-09-20
+> Both are fixed and tested; both are worth knowing if you port this guard anywhere else.
+> - **A file that does not exist yet was judged by its literal spelling.** `fs.realpathSync` throws unless the whole path exists, so the old fallback left every parent symlink unresolved — and a created file never exists. A junction into a protected folder was allowed. Path resolution now walks up to the deepest existing ancestor, matching `os.path.realpath`.
+> - **A payload split across two edits passed.** The whole-file simulation only ran when every `oldText` was present in the original, so one decoy edit dropped the check to each `newText` alone, where `<scr` and `ipt>…</script>` look clean. The simulation now follows the text as it evolves, and when it cannot run the edits are scanned joined as well as apart.
 
 ## Install
 
@@ -116,4 +121,4 @@ Re-run the installer, then restart the Gateway (it owns the supervised Websidian
 
 ## Tests
 
-`npm test` at the repository root runs the plugin suite too (`integrations/openclaw/websidian/test/`, 61 tests): the guard, links and slugs, the runtime config and secrets, the proxy rules, the sign-in route over a real HTTP server, and `register()` against a fake plugin API whose contracts were read from OpenClaw 2026.6.9's bundled runtime — [[Testing]].
+`npm test` at the repository root runs the plugin suite too (`integrations/openclaw/websidian/test/`, 63 tests): the guard, links and slugs, the runtime config and secrets, the proxy rules, the sign-in route over a real HTTP server, and `register()` against a fake plugin API whose contracts were read from OpenClaw 2026.6.9's bundled runtime — [[Testing]].

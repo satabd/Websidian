@@ -1,7 +1,7 @@
 ---
 title: Feature status
 tags: [websidian, reference, status]
-updated: 2026-09-17
+updated: 2026-09-20
 order: 1
 description: Done, partial, in progress, missing
 ---
@@ -18,7 +18,7 @@ description: Done, partial, in progress, missing
 | Obsidian Bases (table views) | 🟡 | Cards and other view types skipped |
 | Excalidraw: live viewer for `![[x.excalidraw]]` and drawing pages, images, links, dark mode | ✅ | Browser-tested on two real drawings 2026-09-16 — [[Excalidraw drawings]]. Fonts newer than Excalidraw 0.17 are approximated |
 | Search (fuzzy, snippets) | 🟡 | No Obsidian operators (`tag:`, `path:`…) |
-| Graph view, Explore view, local graph | ✅ | Explore also has **reach** (upstream / downstream of a note) and **named views** from frontmatter `views:` — browser-tested on this vault and the demo, light and dark, 2026-09-17 — [[Graph and Explore#Reach]] |
+| Graph view, Explore view, local graph | ✅ | Explore also has **reach** (upstream / downstream of a note) and **named views** from frontmatter `views:` — browser-tested on this vault and the demo, light and dark, 2026-09-17 — [[Graph and Explore#Reach]]. `_graph.json` builds the views once per scan since 2026-09-20 (5.58 ms → under 0.001 ms per request on a 3,000-note vault) |
 | Backlinks, previous/next, table of contents | ✅ | |
 | Navigation order (`order:`), folder notes, generated section pages | ✅ | [[Navigation and sections]] |
 | Arabic / English language switch, RTL pages | ✅ | Notes without `lang:` get their page direction from their letters (browser-checked on an untrusted site under the dashboard mount, 2026-09-16) |
@@ -75,7 +75,7 @@ description: Done, partial, in progress, missing
 | Hermes plugin: update path — version stamps, `--restart-runtime`, restart matrix — [[Hermes plugin#Updating]] | ✅ stamps written and read back through `/_health`; the restart path exercised against a live process |
 | Hermes plugin: agent skills (`websidian:websidian`, `websidian:websidian-install`) | ✅ both registered and checked in the plugin suite |
 | Hermes plugin packaged for `hermes plugins install` | ⬜ the manifest is nested, so the normal installer cannot take this repository ([[Improvements backlog]] 14c) |
-| OpenClaw plugin (`integrations/openclaw/websidian`): write guard on `write`/`edit`/`apply_patch`/`exec`, links footer, `websidian_links`, `/brain`, skill — [[OpenClaw plugin]] | 🟡 deployed in `clawat02` 2026-09-17 (loaded, supervisor running, pages probed through port 18794); guard ported with zero differences from the Python one on 140 inputs; hooks exercised with a fake API only — the live chat turn waits for the OpenAI backend (`400` with or without the plugin; weekly quota at 0 %, ~2026-09-19) |
+| OpenClaw plugin (`integrations/openclaw/websidian`): write guard on `write`/`edit`/`apply_patch`/`exec`, links footer, `websidian_links`, `/brain`, skill — [[OpenClaw plugin]] | 🟡 deployed in `clawat02` 2026-09-17 (loaded, supervisor running, pages probed through port 18794); guard ported with zero differences from the Python one on 140 inputs, and two bypasses in the adapters around it (new-file path resolution, split multi-edit) found and closed by review on 2026-09-20; hooks exercised with a fake API only — the live chat turn waits for the OpenAI backend (`400` with or without the plugin; weekly quota at 0 %, ~2026-09-19) |
 | OpenClaw plugin: pages behind the Gateway (`/plugins/websidian/`, supervised Websidian, sign-in with the Gateway token) — [[OpenClaw plugin#Pages]] | ✅ 2026-09-17, probed over HTTP in the container: sign-in, status, proxied notes with CSP, editor gating, path validation |
 | OpenClaw plugin: installers (`deploy/install-into-container.sh`, `install-local.sh`, `.ps1`) | 🟡 the container one ran end to end twice (throw-away container, then `clawat02` with `--register`); the native ones are untested copies of the Hermes ones |
 | OpenClaw plugin: native Control UI page (`host.ui.registerPage`, OpenClaw ≥ 2026.8.1) | ⬜ [[Improvements backlog]] |

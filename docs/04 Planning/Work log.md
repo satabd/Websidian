@@ -2,13 +2,27 @@
 title: Work log
 tags: [websidian, log]
 aliases: [Changelog]
-updated: 2026-09-17
+updated: 2026-09-20
 order: 5
 description: What changed each session, newest first
 ---
 # Work log
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
+
+## 2026-09-20 — five parallel reviews, two guard bypasses closed, the graph endpoint stops rescanning
+The user asked for a fast review before a weekly usage reset, so five subagents read the codebase in parallel: plugin security, the guard port against its Python original, plugin lifecycle, the Explore commit, and tests plus docs. Two of them independently flagged the same Windows PID weakness, which is a good sign that the split was sound.
+
+- **Guard bypass 1 — every new file escaped the guard** ([[OpenClaw plugin]]). `realpathSafe` fell back to the *unresolved* path whenever the target did not exist, because `fs.realpathSync` needs the whole path to exist, while Python's `os.path.realpath` resolves what it can. Since a created file never exists yet, a link into a protected folder or a vault was invisible: **verified with a junction on Windows — the write came back `null` (allowed)** where the Python reference approves it. Now it resolves the deepest existing ancestor and re-appends the rest. The pre-existing symlink test never caught this because it wrote to an *existing* path.
+- **Guard bypass 2 — a payload split across two edits.** `checkEdit` only simulated the whole file when *every* `oldText` was present in the pristine original; one decoy edit dropped it to scanning each `newText` alone, where `<scr` and `ipt>evil()</script>` are each clean. The simulation now follows the text as it evolves (so an `oldText` consumed twice invalidates it rather than reporting clean), and when it cannot run the edits are scanned joined as well as apart. Both bypasses have tests; plugin suite 61 → 63.
+- **Hardened from the same reviews**: the manifest parse no longer throws at import time (that runs before `register()`, so it would take the whole Gateway down); the pages registration is wrapped, so a bad `ui` setting costs the pages and not the guard; a config change no longer terminates a healthy Websidian that the restart budget would then refuse to restart (`canSpawn()` is checked first); and pending links are no longer drained when `appendLinks` is off.
+- **`_graph.json` stopped rescanning the vault per request** (the Explore commit's regression, fixed with the user's go-ahead). The ETag folds in `viewsHash`, so every request — including the cheap 304s Explore triggers on each filter toggle — re-sorted the note index and re-read every note's frontmatter, twice on a miss. `viewsOf()` now memoises the visible list, the views and the hash on the vault, keyed on an `indexGen` counter bumped by every `Vault.scan()`. That still catches a frontmatter-only edit, which moves neither `listHash` nor `linkHash` — the whole reason the hash is in the tag. **Measured per request on a 3,000-note vault: 5.58 ms → under 0.001 ms** (docs vault: 0.073 ms → under 0.001 ms).
+- **Learned — a differential test only covers what it compared.** The 140-input run on 2026-09-17 compared `find_active_content` only, so it gave false confidence about the *adapters* around it. Both bypasses sat in code the Python original never had to model (a multi-edit tool, and Node's stricter `realpath`). Port the tests, not just the function.
+- **Learned — warm caches make cache tests lie.** The first version of the new `viewsOf` test counted zero index scans because earlier tests in the same file had already filled the cache; it now scans once up front to start from a known generation.
+- **Not fixed, deliberately**: the PID-reuse guard still degrades to "something is alive at that PID" off Linux (no `/proc`), which needs a platform-specific check; double-encoded dot segments (`%252e`) reach the upstream, unproven as exploitable and dependent on Websidian's own decoding; and the `Secure` cookie flag trusts `X-Forwarded-Proto` — [[Known issues]], [[Improvements backlog]].
+- **Test gaps named by the audit**: the supervisor's spawn/restart path, an end-to-end proxy request, and the sign-in lockout are all uncovered — [[Testing]].
+- **Docs audit came back clean**: every config key, URL, installer flag and the test count in [[OpenClaw plugin]] and the plugin README matched the code.
+- **Next**: the live chat turn in `clawat02` (the weekly quota should be back), then the supervisor and proxy tests.
 
 ## 2026-09-17 — Explore: reach and named views (after an archify review)
 User asked how [tt-a1i/archify](https://github.com/tt-a1i/archify) draws architecture and whether it could represent the knowledge base. Answer: no — archify is an *authored*-diagram compiler (an agent writes JSON with a `pos` for every box and waypoints for every arrow; its grid helper says "Not auto-layout — fixed cell math only"), so it cannot be pointed at a vault, and Explore already does the auto-layout it refuses to. Two of its viewer ideas were worth taking; the user asked for both.

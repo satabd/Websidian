@@ -2,7 +2,7 @@
 title: Graph and Explore
 tags: [websidian, guide, graph]
 aliases: [Graph view, Explore view]
-updated: 2026-09-17
+updated: 2026-09-20
 order: 8
 description: Two full-screen views of how the vault connects
 ---
@@ -98,7 +98,7 @@ Views appear as chips under **Views** in the panel. Pick one: its members light 
 GET /<site>/_graph.json?rel=<rel>&depth=1&tags=1
 ```
 
-ETagged, built straight from the index. Each node carries `links`, `in`, `out`, `status`, `updated` and `dist`; the result also carries per-section `clusters`, cross-section `clusterLinks`, and the declared `views` (`id`, `label`, `note`, `from`, ordered `members`). Edges are directed (source links to target), which is what reach walks. Use it if you want to draw your own view — [[Editor API]] for the rest of the JSON surface.
+ETagged, built straight from the index; the views behind that tag are computed once per vault scan, so a repeat request (Explore refetches on every filter change) costs a hash comparison rather than a rescan. Each node carries `links`, `in`, `out`, `status`, `updated` and `dist`; the result also carries per-section `clusters`, cross-section `clusterLinks`, and the declared `views` (`id`, `label`, `note`, `from`, ordered `members`). Edges are directed (source links to target), which is what reach walks. Use it if you want to draw your own view — [[Editor API]] for the rest of the JSON surface.
 
 > [!note] Hidden notes stay hidden
 > Drafts and unpublished notes are absent from the graph for anonymous visitors, exactly as they are absent from pages and search — [[Publishing and visibility]].

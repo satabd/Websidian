@@ -1,7 +1,7 @@
 ---
 title: Testing
 tags: [websidian, internals]
-updated: 2026-09-17
+updated: 2026-09-20
 order: 4
 description: Running and extending the suite
 ---
@@ -14,7 +14,13 @@ Node's built-in test runner: 221 tests on 2026-09-16 (156 on 2026-09-13, 123 on 
 
 Hermes plugin: `cd integrations/hermes/websidian` then `python -m unittest discover` — 98 tests on 2026-09-16 (71 before the version stamps and the second skill) ([[Hermes plugin]]).
 
-OpenClaw plugin: part of `npm test` (`integrations/openclaw/websidian/test/*.test.js`, 61 tests on 2026-09-17): the guard, links/sites/tracker, runtime config + secrets + proxy rules, the sign-in route over a real HTTP server (`handler.test.js`), and `register()` against a fake plugin API ([[OpenClaw plugin]]). To compare the guard with the Python reference again, feed both `find_active_content` and `findActiveContent` the same inputs — the 2026-09-17 run over 140 inputs is described in the [[Work log]]. Live checks need a container: `docker run` `alpine/openclaw` with a state dir bind-mounted, the plugin under `plugins.load.paths`, then `openclaw plugins inspect websidian --runtime` and the HTTP probes listed in [[OpenClaw plugin#Is it really installed?]].
+OpenClaw plugin: part of `npm test` (`integrations/openclaw/websidian/test/*.test.js`, 63 tests on 2026-09-20): the guard, links/sites/tracker, runtime config + secrets + proxy rules, the sign-in route over a real HTTP server (`handler.test.js`), and `register()` against a fake plugin API ([[OpenClaw plugin]]).
+
+> [!warning] Three paths have no test at all
+> The supervisor's spawn/restart cycle (only its two early-return failures are covered), an end-to-end request through the proxy (the header helpers are unit-tested, the streaming path is not), and the sign-in lockout after ten failures. Named by the 2026-09-20 audit — [[Improvements backlog|A14]].
+
+> [!tip] Guard the adapters, not only the detector
+> The 2026-09-17 differential run compared `find_active_content` with `findActiveContent` and nothing else, and both bypasses found on 2026-09-20 sat in the code *around* it: the multi-edit simulation and path resolution for a file that does not exist yet. Any new tool adapter needs its own bypass test — write one that fails before the fix. To compare the guard with the Python reference again, feed both `find_active_content` and `findActiveContent` the same inputs — the 2026-09-17 run over 140 inputs is described in the [[Work log]]. Live checks need a container: `docker run` `alpine/openclaw` with a state dir bind-mounted, the plugin under `plugins.load.paths`, then `openclaw plugins inspect websidian --runtime` and the HTTP probes listed in [[OpenClaw plugin#Is it really installed?]].
 
 | File | Covers |
 |---|---|

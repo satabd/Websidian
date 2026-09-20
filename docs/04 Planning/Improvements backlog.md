@@ -2,7 +2,7 @@
 title: Improvements backlog
 tags: [websidian, planning]
 aliases: [Suggestions, Backlog]
-updated: 2026-09-17
+updated: 2026-09-20
 order: 3
 description: Suggestions ranked by value for effort
 ---
@@ -70,6 +70,9 @@ See [[Agent memory and second brain]].
 | A10 | OpenClaw native page: `defineControlUiPlugin` + `host.ui.registerPage`/`registerNavigation` (OpenClaw ≥ 2026.8.1, *Settings → Labs → Custom plugin UI*) framing `/plugins/websidian/` so the vaults get a sidebar entry like the Hermes tab |
 | A11 | OpenClaw plugin: check whether `message_sending` fires for the Control UI chat; if not, add `reply_payload_sending` or a `before_agent_finalize` path for the links footer |
 | A12 | OpenClaw plugin: `openclaw plugins install` from a package (npm/ClawHub) — today the plugin folder is linked or listed in `plugins.load.paths`; the runtime copy still needs the installer |
+| A13 | **Identify the supervised process without `/proc`** (Windows, macOS) so the PID-reuse guard works everywhere — `tasklist`/`wmic` or `ps -o command=`, or drop the PID file in favour of a lock the running process holds ([[Known issues]]) |
+| A14 | **Tests for the supervisor's spawn/restart path, an end-to-end proxy request, and the sign-in lockout** — named as the three biggest gaps by the 2026-09-20 audit ([[Testing]]) |
+| A15 | Decide the double-encoding question: read Websidian's own path handling and either tighten the proxy filter (decode until stable before checking) or record why it is safe ([[Known issues]]) |
 
 ## Rejected or parked
 - **Community plugin compatibility** — plugins are arbitrary Electron JavaScript; replaced by our own plugin API (#21).

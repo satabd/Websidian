@@ -1,7 +1,7 @@
 ---
 title: Known issues
 tags: [websidian, reference, issues]
-updated: 2026-09-17
+updated: 2026-09-20
 order: 3
 description: Limits and gotchas, stated plainly
 ---
@@ -65,3 +65,7 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 - **`message_sending` may not cover every OpenClaw surface**: it fires on channel delivery (WhatsApp, Telegram, …). Whether the Control UI chat passes through it was not checked; `websidian_links` and `/brain` work regardless.
 - **The OpenClaw guard resolves relative tool paths against the agent's workspace** (`agents.list[].workspace`, else `agents.defaults.workspace`), because the hook does not receive the tool's cwd. Sandboxed sessions (`agents.defaults.sandbox`) write under `~/.openclaw/sandboxes`, which the guard does not know about.
 - **`exec` guarding is best-effort** on OpenClaw as on Hermes: a shell write it cannot recognise passes. `code_execution` and MCP tools are not inspected.
+- **The OpenClaw supervisor cannot identify its process off Linux.** `pidIsWebsidian` reads `/proc/<pid>/cmdline`; without `/proc` (Windows, macOS) it degrades to "some process is alive at that PID", so after PID reuse the supervisor could adopt — or signal — an unrelated process. Found by two reviews on 2026-09-20; a platform-specific check is [[Improvements backlog|backlog]] work.
+- **Double-encoded dot segments reach the Websidian upstream** (`%252e%252e`): the proxy's filter looks for the single-encoded forms. Inert unless Websidian itself percent-decodes twice, which was not established either way — [[OpenClaw plugin]].
+- **The `Secure` cookie flag trusts `X-Forwarded-Proto`.** Behind a TLS terminator that does not normalise that header, and with the port also reachable in plaintext, a session cookie could be issued without `Secure`.
+- **The OpenClaw guard's multi-edit simulation is approximate.** When an `oldText` is missing or consumed twice the whole-file simulation is abandoned, and the edits are scanned joined and glued instead — stricter than the real result, so it can refuse an edit that would have been harmless. The two bypasses this replaced (a decoy edit, a repeated `oldText`) are fixed and tested since 2026-09-20.
