@@ -24,12 +24,13 @@ function fakeApi({ pluginConfig, config } = {}) {
     pluginConfig: pluginConfig || { vaults: [{ path: vault }] },
     config: config || { agents: { defaults: { workspace } }, gateway: { port: 18789 } },
     logger: { info() {}, warn(m) { api.warnings.push(m); }, debug() {} },
-    hooks: {}, tools: [], commands: [], services: [], routes: [], warnings: [],
+    hooks: {}, tools: [], commands: [], services: [], routes: [], descriptors: [], warnings: [],
     on(name, handler, opts) { api.hooks[name] = { handler, opts }; },
     registerTool(tool, opts) { api.tools.push({ tool, opts }); },
     registerCommand(def) { api.commands.push(def); },
     registerService(s) { api.services.push(s); },
     registerHttpRoute(r) { api.routes.push(r); },
+    session: { controls: { registerControlUiDescriptor(d) { api.descriptors.push(d); } } },
   };
   return api;
 }
@@ -60,6 +61,38 @@ describe('registration', () => {
     assert.equal(api.services[0].id, 'websidian-runtime');
     assert.deepEqual([api.routes[0].path, api.routes[0].match, api.routes[0].auth], ['/plugins/websidian', 'prefix', 'plugin']);
     assert.equal(typeof api.routes[0].handler, 'function');
+  });
+
+  test('the Memory surface: a Gateway-authenticated route and the Control UI tab that points at it', () => {
+    const api = fakeApi({ pluginConfig: { vaults: [{ path: vault }] } });
+    registerWebsidian(api, { env: env() });
+    const memory = api.routes.find(r => r.path === '/plugins/websidian-memory');
+    assert.ok(memory, 'the Memory route is registered');
+    assert.deepEqual([memory.match, memory.auth], ['prefix', 'gateway'], 'the Gateway authenticates it, so there is no second sign-in');
+    const tab = api.descriptors.find(d => d.id === 'memory');
+    assert.ok(tab, 'the sidebar entry');
+    assert.equal(tab.surface, 'tab');
+    assert.equal(tab.label, 'Memory');
+    assert.equal(tab.icon, 'brain');
+    assert.equal(tab.path, '/plugins/websidian-memory');
+    assert.equal(tab.group, 'control');
+    assert.deepEqual(tab.requiredScopes, ['operator.read']);
+  });
+
+  test('ui.memory.enabled false leaves the rest of the plugin registered', () => {
+    const api = fakeApi({ pluginConfig: { vaults: [{ path: vault }], ui: { memory: { enabled: false } } } });
+    registerWebsidian(api, { env: env() });
+    assert.equal(api.routes.length, 1, 'only the stand-alone route');
+    assert.equal(api.routes[0].path, '/plugins/websidian');
+    assert.equal(api.descriptors.length, 0);
+    assert.equal(api.services[0].id, 'websidian-runtime', 'the supervised Websidian is untouched');
+  });
+
+  test('an OpenClaw with no Control UI descriptors still gets the Memory route', () => {
+    const api = fakeApi({ pluginConfig: { vaults: [{ path: vault }] } });
+    delete api.session;
+    registerWebsidian(api, { env: env() });
+    assert.ok(api.routes.some(r => r.path === '/plugins/websidian-memory'));
   });
   test('an API without api.on is tolerated', () => {
     const api = fakeApi();

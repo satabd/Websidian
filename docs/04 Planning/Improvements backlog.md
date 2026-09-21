@@ -2,7 +2,7 @@
 title: Improvements backlog
 tags: [websidian, planning]
 aliases: [Suggestions, Backlog]
-updated: 2026-09-20
+updated: 2026-09-21
 order: 3
 description: Suggestions ranked by value for effort
 ---
@@ -67,12 +67,16 @@ See [[Agent memory and second brain]].
 | A7 | ✅ 2026-09-16 — deep links carry `note64=` so `& # + %` survive the login redirect |
 | A8 | ✅ 2026-09-16 — protected save confirmed in the browser through the dashboard session, on a scratch note |
 | A9 | 🟡 deployed 2026-09-17 ([[OpenClaw plugin]] in `clawat02`, workspace vault, pages on port 18794). Still open: one real chat turn — the *Notes updated:* footer and the `SOUL.md` approval prompt are unit-tested contracts only; blocked by the OpenAI backend (`400` with the plugin enabled and disabled alike; weekly quota at 0 %, resets ~2026-09-19) |
-| A10 | OpenClaw native page: `defineControlUiPlugin` + `host.ui.registerPage`/`registerNavigation` (OpenClaw ≥ 2026.8.1, *Settings → Labs → Custom plugin UI*) framing `/plugins/websidian/` so the vaults get a sidebar entry like the Hermes tab |
+| A10 | ✅ 2026-09-21 — the native **Memory** page, browser-tested against a real OpenClaw 2026.9.5 Gateway ([[OpenClaw plugin#The Memory page]]). It does better than framing `/plugins/websidian/`: a native page draws the dashboard, and only the note itself is a frame, in shell mode |
 | A11 | OpenClaw plugin: check whether `message_sending` fires for the Control UI chat; if not, add `reply_payload_sending` or a `before_agent_finalize` path for the links footer |
 | A12 | OpenClaw plugin: `openclaw plugins install` from a package (npm/ClawHub) — today the plugin folder is linked or listed in `plugins.load.paths`; the runtime copy still needs the installer |
 | A13 | **Identify the supervised process without `/proc`** (Windows, macOS) so the PID-reuse guard works everywhere — `tasklist`/`wmic` or `ps -o command=`, or drop the PID file in favour of a lock the running process holds ([[Known issues]]) |
 | A14 | **Tests for the supervisor's spawn/restart path, an end-to-end proxy request, and the sign-in lockout** — named as the three biggest gaps by the 2026-09-20 audit ([[Testing]]) |
 | A15 | Decide the double-encoding question: read Websidian's own path handling and either tighten the proxy filter (decode until stable before checking) or record why it is safe ([[Known issues]]) |
+| A16 | **Memory per agent**: one vault per OpenClaw agent, chosen from `host.agents.selectedId`. The page already shows the selected agent and `memoryVault()` already takes a slug, so this is a map from agent id to vault plus an agent picker in the header — [[OpenClaw plugin#Agents]] |
+| A17 | Memory **Overview**: read the `§` entries inside `MEMORY.md` and list them with a character meter against the agent's limit, instead of one card for the whole file (the same idea as A2 for Hermes) |
+| A18 | Memory **Timeline**: the model stops at the 40 most recent dated notes and the page at 10 on Overview; a long-lived workspace needs paging or a month picker |
+| A19 | Use OpenClaw's own components on the Memory page (`host.components.mountAgentPicker`, `mountSelectPicker`) so the controls are the host's, not ours |
 
 ## Rejected or parked
 - **Community plugin compatibility** — plugins are arbitrary Electron JavaScript; replaced by our own plugin API (#21).

@@ -15,6 +15,17 @@
  * own behaviour.
  */
 (function () {
+  // Keep the chrome mode (?embed=1 / ?shell=1) when a click on the canvas opens a note; the
+  // server writes it onto rendered links, but these URLs come from the graph JSON.
+  function withMode(u) {
+    var W = window.WEBSIDIAN || window.MD2HTML;
+    var m = W && W.embed ? 'embed' : W && W.shell ? 'shell' : '';
+    if (!m || !u || u.indexOf(m + '=') >= 0) return u;
+    var t = m === 'shell' ? (/[?&]theme=(dark|light)/.exec(location.search) || ['', ''])[1] : '';
+    var i = u.indexOf('#'); var hash = i >= 0 ? u.slice(i) : ''; var p = i >= 0 ? u.slice(0, i) : u;
+    return p + (p.indexOf('?') >= 0 ? '&' : '?') + m + '=1' + (t ? '&theme=' + t : '') + hash;
+  }
+
   'use strict';
   var PALETTE = ['#4c8dff', '#ff7a45', '#2fbf71', '#b56cff', '#f2b134', '#ff5c8a', '#00b8d9', '#8d6e63', '#7cb342', '#e91e63', '#5c6bc0', '#26a69a'];
   var DEFAULTS = {
@@ -234,7 +245,7 @@
       return best;
     }
     function pos(ev) { var r = canvas.getBoundingClientRect(); var p = ev.touches ? ev.touches[0] : ev; return [p.clientX - r.left, p.clientY - r.top]; }
-    function open(n, ev) { if (!n.url) { api.set({ query: 'tag:' + n.id }); if (opts.onQuery) opts.onQuery('tag:' + n.id); return; } if (opts.onNavigate) opts.onNavigate(n, ev); else if (ev && (ev.ctrlKey || ev.metaKey)) window.open(n.url, '_blank'); else location.href = n.url; }
+    function open(n, ev) { if (!n.url) { api.set({ query: 'tag:' + n.id }); if (opts.onQuery) opts.onQuery('tag:' + n.id); return; } if (opts.onNavigate) opts.onNavigate(n, ev); else if (ev && (ev.ctrlKey || ev.metaKey)) window.open(n.url, '_blank'); else location.href = withMode(n.url); }
     canvas.addEventListener('mousemove', function (ev) {
       var p = pos(ev);
       if (drag) {

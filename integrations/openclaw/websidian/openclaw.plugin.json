@@ -5,12 +5,18 @@
   "description": "Connect OpenClaw to Websidian (an Obsidian vault served as a website): guard writes so vault notes stay plain Markdown and agent instruction files need human approval, share view/edit links for the notes the agent writes, and serve the vaults behind the Gateway.",
   "activation": {
     "onStartup": true,
-    "onCommands": ["brain"]
+    "onCommands": [
+      "brain"
+    ]
   },
   "contracts": {
-    "tools": ["websidian_links"]
+    "tools": [
+      "websidian_links"
+    ]
   },
-  "skills": ["skills"],
+  "skills": [
+    "skills"
+  ],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -22,24 +28,44 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "path": { "type": "string", "minLength": 1 },
-            "url": { "type": "string" },
-            "slug": { "type": "string" },
-            "title": { "type": "string" },
-            "edit": { "type": "boolean" },
-            "untrusted": { "type": "boolean" }
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "url": {
+              "type": "string"
+            },
+            "slug": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "edit": {
+              "type": "boolean"
+            },
+            "untrusted": {
+              "type": "boolean"
+            }
           },
-          "required": ["path"]
+          "required": [
+            "path"
+          ]
         }
       },
       "protect": {
         "type": "array",
         "description": "Basename patterns of agent instruction files that need human approval (default: SKILL.md, SOUL.md, AGENTS.md, MEMORY.md, USER.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOTSTRAP.md).",
-        "items": { "type": "string" }
+        "items": {
+          "type": "string"
+        }
       },
       "protectMode": {
         "type": "string",
-        "enum": ["approve", "block"],
+        "enum": [
+          "approve",
+          "block"
+        ],
         "description": "approve (ask a human through plugin approvals) or block."
       },
       "blockActiveContent": {
@@ -55,23 +81,99 @@
         "additionalProperties": false,
         "description": "The Websidian pages served behind the Gateway at /plugins/websidian/.",
         "properties": {
-          "enabled": { "type": "boolean", "description": "Run a Websidian server for the vaults and proxy it at /plugins/websidian/w/<slug>/ (default true)." },
-          "port": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "Loopback port of the supervised Websidian process (default 8095)." },
-          "appDir": { "type": "string", "description": "Websidian runtime copy (default <state dir>/plugin-data/websidian/app)." },
-          "dataDir": { "type": "string", "description": "Where the generated config, secrets, cache and log live (default <state dir>/plugin-data/websidian)." },
-          "node": { "type": "string", "description": "Node executable used for the supervised server (default: the Gateway's own node)." },
-          "publicBase": { "type": "string", "description": "How browsers reach the Gateway, used in links (default http://127.0.0.1:<gateway port>)." },
-          "auth": { "type": "string", "enum": ["gateway", "password"], "description": "Sign-in for the pages: gateway (the Gateway token or password, default) or password (ui.password)." },
-          "password": { "type": "string", "description": "Password for the pages when ui.auth is \"password\"." },
-          "sessionHours": { "type": "number", "minimum": 0.1, "maximum": 720, "description": "How long a browser sign-in lasts (default 12)." }
+          "enabled": {
+            "type": "boolean",
+            "description": "Run a Websidian server for the vaults and proxy it at /plugins/websidian/w/<slug>/ (default true)."
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535,
+            "description": "Loopback port of the supervised Websidian process (default 8095)."
+          },
+          "appDir": {
+            "type": "string",
+            "description": "Websidian runtime copy (default <state dir>/plugin-data/websidian/app)."
+          },
+          "dataDir": {
+            "type": "string",
+            "description": "Where the generated config, secrets, cache and log live (default <state dir>/plugin-data/websidian)."
+          },
+          "node": {
+            "type": "string",
+            "description": "Node executable used for the supervised server (default: the Gateway's own node)."
+          },
+          "publicBase": {
+            "type": "string",
+            "description": "How browsers reach the Gateway, used in links (default http://127.0.0.1:<gateway port>)."
+          },
+          "auth": {
+            "type": "string",
+            "enum": [
+              "gateway",
+              "password"
+            ],
+            "description": "Sign-in for the pages: gateway (the Gateway token or password, default) or password (ui.password)."
+          },
+          "password": {
+            "type": "string",
+            "description": "Password for the pages when ui.auth is \"password\"."
+          },
+          "sessionHours": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 720,
+            "description": "How long a browser sign-in lasts (default 12)."
+          },
+          "memory": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "The native Memory page in OpenClaw's Control UI, served at /plugins/websidian/memory.",
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "description": "Register the Memory page and its Control UI tab (default true)."
+              },
+              "vault": {
+                "type": "string",
+                "description": "Slug of the vault the Memory page reads; default the first vault this plugin serves itself."
+              },
+              "label": {
+                "type": "string",
+                "description": "Sidebar label (default \"Memory\")."
+              },
+              "icon": {
+                "type": "string",
+                "description": "Icon name hint for the sidebar entry (default \"brain\")."
+              },
+              "order": {
+                "type": "number",
+                "description": "Sort order among plugin tabs; lower renders first (default 20)."
+              }
+            }
+          }
         }
       }
     }
   },
   "uiHints": {
-    "vaults": { "label": "Vaults" },
-    "protect": { "label": "Protected files" },
-    "protectMode": { "label": "Protect mode" },
-    "ui": { "label": "Web pages" }
+    "vaults": {
+      "label": "Vaults"
+    },
+    "protect": {
+      "label": "Protected files"
+    },
+    "protectMode": {
+      "label": "Protect mode"
+    },
+    "ui": {
+      "label": "Web pages"
+    }
+  },
+  "controlUi": {
+    "entry": "dist/control-ui/websidian.js",
+    "styles": [
+      "dist/control-ui/memory.css"
+    ]
   }
 }

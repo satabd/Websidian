@@ -89,6 +89,31 @@ test('embed mode strips chrome and keeps links in embed mode', async () => {
   assert.ok(full.includes('class="topbar"'));
 });
 
+test('shell mode keeps the vault chrome, drops the application chrome, and carries the mode', async () => {
+  const r = await get('/docs/s/Home?shell=1&theme=dark'); const html = await r.text();
+  // What the host already draws is gone …
+  assert.ok(!html.includes('class="brand"'), 'no Websidian branding');
+  assert.ok(!html.includes('id="printBtn"') && !html.includes('id="themeBtn"'), 'the host owns print and theme');
+  // … and what is about this vault stays.
+  assert.match(html, /id="sidebar"/);
+  assert.match(html, /id="searchInput"/);
+  assert.match(html, /class="graph-btn"/);
+  assert.match(html, /<html[^>]+class="is-shell/);
+  assert.match(html, /<html[^>]+data-theme="dark"/);
+  assert.match(html, /shell:true/);
+  assert.match(html, /class="nav-note[^"]*" href="[^"]+\?shell=1&amp;theme=dark"/, 'sidebar links keep the mode and the host theme');
+  assert.match(html, /class="backlinks".*href="\/docs\/s\/sub\/Second\?shell=1&amp;theme=dark"/s);
+  assert.match(html, /class="graph-btn" href="[^"]*_graph\?focus=[^"]*&amp;shell=1&amp;theme=dark"/);
+  assert.notEqual(r.headers.get('etag'), (await get('/docs/s/Home')).headers.get('etag'), 'shell and full pages have different ETags');
+  assert.notEqual(r.headers.get('etag'), (await get('/docs/s/Home?shell=1')).headers.get('etag'), 'so do the two themes');
+  // A bare name in shell mode redirects to the canonical URL without losing the mode.
+  const redirect = await get('/docs/s/Second?shell=1');
+  assert.equal(redirect.status, 301);
+  assert.match(redirect.headers.get('location'), /\?shell=1$/);
+  // The graph page takes the mode too, so a click inside it does not escape the frame.
+  assert.match(await (await get('/docs/s/_graph?shell=1')).text(), /shell:true/);
+});
+
 test('graph endpoints: json with etag, local variant, page with focus', async () => {
   const r = await get('/docs/s/_graph.json'); assert.equal(r.status, 200);
   const g = await r.json();

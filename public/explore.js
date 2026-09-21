@@ -14,6 +14,17 @@
  * so it can be shared, and is never persisted.
  */
 (function () {
+  // Keep the chrome mode (?embed=1 / ?shell=1) when a click on the canvas opens a note; the
+  // server writes it onto rendered links, but these URLs come from the graph JSON.
+  function withMode(u) {
+    var W = window.WEBSIDIAN || window.MD2HTML;
+    var m = W && W.embed ? 'embed' : W && W.shell ? 'shell' : '';
+    if (!m || !u || u.indexOf(m + '=') >= 0) return u;
+    var t = m === 'shell' ? (/[?&]theme=(dark|light)/.exec(location.search) || ['', ''])[1] : '';
+    var i = u.indexOf('#'); var hash = i >= 0 ? u.slice(i) : ''; var p = i >= 0 ? u.slice(0, i) : u;
+    return p + (p.indexOf('?') >= 0 ? '&' : '?') + m + '=1' + (t ? '&theme=' + t : '') + hash;
+  }
+
   'use strict';
   var G = window.WEBSIDIAN_GRAPH || window.MD2HTML_GRAPH; if (!G) return;
   var canvas = document.getElementById('exploreCanvas'); if (!canvas) return;
@@ -487,7 +498,7 @@
   function openNode(n, ev) {
     if (n.isBubble) { expandBubble(n); return; }
     if (!n.url) { S.query = 'tag:' + n.id; qTerms = G.parseQuery(S.query); var qEl2 = $('exQuery'); if (qEl2) qEl2.value = S.query; visCache = null; reheat(0.25); draw(); return; }
-    if (ev && (ev.ctrlKey || ev.metaKey)) window.open(n.url, '_blank'); else location.href = n.url;
+    if (ev && (ev.ctrlKey || ev.metaKey)) window.open(n.url, '_blank'); else location.href = withMode(n.url);
   }
   canvas.addEventListener('mousemove', function (ev) {
     var p = pos(ev);

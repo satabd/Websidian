@@ -1,7 +1,7 @@
 ---
 title: Known issues
 tags: [websidian, reference, issues]
-updated: 2026-09-20
+updated: 2026-09-21
 order: 3
 description: Limits and gotchas, stated plainly
 ---
@@ -61,7 +61,11 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 - **Hermes memories and skills were editable in the old `hermes01` config** (set before the default changed). Re-check `vaults[].edit` there after upgrading the plugin.
 - **Hermes (`hermes01`) has no volumes**: its memory, skills and Obsidian vault exist only inside the container — [[Agent memory and second brain]].
 - **The OpenClaw plugin has not seen a real model turn.** Its hooks, tool and command were driven with a fake plugin API whose contracts were read from OpenClaw 2026.6.9; the reply footer (`message_sending`) and the approval prompt (`before_tool_call` → `requireApproval`) still need one live chat to confirm. The attempt on 2026-09-17 in `clawat02` got *LLM request failed* (ChatGPT responses API `400`, no body) with the plugin enabled **and** disabled; the OpenAI subscription's weekly quota was at 0 % at the time — [[OpenClaw plugin]].
-- **The OpenClaw pages are a URL, not a tab.** OpenClaw 2026.6.9's Control UI renders no plugin-owned pages; open `/plugins/websidian/` by hand (`/brain` prints it). Native pages need OpenClaw ≥ 2026.8.1 and the *Custom plugin UI* lab — [[Improvements backlog]].
+- **The stand-alone OpenClaw pages are a URL, not a tab.** `/plugins/websidian/` is opened by hand (`/brain` prints it) and has its own sign-in. The **Memory** page is the tab, and it needs *Settings → Labs → Custom plugin UI* — without that lab the sidebar entry does not appear, though the route and the descriptor are registered either way — [[OpenClaw plugin#The Memory page]].
+- **`before_prompt_build` is refused on OpenClaw 2026.9.5** unless `plugins.entries.websidian.hooks.allowConversationAccess: true` is set: *"typed hook blocked because non-bundled plugins must set…"*. The *Websidian vaults* section then silently never reaches the system prompt. The other three hooks, the tool and `/brain` are unaffected. Seen in `plugins inspect --runtime` on 2026-09-21.
+- **OpenClaw has a built-in page called "Memory" too** (`/settings/memory`). Ours is the sidebar destination with the brain icon; a text search for "Memory" in the Control UI can land on the other one. Rename it with `ui.memory.label` if that is confusing.
+- **The Memory page's frame needs a secure context when the Gateway has auth.** OpenClaw mints its plugin-tab grant cookie only when `window.isSecureContext` is true, which `127.0.0.1` and HTTPS satisfy but a plain-HTTP LAN address does not. On such a host the Memory page cannot fetch its model.
+- **The Memory model re-reads the workspace on every request.** No cache, by design — the workspace is the source of truth — but the walk is bounded at 5,000 entries, so a `memory/` folder larger than that is listed only in part.
 - **`message_sending` may not cover every OpenClaw surface**: it fires on channel delivery (WhatsApp, Telegram, …). Whether the Control UI chat passes through it was not checked; `websidian_links` and `/brain` work regardless.
 - **The OpenClaw guard resolves relative tool paths against the agent's workspace** (`agents.list[].workspace`, else `agents.defaults.workspace`), because the hook does not receive the tool's cwd. Sandboxed sessions (`agents.defaults.sandbox`) write under `~/.openclaw/sandboxes`, which the guard does not know about.
 - **`exec` guarding is best-effort** on OpenClaw as on Hermes: a shell write it cannot recognise passes. `code_execution` and MCP tools are not inspected.

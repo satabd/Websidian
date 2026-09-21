@@ -9,6 +9,15 @@ import path from 'node:path';
 // Websidian is mounted at this path on the Gateway: /plugins/websidian/w/<slug>/...
 export const ROUTE_PREFIX = '/plugins/websidian';
 export const WEBSIDIAN_MOUNT = ROUTE_PREFIX + '/w';
+// The native Memory surface in OpenClaw's Control UI: a second HTTP route, authenticated by the Gateway
+// itself (auth: "gateway"), so the operator signs in once — to OpenClaw — and never again here.
+//
+// A sibling of the stand-alone prefix, not a child of it: OpenClaw refuses two plugin routes whose
+// prefixes overlap ("http route overlap rejected", seen on 2026.9.5), and the stand-alone pages must keep
+// their own path and their own sign-in. The session cookie the Memory route mints is still scoped to
+// ROUTE_PREFIX, so it reaches the proxy and never travels to this route.
+export const MEMORY_PREFIX = ROUTE_PREFIX + '-memory';
+export const MEMORY_PAGE_ID = 'memory';
 export const DEFAULT_PORT = 8095;
 export const DEFAULT_GATEWAY_PORT = 18789;
 export const DEFAULT_SESSION_HOURS = 12;
@@ -142,6 +151,7 @@ export function uiSettings(raw, cfg = {}, env = process.env) {
   const dataDir = String(d.dataDir || '').trim() ? path.resolve(expandHome(String(d.dataDir).trim(), env)) : path.join(stateDir, 'plugin-data', 'websidian');
   const appDir = String(d.appDir || '').trim() ? path.resolve(expandHome(String(d.appDir).trim(), env)) : path.join(dataDir, 'app');
   const auth = String(d.auth || '').trim().toLowerCase() === 'password' ? 'password' : 'gateway';
+  const mem = d.memory && typeof d.memory === 'object' ? d.memory : {};
   let sessionHours = Number(d.sessionHours);
   if (!Number.isFinite(sessionHours) || sessionHours <= 0) sessionHours = DEFAULT_SESSION_HOURS;
   return {
@@ -154,6 +164,14 @@ export function uiSettings(raw, cfg = {}, env = process.env) {
     auth,
     password: typeof d.password === 'string' ? d.password : '',
     sessionHours,
+    // The Memory page: which vault it reads, and how it is labelled in the Control UI sidebar.
+    memory: {
+      enabled: asBool(mem.enabled, true),
+      vault: String(mem.vault || '').trim(),
+      label: String(mem.label || '').trim() || 'Memory',
+      icon: String(mem.icon || '').trim() || 'brain',
+      order: Number.isFinite(Number(mem.order)) ? Number(mem.order) : 20,
+    },
   };
 }
 

@@ -72,3 +72,21 @@ test('rescan picks up new, changed and removed notes; hashes move only when they
   assert.equal(vault.resolveNote('Missing Note', ''), null);
   assert.equal(vault.listHash, list1);
 });
+
+test('a date in the frontmatter title stays a date, not a JavaScript Date string', async () => {
+  // YAML parses `title: 2026-09-21` as a Date, and String(Date) is "Sun Sep 21 2026 03:00:00 GMT+0300
+  // (…)" — which is exactly what an agent's daily memory note would show in the sidebar and the graph.
+  const daily = makeVault({
+    'Home.md': '# Home\n',
+    'memory/2026-09-21.md': '---\ntitle: 2026-09-21\n---\n# Today\n',
+    'memory/stamped.md': '---\ntitle: 2026-09-21 14:30\n---\n# Stamped\n',
+    'memory/blank.md': '---\ntitle: "   "\n---\n# Blank\n',
+  });
+  try {
+    const v = new Vault({ slug: 'm', root: daily.root, basePath: '/m', home: 'Home' });
+    await v.scan();
+    assert.equal(v.note('memory/2026-09-21.md').title, '2026-09-21');
+    assert.equal(v.note('memory/stamped.md').title, '2026-09-21 14:30');
+    assert.equal(v.note('memory/blank.md').title, 'blank', 'an empty title falls back to the file name');
+  } finally { daily.rm(); }
+});

@@ -193,16 +193,18 @@ r.get('/:site/_graph.json', (req, res, next) => {
   if (sendConditional(req, res, etag)) return;
   res.json(buildGraph(vault, { rel, depth, tags }));
 });
+const graphShell = req => req.query.shell !== undefined && req.query.shell !== '0';
+const graphTheme = req => (graphShell(req) && (req.query.theme === 'dark' || req.query.theme === 'light') ? req.query.theme : '');
 r.get('/:site/_graph', (req, res, next) => {
   const vault = bySlug.get(req.params.site); if (!vault) return next();
   const focus = req.query.focus ? String(req.query.focus) : '';
-  res.type('html').send(graphDocument({ vault, vaults, config, focus: vault.notes.has(focus) ? focus : '', siteLang: config.lang, nonce: res.locals.cspNonce }));
+  res.type('html').send(graphDocument({ vault, vaults, config, focus: vault.notes.has(focus) ? focus : '', siteLang: config.lang, nonce: res.locals.cspNonce, shell: graphShell(req), theme: graphTheme(req) }));
 });
 // Explore: the second graph view (section bubbles, cluster/radial layouts, colour by property, path finder).
 r.get('/:site/_explore', (req, res, next) => {
   const vault = bySlug.get(req.params.site); if (!vault) return next();
   const focus = req.query.focus ? String(req.query.focus) : '';
-  res.type('html').send(exploreDocument({ vault, vaults, config, focus: vault.notes.has(focus) ? focus : '', siteLang: config.lang, nonce: res.locals.cspNonce }));
+  res.type('html').send(exploreDocument({ vault, vaults, config, focus: vault.notes.has(focus) ? focus : '', siteLang: config.lang, nonce: res.locals.cspNonce, shell: graphShell(req), theme: graphTheme(req) }));
 });
 
 // Search: MiniSearch index over the cached plain text, rebuilt when notes change.
@@ -245,16 +247,21 @@ r.get('/:site/*', async (req, res, next) => {
   if (rel.split('/').includes('..')) return notFound(res, vault, 'Bad path');
   if (req.query.raw !== undefined && !/\.(md|base)$/i.test(rel) && !vault.file(rel)) rel += '.md';
   const embed = req.query.embed !== undefined && req.query.embed !== '0';
+  // shell: the host application (OpenClaw's Memory page) draws its own chrome around this one.
+  const shell = !embed && req.query.shell !== undefined && req.query.shell !== '0';
+  const theme = shell && (req.query.theme === 'dark' || req.query.theme === 'light') ? req.query.theme : '';
+  const modeKey = embed ? 'e' : shell ? 's' + (theme || '') : '';
+  const modeQuery = embed ? '?embed=1' : shell ? '?shell=1' + (theme ? '&theme=' + theme : '') : '';
 
   // A drawing (the plugin's `.excalidraw.md` note, or a plain `.excalidraw` file) is a page with the viewer.
   const drawingPage = async (drawingRel, title) => {
     const stamp = await stampOf(vault, drawingRel);
-    const etag = etagFor(['d1', stamp, vault.listHash, 'l' + LAYOUT_VERSION, embed ? 'e' : '', vault.snippets.map(s => s.mtimeMs).join(',')]);
+    const etag = etagFor(['d1', stamp, vault.listHash, 'l' + LAYOUT_VERSION, modeKey, vault.snippets.map(s => s.mtimeMs).join(',')]);
     if (sendConditional(req, res, etag)) return;
     const stem = drawingRel.replace(/\.md$/i, '');
     const exp = vault.resolveFile(stem + '.svg', drawingRel) || vault.resolveFile(stem + '.png', drawingRel);
     const body = viewerHtml({ vault, drawing: drawingRel, exportRel: exp, title, page: true });
-    res.type('html').send(page({ vault, vaults, config, rel: drawingRel, title: title.replace(/\.excalidraw$/i, ''), body, data: {}, headings: [], siteLang: config.lang, embed, nonce: res.locals.cspNonce }));
+    res.type('html').send(page({ vault, vaults, config, rel: drawingRel, title: title.replace(/\.excalidraw$/i, ''), body, data: {}, headings: [], siteLang: config.lang, embed, shell, theme, nonce: res.locals.cspNonce }));
   };
 
   // 1. Attachments (images, PDFs...): served straight from the vault with caching. Bases are rendered.
@@ -263,11 +270,11 @@ r.get('/:site/*', async (req, res, next) => {
   if (file && file.ext === '.base' && req.query.raw === undefined) {
     const stamp = await stampOf(vault, rel);
     const notesStamp = vault.visibleNotesSorted().map(n => `${n.mtimeMs}-${n.size}`).join(',');
-    const etag = etagFor([stamp, vault.listHash, require('crypto').createHash('sha1').update(notesStamp).digest('hex').slice(0, 12), 'l' + LAYOUT_VERSION, embed ? 'e' : '', vault.untrusted ? 'u' : '']);
+    const etag = etagFor([stamp, vault.listHash, require('crypto').createHash('sha1').update(notesStamp).digest('hex').slice(0, 12), 'l' + LAYOUT_VERSION, modeKey, vault.untrusted ? 'u' : '']);
     if (sendConditional(req, res, etag)) return;
     let text; try { text = await fsp.readFile(file.abs, 'utf8'); } catch { return notFound(res, vault, 'Base not readable'); }
     const body = `<h1>${escapeHtml(file.base)}</h1>` + renderBase(vault, text, { baseName: file.base });
-    return res.type('html').send(page({ vault, vaults, config, rel, title: file.base, body, data: { lang: config.lang }, headings: [], embed, nonce: res.locals.cspNonce }));
+    return res.type('html').send(page({ vault, vaults, config, rel, title: file.base, body, data: { lang: config.lang }, headings: [], embed, shell, theme, nonce: res.locals.cspNonce }));
   }
   if (file) {
     if (vault.untrusted) {
@@ -288,10 +295,10 @@ r.get('/:site/*', async (req, res, next) => {
       // There is a folder note: fall through and render it at this URL.
       rel = folderNode.rel;
     } else if (vault.sectionIndex !== false) {
-      const etag = etagFor([vault.listHash, vault.linkHash, 'l' + LAYOUT_VERSION, 's1', embed ? 'e' : '']);
+      const etag = etagFor([vault.listHash, vault.linkHash, 'l' + LAYOUT_VERSION, 's1', modeKey]);
       if (sendConditional(req, res, etag)) return;
       const body = sectionPage(vault, folderNode);
-      return res.type('html').send(page({ vault, vaults, config, rel: folderNode.path, title: folderNode.title, body, data: {}, headings: [], siteLang: config.lang, embed, nonce: res.locals.cspNonce }));
+      return res.type('html').send(page({ vault, vaults, config, rel: folderNode.path, title: folderNode.title, body, data: {}, headings: [], siteLang: config.lang, embed, shell, theme, nonce: res.locals.cspNonce }));
     }
   }
 
@@ -301,7 +308,7 @@ r.get('/:site/*', async (req, res, next) => {
   const note = vault.note(noteRel);
   if (note.hidden && !vault.isDrawing(noteRel)) return notFound(res, vault, 'This page is not published.');
   const canonical = vault.noteUrl(noteRel);
-  if (rel !== '' && req.query.raw === undefined && BASE + req.path !== canonical) return res.redirect(301, canonical + (embed ? '?embed=1' : ''));
+  if (rel !== '' && req.query.raw === undefined && BASE + req.path !== canonical) return res.redirect(301, canonical + modeQuery);
 
   if (req.query.raw !== undefined) return res.type('text/markdown; charset=utf-8').sendFile(note.abs);
   if (note.drawing) return drawingPage(noteRel, note.title);
@@ -309,7 +316,7 @@ r.get('/:site/*', async (req, res, next) => {
   // 4. HTTP cache: ETag from the note's stamp + everything that shapes the page.
   const stamp = await stampOf(vault, noteRel);
   if (stamp === 'missing') { await vault.scan(); return notFound(res, vault, 'This note was just removed.'); }
-  const etag = etagFor([fullStamp(vault, stamp), vault.linkHash, 'l' + LAYOUT_VERSION, embed ? 'e' : '', editUser ? 'ed' : '', vault.snippets.map(s => s.mtimeMs).join(',')]);
+  const etag = etagFor([fullStamp(vault, stamp), vault.linkHash, 'l' + LAYOUT_VERSION, modeKey, editUser ? 'ed' : '', vault.snippets.map(s => s.mtimeMs).join(',')]);
   if (sendConditional(req, res, etag)) return;
 
   // 5. Render (or take from cache) and wrap in the layout.
@@ -330,7 +337,7 @@ r.get('/:site/*', async (req, res, next) => {
       headings = [...headings, { level: 2, text: 'In this section', id: 'in-this-section' }];
     }
   }
-  res.type('html').send(page({ vault, vaults, config, rel: noteRel, title: note.title, body, data: entry.data, headings, siteLang: config.lang, detected: { dir: entry.dir, lang: entry.lang }, embed, editUrl: editUser && !embed ? vault.editUrl(noteRel) : '', nonce: res.locals.cspNonce }));
+  res.type('html').send(page({ vault, vaults, config, rel: noteRel, title: note.title, body, data: entry.data, headings, siteLang: config.lang, detected: { dir: entry.dir, lang: entry.lang }, embed, shell, theme, editUrl: editUser && !embed && !shell ? vault.editUrl(noteRel) : '', nonce: res.locals.cspNonce }));
 });
 
 app.use((req, res) => notFound(res, null, 'Not found'));

@@ -1,9 +1,9 @@
 ---
 title: OpenClaw plugin
 tags: [websidian, guide, agents, openclaw]
-updated: 2026-09-20
+updated: 2026-09-21
 order: 14
-description: Let OpenClaw read and write the vault, safely, and serve it behind the Gateway
+description: Let OpenClaw read and write the vault safely, serve it behind the Gateway, and give OpenClaw a native Memory page
 ---
 # OpenClaw plugin
 
@@ -25,6 +25,7 @@ Code: `integrations/openclaw/websidian/` (`openclaw.plugin.json`, `index.js`, `l
 | Prompt | `before_prompt_build` | A short *Websidian vaults* section pointing at the vaults and the `websidian` skill. |
 | Skill | `skills/websidian/SKILL.md` | How to write notes as Obsidian Markdown, RTL guidance, share links. |
 | Pages | service `websidian-runtime` + route `/plugins/websidian` (`auth: "plugin"`) | A supervised Websidian on `127.0.0.1:8095` (config generated from the vaults, `proxyAuth`, sites `untrusted`, read-only unless `edit: true`), proxied at `/plugins/websidian/w/<slug>/…` behind a sign-in with the Gateway token. |
+| Memory page | route `/plugins/websidian-memory` (`auth: "gateway"`) + a `surface: "tab"` descriptor + `dist/control-ui/` | A **🧠 Memory** destination in OpenClaw's own sidebar, opening inside the Control UI — [[#The Memory page]]. |
 
 The guard is a port of the Hermes one: the active-content detector was checked against the Python reference on 140 inputs (44 real notes from this vault and the demo, 96 crafted attacks) with zero differences.
 
@@ -100,8 +101,34 @@ openclaw gateway restart      # Docker: docker restart <container>
 
 `http://<gateway>/plugins/websidian/` → sign-in (Gateway token) → status page listing the sites → `/plugins/websidian/w/<slug>/<Note>`; the editor at `…/w/<slug>/_edit/<Note>` for `edit: true` vaults. The sign-in sets an `HttpOnly; SameSite=Lax` cookie scoped to `/plugins/websidian` for `ui.sessionHours` (12); failed sign-ins are rate-limited per address. The sign-in and sign-out forms carry a nonce matched against a `SameSite=Lax` cookie (`websidian_csrf`), because the Gateway's `Referrer-Policy: no-referrer` makes browsers send `Origin: null` on same-origin posts — an Origin check alone refuses every real browser (found on the first real sign-in, 2026-09-17). The proxy forwards an allowlist of headers, adds the `proxyAuth` secret, never passes Websidian's `Set-Cookie` through, and refuses dot segments and encoded slashes before they reach Websidian. When Websidian is down the pages answer `502` with the log tail and the supervisor is nudged.
 
-> [!note] Why a route and not a tab
-> OpenClaw 2026.6.9's Control UI registers plugin *descriptors* for the session, tool, run and settings surfaces only, and its bundle renders none of them; native plugin pages (`host.ui.registerPage`, the "Custom plugin UI" lab) arrived with the 2026.8.1 web UI. So the pages live on their own URL, which `/brain` prints — [[Improvements backlog]].
+## The Memory page
+
+![[openclaw-memory.png]]
+
+A **🧠 Memory** entry in OpenClaw's own sidebar — beside Home, Agents and Plugins — that opens *inside* the Control UI. The operator never leaves OpenClaw and never signs in twice.
+
+| Tab | Shows |
+|---|---|
+| **Overview** | A card each for `MEMORY.md` (long-term), `USER.md` (what it learned about you) and `DREAMS.md` (consolidation), with the file and when it changed — greyed out, and named, when the workspace has no such file yet — then the ten most recent dated entries. |
+| **Timeline** | Every dated note under `memory/`, grouped by day, with *today* and *yesterday* spelled out. |
+| **Graph** | Websidian's graph of the workspace. |
+| **Search** | The vault itself: note tree, search box, reading view. |
+
+Opening a note swaps the content area for Websidian in [[Embedding in your website#Inside another application shell mode|shell mode]], which keeps the note tree, search, backlinks and the local graph and drops the header, branding and theme toggle OpenClaw already draws. The page reads OpenClaw's theme off the surface it is painted on and hands it down, so light and dark follow the host.
+
+**Turn it on.** *Settings → Labs → Custom plugin UI*, or `gateway.controlUi.experimental.customPlugins: true` in `openclaw.json`; then restart the Gateway and reload the page. Without it the backend still registers the route and the descriptor, and everything else in the plugin works unchanged. `ui.memory.enabled: false` removes the sidebar entry entirely.
+
+**Two halves, either of which stands alone.** The backend registers `/plugins/websidian-memory` (`auth: "gateway"`) and a `surface: "tab"` Control UI descriptor pointing at it. A host that renders the tab but has no native view frames that route, which serves the same dashboard as plain HTML. The browser half — `dist/control-ui/websidian.js`, loaded by the Control UI — registers a native page under the same id, `memory`, and draws the dashboard itself.
+
+> [!note] One sign-in, not two
+> The Memory route only ever answers a request OpenClaw has already authenticated, so it mints the plugin's own session cookie for that browser: the same signed, `HttpOnly`, path-scoped cookie a successful sign-in on the form mints. The notes it links to then open through the existing proxy — no second sign-in, no new kind of credential, and the stand-alone pages keep their own sign-in untouched. This is [[Decisions|the 2026-09-16 decision]] about one dashboard login, applied to OpenClaw's login.
+
+> [!warning] Why `/plugins/websidian-memory` and not `/plugins/websidian/memory`
+> OpenClaw refuses two plugin routes whose prefixes overlap — *"http route overlap rejected"*, which is exactly what the first version got — and the stand-alone prefix route already claims everything below it. The two surfaces are siblings. The session cookie stays scoped to `/plugins/websidian`, so it reaches the proxy and never travels to the Memory route.
+
+**Read-only, and no wider than the vault.** The Memory page never offers the editor, whatever `edit` a vault is given elsewhere. What it hands the browser is vault-relative paths only — never a filesystem path, never anything outside the configured vault, never the state directory.
+
+**Agents.** One vault today, named by `ui.memory.vault` (default: the first vault the plugin serves itself). The page already reads `host.agents.selectedId` and shows it in the subtitle; per-agent workspaces plug in at `memoryVault()` and that one setting — [[Improvements backlog|A16]].
 
 ## Is it really installed?
 

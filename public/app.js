@@ -3,17 +3,31 @@
   var root = document.documentElement;
   function whenReady(check, fn, tries) { if (check()) fn(); else if (tries > 0) setTimeout(function () { whenReady(check, fn, tries - 1); }, 100); }
 
-  // ---- embed mode: keep ?embed=1 on internal links so an iframe stays chrome-less ----
+  // ---- embed and shell mode: keep the mode on internal links ----
+  // The server writes the mode onto the links it renders itself (sidebar, breadcrumbs, backlinks…);
+  // this covers the rest: links inside the note body and anything built in the browser, such as
+  // search results. A delegated handler in the capture phase sees those too.
   var W = window.WEBSIDIAN || window.MD2HTML;
+  var MODE = W && W.embed ? 'embed' : W && W.shell ? 'shell' : '';
+  // In shell mode the host's theme travels with the mode, so one click does not drop back to the
+  // browser's own theme; the server writes the same pair onto the links it renders.
+  var THEME = MODE === 'shell' ? (/[?&]theme=(dark|light)\b/.exec(location.search) || ['', ''])[1] : '';
+  function withMode(h) {
+    if (!MODE || !h || h.indexOf(W.base) !== 0) return h;
+    if (h.indexOf(MODE + '=') >= 0 || /\.(png|jpe?g|gif|svg|webp|pdf)(\?|#|$)/i.test(h)) return h;
+    var i = h.indexOf('#'); var hash = i >= 0 ? h.slice(i) : ''; var p = i >= 0 ? h.slice(0, i) : h;
+    return p + (p.indexOf('?') >= 0 ? '&' : '?') + MODE + '=1' + (THEME ? '&theme=' + THEME : '') + hash;
+  }
+  if (MODE) {
+    document.addEventListener('click', function (ev) {
+      var a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
+      if (!a || a.target === '_blank') return;
+      var h = a.getAttribute('href'); var next = withMode(h);
+      if (next !== h) a.setAttribute('href', next);
+    }, true);
+    document.querySelectorAll('a[href]').forEach(function (a) { a.setAttribute('href', withMode(a.getAttribute('href'))); });
+  }
   if (W && W.embed) {
-    var base = W.base;
-    document.querySelectorAll('a[href]').forEach(function (a) {
-      var h = a.getAttribute('href');
-      if (h.indexOf(base) === 0 && h.indexOf('embed=') < 0 && !/\.(png|jpe?g|gif|svg|webp|pdf)(\?|#|$)/i.test(h)) {
-        var i = h.indexOf('#'); var hash = i >= 0 ? h.slice(i) : ''; var p = i >= 0 ? h.slice(0, i) : h;
-        a.setAttribute('href', p + (p.indexOf('?') >= 0 ? '&' : '?') + 'embed=1' + hash);
-      }
-    });
     // Tell a parent page our height so an iframe can size itself. Both names are
     // sent: "md2html:height" is the older one and pages still listen for it.
     var post = function () {
@@ -24,9 +38,24 @@
     };
     window.addEventListener('load', post); new MutationObserver(post).observe(document.body, { childList: true, subtree: true }); setTimeout(post, 1500);
   }
+  if (W && W.shell) {
+    // The host draws the title bar and owns the theme. Tell it which note is open so it can follow
+    // along, and let it push a theme down without a reload.
+    if (window.parent !== window) {
+      window.addEventListener('load', function () {
+        var h1 = document.querySelector('.note h1');
+        window.parent.postMessage({ type: 'websidian:navigate', site: W.site, rel: W.rel, title: h1 ? h1.textContent : document.title, url: location.pathname + location.search }, '*');
+      });
+    }
+    window.addEventListener('message', function (ev) {
+      var d = ev.data;
+      if (!d || d.type !== 'websidian:theme') return;
+      if (d.theme === 'dark' || d.theme === 'light') { root.setAttribute('data-theme', d.theme); renderMermaid(true); }
+    });
+  }
 
-  // ---- theme toggle (remembered per browser) ----
-  try { var saved = localStorage.getItem('websidian-theme') || localStorage.getItem('md2html-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+  // ---- theme toggle (remembered per browser; in shell mode the host owns it) ----
+  try { var saved = W && W.shell ? '' : (localStorage.getItem('websidian-theme') || localStorage.getItem('md2html-theme')); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
   var themeBtn = document.getElementById('themeBtn');
   if (themeBtn) themeBtn.addEventListener('click', function () {
     var dark = root.getAttribute('data-theme') === 'dark' || (!root.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);

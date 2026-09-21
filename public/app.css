@@ -320,3 +320,17 @@ html.graph-doc, .graph-body { height: 100%; overflow: hidden; }
 /* ---- edit button (only rendered for a signed-in editor) ---- */
 .edit-btn { border: 1px solid var(--accent); border-radius: 6px; color: var(--accent); font-size: 13px; padding: 3px 9px; line-height: 1.5; white-space: nowrap; }
 .edit-btn:hover { background: var(--accent-bg); text-decoration: none; }
+
+/* ---- shell mode (?shell=1): inside a host application's own chrome ---- */
+/* The host (OpenClaw's Memory page) draws the window, the app navigation and the theme. Websidian
+   keeps the parts that are about this vault: the note tree, search, the reading view, the table of
+   contents, backlinks and the local graph. Sizing is relative to the frame, not the viewport. */
+html.is-shell { --topbar-h: 44px; height: 100%; }
+html.is-shell body.shell-host { min-height: 100%; }
+.is-shell .shell-topbar { padding-inline: 12px; gap: 8px; background: var(--bg2); }
+.is-shell .shell-crumbs { padding: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.is-shell .shell { min-height: calc(100vh - var(--topbar-h)); }
+.is-shell .sidebar, .is-shell .tocbar { height: calc(100vh - var(--topbar-h)); }
+.is-shell .main { padding-top: 16px; }
+@media (max-width: 1100px) { .is-shell .tocbar { display: none; } }
+@media (max-width: 800px) { .is-shell .shell-crumbs { display: none; } }

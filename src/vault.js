@@ -24,6 +24,22 @@ function parseFrontmatter(src) {
   return { data, body: src.slice(m[0].length) };
 }
 
+// A note's title from its frontmatter, falling back to the file name.
+//
+// YAML parses an unquoted `title: 2026-09-21` as a Date, and String(Date) is "Sun Sep 21 2026 03:00:00
+// GMT+0300 (…)" — which is what a daily note written by an agent would show in the sidebar and the
+// graph. A date-only value keeps the date the author wrote; anything with a time keeps the whole ISO
+// stamp, which is at least short and unambiguous.
+function frontmatterTitle(value, fallback) {
+  if (value == null) return fallback;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const iso = value.toISOString();
+    return iso.endsWith('T00:00:00.000Z') ? iso.slice(0, 10) : iso.slice(0, 16).replace('T', ' ');
+  }
+  const title = String(value);
+  return title.trim() ? title : fallback;
+}
+
 function folderTitle(name, overrides) {
   if (overrides && overrides[name]) return overrides[name];
   return name.replace(/^\d+[-_. ]*/, '').replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || name;
@@ -148,7 +164,7 @@ class Vault {
           links = extractLinkTargets(parsed.body);
           tags = extractTags(parsed.body, data);
         } catch { /* unreadable: keep defaults */ }
-        meta = { stamp, data, links, tags, title: (data.title != null ? String(data.title) : n.base) };
+        meta = { stamp, data, links, tags, title: frontmatterTitle(data.title, n.base) };
         this.metaCache.set(n.rel, meta);
       }
       n.title = meta.title; n.data = meta.data; n.tags = meta.tags;

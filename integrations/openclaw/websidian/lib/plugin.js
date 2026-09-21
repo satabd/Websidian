@@ -15,9 +15,10 @@
 import { ChangeTracker } from './tracker.js';
 import { evaluate, GUARDED_TOOLS, settingsFromConfig, TRACKED_TOOLS, writtenPaths } from './guard.js';
 import { formatLinksBlock, linksForPath, recentNotes } from './links.js';
-import { ROUTE_PREFIX, workspaceFor } from './sites.js';
+import { MEMORY_PAGE_ID, MEMORY_PREFIX, ROUTE_PREFIX, workspaceFor } from './sites.js';
 import { Supervisor } from './supervisor.js';
 import { createRouteHandler } from './proxy.js';
+import { createMemoryHandler } from './native.js';
 
 export const PLUGIN_ID = 'websidian';
 export const TOOL_NAME = 'websidian_links';
@@ -56,6 +57,52 @@ export function hookResult(directive) {
       allowedDecisions: ['allow-once', 'deny'],
     },
   };
+}
+
+// The Memory surface: one Gateway-authenticated route plus the Control UI tab descriptor that points at
+// it. The descriptor is what puts "Memory" in OpenClaw's sidebar and what makes the Gateway mint the
+// browser's grant for this route; the browser plugin in dist/control-ui/ then renders the same id as a
+// native page. A host that has neither still frames the route, and a host that has no tab surface at all
+// loses nothing else: the guard, the links, /brain and the stand-alone pages do not go through here.
+export function registerMemory(api, supervisor, settingsFor, log) {
+  const settings = settingsFor();
+  const memory = settings.ui.memory;
+  if (!memory.enabled) { log.info('websidian: ui.memory.enabled is false; no Memory page'); return false; }
+  try {
+    api.registerHttpRoute({
+      path: MEMORY_PREFIX,
+      match: 'prefix',
+      auth: 'gateway',
+      handler: createMemoryHandler({ supervisor, getSettings: settingsFor, log: log.warn }),
+    });
+  } catch (err) {
+    log.warn(`websidian: the Memory route could not be registered (${err && err.message ? err.message : err}); the stand-alone pages are unaffected`);
+    return false;
+  }
+  const register = (api.session && api.session.controls && typeof api.session.controls.registerControlUiDescriptor === 'function')
+    ? api.session.controls.registerControlUiDescriptor.bind(api.session.controls)
+    : typeof api.registerControlUiDescriptor === 'function' ? api.registerControlUiDescriptor.bind(api) : null;
+  if (!register) {
+    log.info(`websidian: this OpenClaw has no Control UI descriptors; Memory is served at ${MEMORY_PREFIX} but gets no sidebar entry`);
+    return true;
+  }
+  try {
+    register({
+      id: MEMORY_PAGE_ID,
+      surface: 'tab',
+      label: memory.label,
+      description: 'Agent memory, read through Websidian: long-term memory, what it learned about you, and the recent daily entries.',
+      icon: memory.icon,
+      path: MEMORY_PREFIX,
+      group: 'control',
+      order: memory.order,
+      requiredScopes: ['operator.read'],
+    });
+    log.info(`websidian: Memory page registered (${memory.label}, ${MEMORY_PREFIX})`);
+  } catch (err) {
+    log.warn(`websidian: the Memory tab descriptor was refused (${err && err.message ? err.message : err}); the route still answers at ${MEMORY_PREFIX}`);
+  }
+  return true;
 }
 
 function resultFailed(event) {
@@ -196,6 +243,7 @@ export function registerWebsidian(api, { env = process.env } = {}) {
         auth: 'plugin',
         handler: createRouteHandler({ supervisor, getSettings: () => settingsFor(), getConfig: config, log: log.warn, env }),
       });
+      registerMemory(api, supervisor, settingsFor, log);
       if (!api.registrationMode || api.registrationMode === 'full') log.info(`websidian: pages at ${ui.publicBase}${ROUTE_PREFIX}/ (Websidian on 127.0.0.1:${ui.port}, runtime ${ui.appDir})`);
     } else if (!ui.enabled) {
       log.info('websidian: ui.enabled is false; guard and links only');

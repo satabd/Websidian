@@ -245,6 +245,16 @@ Recommendations:
 
 Two agent integrations ship in `integrations/`: a **Hermes Agent plugin** (`integrations/hermes/websidian`, Python: write guard, reply links, a dashboard tab) and an **OpenClaw plugin** (`integrations/openclaw/websidian`, plain JavaScript: the same guard and links as OpenClaw hooks, a `websidian_links` tool, `/brain`, and the vaults served behind the Gateway at `/plugins/websidian/`). Each has its own README with installers.
 
+The OpenClaw plugin also gives OpenClaw a native **🧠 Memory** page: a destination in the Control UI's own sidebar, beside Chat and Sessions, that opens inside OpenClaw rather than in a new tab. It shows the agent's `MEMORY.md`, `USER.md` and `DREAMS.md`, a timeline of the dated notes under `memory/`, and the vault's graph and search — all read from the OpenClaw workspace, read-only, with no second sign-in and no second copy of the files. Notes render through Websidian in **shell mode** (`?shell=1`), which keeps the note tree, search, backlinks and the local graph and drops the header, branding and theme toggle the host already draws.
+
+## Showing a note inside somebody else's application
+
+```
+https://docs.example.com/notes/guide/What%20It%20Does?shell=1&theme=dark
+```
+
+`?embed=1` gives you the article alone, for an `<iframe>` in a page of your own. `?shell=1` gives you the whole reading experience — sidebar, search, table of contents, backlinks, local graph — without Websidian's own header, for an application that draws its own chrome around it; `&theme=dark` (or `light`) hands your theme down, and both modes stay on every link the reader follows.
+
 ## Showing a note inside your own website
 
 ```html

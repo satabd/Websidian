@@ -2,13 +2,27 @@
 title: Work log
 tags: [websidian, log]
 aliases: [Changelog]
-updated: 2026-09-20
+updated: 2026-09-21
 order: 5
 description: What changed each session, newest first
 ---
 # Work log
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
+
+## 2026-09-21 — Websidian Memory as a native page in OpenClaw
+The ask: make Websidian Memory feel like part of OpenClaw — a **🧠 Memory** entry in its sidebar, opening inside the Control UI, not a link to another application. Shipped and browser-tested against a real OpenClaw 2026.9.5 Gateway ([[OpenClaw plugin#The Memory page]]).
+
+![[openclaw-memory-note.png]]
+
+- **Read the SDK, not the docs.** `clawat02` and every Docker image were gone, so the release came from npm and `dist/plugin-sdk/control-ui.d.ts` settled the contracts: `defineControlUiPlugin` is the identity function (so the entry can just `export default { id, activate }` and import nothing), the Gateway serves a plugin's `.js`/`.css` files from the entry's directory exactly as they are (so **no build step** — `openclaw plugins build` is for bundling dependencies we do not have), the entry must live under `dist/<subdir>/`, and the browser loader checks `module.default.id === pluginId`.
+- **Gateway auth is a bearer token, not a cookie** — so a frame or a `fetch` from a plugin page carries nothing, and OpenClaw mints a short-lived, path-scoped *plugin-tab grant* cookie instead, but only for a registered `surface: "tab"` descriptor. That one fact decided the architecture: the backend registers the descriptor (which is also what puts the entry in the sidebar), and the browser plugin registers a native page under **the same id**, which the Control UI then renders instead of framing the route.
+- **One sign-in, not two.** The Memory route answers only requests OpenClaw has already authenticated, so it mints the plugin's *own* session cookie — the same signed, `HttpOnly`, path-scoped cookie the sign-in form mints. Notes then open through the existing proxy with no second login and no new kind of credential, and the stand-alone pages keep their sign-in untouched ([[Decisions]]).
+- **Shell mode in Websidian itself** (`?shell=1&theme=dark`): the reading experience minus the chrome a host already draws — sidebar, search, breadcrumbs, table of contents, backlinks and local graph stay; brand, site switch, print and the theme toggle go. The mode *and* the theme ride on every internal link: the ones the server renders, the ones in the note body, the search results built in the browser, and a click on a graph node ([[Embedding in your website]]).
+- **A real Gateway found what 92 unit tests could not.** The first version put the Memory route at `/plugins/websidian/memory`. Every test passed; `openclaw plugins inspect websidian --runtime` answered **"http route overlap rejected"** and registered one route instead of two — OpenClaw refuses plugin routes whose prefixes overlap, and the stand-alone prefix route claims everything below it. The surfaces are siblings now ([[Testing]]).
+- **Two things the live run showed that no test would have.** The host theme was dropped after the first click inside the frame (the mode rode along, the theme did not). And an agent's daily note titled `2026-09-21` rendered as *"Sun Sep 21 2026 03:00:00 GMT+0300 (…)"* in the sidebar, the graph and the pager, because YAML parses an unquoted date as a `Date`; `updated:` had the same problem in reverse, arriving from the render cache as `2026-09-21T00:00:00.000Z`. Both fixed with tests, `LAYOUT_VERSION` 21 → 22.
+- **Learned — "it renders" is not "it is installed".** The plugin loaded, the page drew and the tests were green while the Gateway was quietly registering half of what the plugin asked for. `plugins inspect --runtime` prints the diagnostics; read them before believing a registration. It also caught `before_prompt_build` being refused on 2026.9.5 without `hooks.allowConversationAccess` — a hook that has been silently dropped since the upgrade ([[Known issues]]).
+- **Next**: per-agent memory vaults (A16), the `§` entry list inside `MEMORY.md` (A17), and the live chat turn that is still outstanding (A9).
 
 ## 2026-09-20 — five parallel reviews, two guard bypasses closed, the graph endpoint stops rescanning
 The user asked for a fast review before a weekly usage reset, so five subagents read the codebase in parallel: plugin security, the guard port against its Python original, plugin lifecycle, the Explore commit, and tests plus docs. Two of them independently flagged the same Windows PID weakness, which is a good sign that the split was sound.

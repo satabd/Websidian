@@ -168,6 +168,18 @@ ${tail}`, { refresh: status.running ? 0 : 10 });
 // Handler
 // --------------------------------------------------------------------------------------------------
 
+// One Set-Cookie shape for both surfaces: HttpOnly, SameSite=Lax and scoped to the plugin prefix, so it
+// never travels to another plugin or to the Control UI itself.
+export function cookieFor(req, value, maxAgeSec, name = COOKIE_NAME) {
+  return `${name}=${value}; Path=${ROUTE_PREFIX}; HttpOnly; SameSite=Lax${isSecure(req) ? '; Secure' : ''}; Max-Age=${maxAgeSec}`;
+}
+
+// The session cookie for a browser the *Gateway* has already authenticated (native.js): the same signed
+// session a successful sign-in on the form would mint, so the proxy below needs no second code path.
+export function gatewaySessionCookie(req, secret, hours, user = 'operator') {
+  return cookieFor(req, makeSession(secret, user, hours).value, Math.round(hours * 3600));
+}
+
 function isSecure(req) {
   if (req.socket && req.socket.encrypted) return true;
   return String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase() === 'https';
@@ -207,13 +219,43 @@ class LoginLimiter { // failed sign-ins per address: 10 per 5 minutes
   fail(ip) { (this.hits.get(ip) || (this.hits.set(ip, []), this.hits.get(ip))).push(Date.now()); }
 }
 
+// The reverse proxy to the supervised Websidian, shared by the stand-alone pages (this module) and the
+// native Memory surface (native.js): one implementation of the header allowlists, the path rules and the
+// 502 page. `user` is the name Websidian records for the request (proxyAuth), never a browser credential.
+export function createProxy({ supervisor, log = () => {} }) {
+  function proxy(req, res, user, rawPath, query) {
+    const rt = supervisor.runtime || supervisor.resolve();
+    const target = upstreamTarget(rawPath, query, rt.basePath);
+    if (!target) return send(res, 400, 'text/plain; charset=utf-8', 'Bad request');
+    const length = parseInt(req.headers['content-length'] || '0', 10);
+    if (length > MAX_BODY_BYTES) return send(res, 413, 'text/plain; charset=utf-8', 'Request body too large');
+    const headers = Object.fromEntries(filterRequestHeaders(Object.entries(req.headers), supervisor.secrets(rt).proxy_secret, user));
+    const upstream = http.request({ host: '127.0.0.1', port: rt.port, method: req.method, path: target, headers, timeout: 120_000 }, (up) => {
+      const out = Object.fromEntries(filterResponseHeaders(up.headers));
+      res.writeHead(up.statusCode || 502, out);
+      if (req.method === 'HEAD') { up.resume(); res.end(); return; }
+      up.pipe(res);
+    });
+    upstream.on('timeout', () => upstream.destroy(new Error('upstream timeout')));
+    upstream.on('error', async (err) => {
+      log(`websidian: proxy error for ${rawPath}: ${err.message}`);
+      if (res.headersSent) { res.destroy(); return; }
+      const status = await supervisor.status();
+      send(res, 502, 'text/html; charset=utf-8', page('Websidian is not running', `<h1>502 Websidian is not running</h1><p>${esc(status.error || err.message)}</p>${status.logTail.length ? `<pre>${esc(status.logTail.join(''))}</pre>` : ''}<p><a href="${ROUTE_PREFIX}/">Status page</a></p>`, { refresh: 5 }));
+      supervisor.ensure().catch(() => {});
+    });
+    if (req.method === 'GET' || req.method === 'HEAD') upstream.end();
+    else req.pipe(upstream);
+    return true;
+  }
+  return proxy;
+}
+
 // The route handler for `api.registerHttpRoute({ path: "/plugins/websidian", match: "prefix", auth: "plugin" })`.
 // Returns true when it answered (the Gateway treats anything but `false` as handled).
 export function createRouteHandler({ supervisor, getSettings, getConfig, log = () => {}, env = process.env }) {
   const limiter = new LoginLimiter();
 
-  const cookieFor = (req, value, maxAgeSec, name = COOKIE_NAME) =>
-    `${name}=${value}; Path=${ROUTE_PREFIX}; HttpOnly; SameSite=Lax${isSecure(req) ? '; Secure' : ''}; Max-Age=${maxAgeSec}`;
   // A fresh nonce for every page that carries a form; the cookie and the hidden field must agree on the post.
   const csrfFor = (req, res) => {
     const nonce = crypto.randomBytes(18).toString('base64url');
@@ -258,31 +300,7 @@ export function createRouteHandler({ supervisor, getSettings, getConfig, log = (
     return true;
   }
 
-  function proxy(req, res, user, rawPath, query) {
-    const rt = supervisor.runtime || supervisor.resolve();
-    const target = upstreamTarget(rawPath, query, rt.basePath);
-    if (!target) return send(res, 400, 'text/plain; charset=utf-8', 'Bad request');
-    const length = parseInt(req.headers['content-length'] || '0', 10);
-    if (length > MAX_BODY_BYTES) return send(res, 413, 'text/plain; charset=utf-8', 'Request body too large');
-    const headers = Object.fromEntries(filterRequestHeaders(Object.entries(req.headers), supervisor.secrets(rt).proxy_secret, user));
-    const upstream = http.request({ host: '127.0.0.1', port: rt.port, method: req.method, path: target, headers, timeout: 120_000 }, (up) => {
-      const out = Object.fromEntries(filterResponseHeaders(up.headers));
-      res.writeHead(up.statusCode || 502, out);
-      if (req.method === 'HEAD') { up.resume(); res.end(); return; }
-      up.pipe(res);
-    });
-    upstream.on('timeout', () => upstream.destroy(new Error('upstream timeout')));
-    upstream.on('error', async (err) => {
-      log(`websidian: proxy error for ${rawPath}: ${err.message}`);
-      if (res.headersSent) { res.destroy(); return; }
-      const status = await supervisor.status();
-      send(res, 502, 'text/html; charset=utf-8', page('Websidian is not running', `<h1>502 Websidian is not running</h1><p>${esc(status.error || err.message)}</p>${status.logTail.length ? `<pre>${esc(status.logTail.join(''))}</pre>` : ''}<p><a href="${ROUTE_PREFIX}/">Status page</a></p>`, { refresh: 5 }));
-      supervisor.ensure().catch(() => {});
-    });
-    if (req.method === 'GET' || req.method === 'HEAD') upstream.end();
-    else req.pipe(upstream);
-    return true;
-  }
+  const proxy = createProxy({ supervisor, log });
 
   return async function handle(req, res) {
     const url = new URL(req.url || '/', 'http://localhost');

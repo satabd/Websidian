@@ -75,3 +75,15 @@ test('rendering is deterministic', async () => {
   const again = await new Renderer().render(vault, 'Home.md');
   assert.equal(again.html, out.html);
 });
+
+test('a date in `updated:` shows as a day, from YAML and from the render cache alike', async () => {
+  // YAML parses `updated: 2026-09-21` as a Date; the render cache is JSON, so the same note read back
+  // from cache carries "2026-09-21T00:00:00.000Z". Both must print the day the author wrote.
+  const { page } = require('../src/layout');
+  const vault = { slug: 's', title: 'S', basePath: '', brand: {}, untrusted: false, notes: new Map(), snippets: [], siteUrl: () => '/s/', getTree: () => ({ folders: [], notes: [] }), backlinksOf: () => [], neighbours: () => ({}), folderNames: {} };
+  const render = (updated) => page({ vault, vaults: [vault], rel: 'N.md', title: 'N', body: '<p>x</p>', data: { updated }, headings: [] });
+  assert.match(render(new Date('2026-09-21T00:00:00.000Z')), /updated 2026-09-21</);
+  assert.match(render('2026-09-21T00:00:00.000Z'), /updated 2026-09-21</);
+  assert.match(render('2026-09-21'), /updated 2026-09-21</);
+  assert.match(render('spring'), /updated spring</, 'anything else is the author’s own words');
+});

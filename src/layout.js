@@ -3,17 +3,23 @@
 // frontmatter metadata, table of contents, footer with backlinks and
 // previous/next. The note body is dropped in as-is.
 //
-// Two modes:
+// Three modes:
 //   full  — the standalone documentation site (default)
 //   embed — article only, for an <iframe> or server-side include in another
 //           website (?embed=1). Same body, no chrome, links keep embed mode.
+//   shell — the reading experience inside a host application's own shell
+//           (?shell=1, used by the OpenClaw Memory page). Keeps the sidebar,
+//           search, breadcrumbs, table of contents, backlinks and the local
+//           graph; drops the brand, the site switch, print and the theme
+//           toggle, which the host already provides. `?theme=dark|light` lets
+//           the host hand its theme down.
 
 const { escapeHtml } = require('./render');
 const { folderTitle } = require('./vault');
 const { pageTags } = require('./seo');
 const { nonceAttr, withNonce } = require('./untrusted');
 
-const LAYOUT_VERSION = 20;   // 20: Explore reach + named views (explore.js, app.css); 19: dir="auto" on sidebar, table of contents and backlink titles; detected page direction
+const LAYOUT_VERSION = 22;   // 22: dates in `title:`/`updated:` print as days, not Date strings; 21: shell mode (?shell=1) for a host application's own chrome; 20: Explore reach + named views (explore.js, app.css); 19: dir="auto" on sidebar, table of contents and backlink titles; detected page direction
 
 // JSON inside <script>: a note path containing "</script>" must not close the tag.
 const scriptJson = v => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -23,19 +29,34 @@ const untrustedAttr = vault => vault.untrusted ? ' data-untrusted="1"' : '';
 const LANG_NAMES = { en: 'English', ar: 'العربية', fr: 'Français', de: 'Deutsch', es: 'Español', tr: 'Türkçe', fa: 'فارسی', ur: 'اردو', he: 'עברית', ku: 'Kurdî', zh: '中文', hi: 'हिन्दी', ru: 'Русский', it: 'Italiano', pt: 'Português', nl: 'Nederlands', bilingual: 'EN + AR' };
 const langName = l => LANG_NAMES[String(l).toLowerCase()] || String(l).toUpperCase();
 
-function navTree(node, currentRel, depth = 0) {
+// The query string that keeps the current chrome mode on an internal link — and, in shell mode, the theme
+// the host handed down, so one click inside the frame does not drop back to the browser's own theme.
+// `&amp;` because this is concatenated straight into an href. public/app.js does the same for links
+// inside the note body and for search results, which are built in the browser.
+function modeQuery(mode, theme = '') {
+  if (mode === 'embed') return '?embed=1';
+  if (mode !== 'shell') return '';
+  return '?shell=1' + (theme === 'dark' || theme === 'light' ? '&amp;theme=' + theme : '');
+}
+
+// A host application (OpenClaw) can hand its own theme down; anything else is left to the browser.
+function themeAttr(theme) {
+  return theme === 'dark' || theme === 'light' ? ` data-theme="${theme}"` : '';
+}
+
+function navTree(node, currentRel, depth = 0, q = '') {
   let out = '';
   for (const f of node.folders) {
     const contains = folderContains(f, currentRel);
     // A folder with a folder note is a page of its own, so its label is a link.
     const current = f.rel && f.rel === currentRel;
     const label = f.url
-      ? `<a class="nav-folder-note${current ? ' is-current' : ''}" href="${f.url}"${current ? ' aria-current="page"' : ''}>${escapeHtml(f.title)}</a>`
+      ? `<a class="nav-folder-note${current ? ' is-current' : ''}" href="${f.url}${q}"${current ? ' aria-current="page"' : ''}>${escapeHtml(f.title)}</a>`
       : escapeHtml(f.title);
-    out += `<details class="nav-folder"${contains || depth === 0 ? ' open' : ''}><summary>${label}</summary><div class="nav-children">${navTree(f, currentRel, depth + 1)}</div></details>`;
+    out += `<details class="nav-folder"${contains || depth === 0 ? ' open' : ''}><summary>${label}</summary><div class="nav-children">${navTree(f, currentRel, depth + 1, q)}</div></details>`;
   }
   for (const n of node.notes) {
-    out += `<a class="nav-note${n.rel === currentRel ? ' is-current' : ''}${n.isBase ? ' nav-base' : ''}" href="${n.url}" dir="auto"${n.lang ? ` lang="${escapeHtml(n.lang)}"` : ''}${n.rel === currentRel ? ' aria-current="page"' : ''}>${n.isBase ? '▦ ' : ''}${escapeHtml(n.title)}</a>`;
+    out += `<a class="nav-note${n.rel === currentRel ? ' is-current' : ''}${n.isBase ? ' nav-base' : ''}" href="${n.url}${q}" dir="auto"${n.lang ? ` lang="${escapeHtml(n.lang)}"` : ''}${n.rel === currentRel ? ' aria-current="page"' : ''}>${n.isBase ? '▦ ' : ''}${escapeHtml(n.title)}</a>`;
   }
   return out;
 }
@@ -43,9 +64,9 @@ function folderContains(node, rel) {
   return node.rel === rel || node.notes.some(n => n.rel === rel) || node.folders.some(f => folderContains(f, rel));
 }
 
-function breadcrumbs(vault, rel) {
+function breadcrumbs(vault, rel, q = '') {
   const parts = rel.replace(/\.(md|base)$/i, '').split('/');
-  let out = `<a href="${vault.siteUrl()}">${escapeHtml(vault.title)}</a>`;
+  let out = `<a href="${vault.siteUrl()}${q}">${escapeHtml(vault.title)}</a>`;
   for (let i = 0; i < parts.length - 1; i++) out += ` <span class="sep">/</span> <span>${escapeHtml(folderTitle(parts[i], vault.folderNames))}</span>`;
   return out;
 }
@@ -56,6 +77,13 @@ function toc(headings) {
   return `<nav class="toc" aria-label="On this page"><div class="toc-title">On this page</div>${items.map(h => `<a class="toc-h${h.level}" href="#${h.id}" dir="auto">${escapeHtml(h.text)}</a>`).join('')}</nav>`;
 }
 
+// "2026-09-21" from a Date, from an ISO stamp at midnight, or from whatever the author wrote.
+function dayOf(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  const s = String(value);
+  return /^\d{4}-\d{2}-\d{2}T00:00:00(\.000)?Z$/.test(s) ? s.slice(0, 10) : s;
+}
+
 function metaRow(data) {
   const chips = [];
   const list = v => Array.isArray(v) ? v : (v == null ? [] : [v]);
@@ -64,26 +92,27 @@ function metaRow(data) {
   for (const a of list(data.audience)) chips.push(`<span class="chip">${escapeHtml(a)}</span>`);
   if (data.persona) chips.push(`<span class="chip">${escapeHtml(data.persona)}</span>`);
   if (data.duration) chips.push(`<span class="chip">${escapeHtml(data.duration)}</span>`);
+  // YAML gives a Date for an unquoted `updated: 2026-09-21`; the render cache is JSON, so the same value
+  // comes back from cache as "2026-09-21T00:00:00.000Z". Both are the day the author wrote.
   const upd = data.updated || data.date;
-  if (upd) chips.push(`<span class="chip chip-date">updated ${escapeHtml(upd instanceof Date ? upd.toISOString().slice(0, 10) : upd)}</span>`);
+  if (upd) chips.push(`<span class="chip chip-date">updated ${escapeHtml(dayOf(upd))}</span>`);
   return chips.length ? `<div class="note-meta">${chips.join('')}</div>` : '';
 }
 
-// Language switch: other editions of this note.
-function langSwitch(vault, rel, data, embed) {
+// Language switch: other editions of this note. `q` is the query string that keeps the current mode
+// ('', '?embed=1' or '?shell=1'); see modeQuery().
+function langSwitch(vault, rel, data, q) {
   if (!rel || !vault.notes.has(rel)) return '';
   const others = vault.translationsOf(rel);
   if (!others.length) return '';
-  const q = embed ? '?embed=1' : '';
   const mine = data.lang ? `<span class="lang-current" lang="${escapeHtml(data.lang)}">${escapeHtml(langName(data.lang))}</span>` : '';
   return `<nav class="lang-switch" aria-label="Other languages">${mine}${others.map(t => `<a href="${t.url}${q}" lang="${escapeHtml(t.lang)}" hreflang="${escapeHtml(t.lang)}" title="${escapeHtml(t.title)}">${escapeHtml(langName(t.lang))}</a>`).join('')}</nav>`;
 }
 
 // Footer: previous/next within the folder, then "linked from" notes.
-function footer(vault, rel, embed) {
+function footer(vault, rel, q) {
   if (!rel || !vault.notes.has(rel)) return '';
   const { prev, next } = vault.neighbours(rel);
-  const q = embed ? '?embed=1' : '';
   let out = '';
   if (prev || next) {
     out += `<nav class="pager" aria-label="Previous and next">`;
@@ -149,7 +178,7 @@ function localGraph(vault, rel) {
 
 // Full-screen graph page: its own document (no article column). A floating
 // panel holds Filters / Groups / Display / Forces like Obsidian's graph view.
-function graphDocument({ vault, vaults, config = {}, focus = '', siteLang = 'en', nonce = '' }) {
+function graphDocument({ vault, vaults, config = {}, focus = '', siteLang = 'en', nonce = '', shell = false, theme = '' }) {
   const assets = vault.basePath; const brand = vault.brand;
   const lang = String(siteLang || 'en'); const rtl = /^(ar|he|fa|ur)\b/i.test(lang);
   const focusNote = focus ? vault.notes.get(focus) : null;
@@ -157,7 +186,7 @@ function graphDocument({ vault, vaults, config = {}, focus = '', siteLang = 'en'
   const slider = (id, label, min, max, step, val) => `<label class="gp-row"><span>${label}</span><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}"><output for="${id}">${val}</output></label>`;
   const toggle = (id, label, on) => `<label class="gp-row gp-toggle"><span>${label}</span><input type="checkbox" id="${id}"${on ? ' checked' : ''}><i></i></label>`;
   return `<!doctype html>
-<html lang="${escapeHtml(lang)}" dir="${rtl ? 'rtl' : 'ltr'}" class="graph-doc"${untrustedAttr(vault)}>
+<html lang="${escapeHtml(lang)}" dir="${rtl ? 'rtl' : 'ltr'}" class="graph-doc${shell ? ' is-shell' : ''}"${themeAttr(theme)}${untrustedAttr(vault)}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -175,7 +204,7 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
   <span class="topbar-spacer"></span>
   ${vaults.length > 1 ? `<select class="site-switch" data-suffix="_graph" aria-label="Site">${vaults.map(v => `<option value="${v.siteUrl()}"${v.slug === vault.slug ? ' selected' : ''}>${escapeHtml(v.title)}</option>`).join('')}</select>` : ''}
   <a class="theme-btn graph-nav-link" href="${vault.siteUrl()}_explore${focus ? `?focus=${encodeURIComponent(focus)}` : ''}" title="Explore view">Explore ◈</a>
-  <button class="theme-btn" id="themeBtn" aria-label="Toggle theme">◐</button>
+  ${shell ? '' : `<button class="theme-btn" id="themeBtn" aria-label="Toggle theme">◐</button>`}
   <button class="theme-btn" id="gpToggle" aria-label="Show or hide settings" title="Settings">⚙</button>
 </header>
 <canvas id="graphCanvas" class="graph-canvas-full" data-graph="${vault.siteUrl()}_graph.json${focusNote ? `?rel=${encodeURIComponent(focus)}&depth=1` : ''}" data-focus="${escapeHtml(focus)}" data-site="${escapeHtml(vault.slug)}" aria-label="Graph of notes"></canvas>
@@ -208,7 +237,7 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
   </details>
   <div class="gp-foot"><button type="button" id="gpReset">Reset to defaults</button><span class="muted">Drag a node to pin it · double-click to release · right-click to highlight · Ctrl+click opens in a new tab</span></div>
 </aside>
-<script${nonceAttr(nonce)}>window.WEBSIDIAN=window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(focus)},base:${scriptJson(vault.siteUrl())},embed:false,graphPage:true};</script>${vaults.length > 1 ? `
+<script${nonceAttr(nonce)}>window.WEBSIDIAN=window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(focus)},base:${scriptJson(vault.siteUrl())},embed:false,shell:${shell},graphPage:true};</script>${vaults.length > 1 ? `
 <script src="${assets}/_static/site-switch.js?v=${LAYOUT_VERSION}" defer></script>` : ''}
 <script src="${assets}/_static/graph.js?v=${LAYOUT_VERSION}" defer></script>
 <script src="${assets}/_static/graph-page.js?v=${LAYOUT_VERSION}" defer></script>
@@ -220,7 +249,7 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
 // own panel, own client script public/explore.js) that experiments with
 // section bubbles, alternate layouts, colour/size modes and a path finder,
 // without touching the existing graphDocument/graph-page.js pair above.
-function exploreDocument({ vault, vaults, config = {}, focus = '', siteLang = 'en', nonce = '' }) {
+function exploreDocument({ vault, vaults, config = {}, focus = '', siteLang = 'en', nonce = '', shell = false, theme = '' }) {
   const assets = vault.basePath; const brand = vault.brand;
   const lang = String(siteLang || 'en'); const rtl = /^(ar|he|fa|ur)\b/i.test(lang);
   const focusNote = focus ? vault.notes.get(focus) : null;
@@ -229,7 +258,7 @@ function exploreDocument({ vault, vaults, config = {}, focus = '', siteLang = 'e
   const toggle = (id, label, on) => `<label class="gp-row gp-toggle"><span>${label}</span><input type="checkbox" id="${id}"${on ? ' checked' : ''}><i></i></label>`;
   const select = (id, label, options, val) => `<label class="gp-row gp-select-row"><span>${label}</span><select id="${id}" class="gp-select">${options.map(o => `<option value="${o[0]}"${o[0] === val ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>`;
   return `<!doctype html>
-<html lang="${escapeHtml(lang)}" dir="${rtl ? 'rtl' : 'ltr'}" class="graph-doc"${untrustedAttr(vault)}>
+<html lang="${escapeHtml(lang)}" dir="${rtl ? 'rtl' : 'ltr'}" class="graph-doc${shell ? ' is-shell' : ''}"${themeAttr(theme)}${untrustedAttr(vault)}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -247,7 +276,7 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
   <span class="topbar-spacer"></span>
   ${vaults.length > 1 ? `<select class="site-switch" data-suffix="_explore" aria-label="Site">${vaults.map(v => `<option value="${v.siteUrl()}"${v.slug === vault.slug ? ' selected' : ''}>${escapeHtml(v.title)}</option>`).join('')}</select>` : ''}
   <a class="theme-btn graph-nav-link" href="${vault.siteUrl()}_graph${focus ? `?focus=${encodeURIComponent(focus)}` : ''}" title="Classic graph view">Graph ◉</a>
-  <button class="theme-btn" id="themeBtn" aria-label="Toggle theme">◐</button>
+  ${shell ? '' : `<button class="theme-btn" id="themeBtn" aria-label="Toggle theme">◐</button>`}
   <button class="theme-btn" id="exToggle" aria-label="Show or hide settings" title="Settings">⚙</button>
 </header>
 <canvas id="exploreCanvas" class="graph-canvas-full" data-focus="${escapeHtml(focus)}" data-site="${escapeHtml(vault.slug)}" aria-label="Explore graph of notes"></canvas>
@@ -296,7 +325,7 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
   </details>
   <div class="gp-foot"><button type="button" id="exReset">Reset to defaults</button><span class="muted">Drag to pin · double-click to release · right-click to highlight · Alt+click a node to set the radial centre · <kbd>R</kbd> over a node shows its reach · click a bubble to expand it</span></div>
 </aside>
-<script${nonceAttr(nonce)}>window.WEBSIDIAN=window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(focus)},base:${scriptJson(vault.siteUrl())},embed:false,graphPage:true};</script>${vaults.length > 1 ? `
+<script${nonceAttr(nonce)}>window.WEBSIDIAN=window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(focus)},base:${scriptJson(vault.siteUrl())},embed:false,shell:${shell},graphPage:true};</script>${vaults.length > 1 ? `
 <script src="${assets}/_static/site-switch.js?v=${LAYOUT_VERSION}" defer></script>` : ''}
 <script src="${assets}/_static/graph.js?v=${LAYOUT_VERSION}" defer></script>
 <script src="${assets}/_static/explore.js?v=${LAYOUT_VERSION}" defer></script>
@@ -304,12 +333,13 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
 </html>`;
 }
 
-function scripts(vault, rel, embed, assets, body, nonce, siteSwitch) {
+function scripts(vault, rel, mode, assets, body, nonce, siteSwitch) {
+  const embed = mode === 'embed';
   const math = /class="math /.test(body) ? `<script src="${assets}/_vendor/katex/katex.min.js" defer></script>\n` : '';
   const graph = /data-graph=/.test(body) || (!embed && rel && vault.notes.has(rel)) ? `<script src="${assets}/_static/graph.js?v=${LAYOUT_VERSION}" defer></script>\n` : '';
   // The Excalidraw viewer loads its (large) library itself, and only on pages that have a drawing.
   const drawings = /class="excalidraw-view/.test(body) ? `<script src="${assets}/_static/excalidraw-view.js?v=${LAYOUT_VERSION}" defer></script>\n` : '';
-  return `<script${nonceAttr(nonce)}>window.WEBSIDIAN=window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(rel)},base:${scriptJson(vault.siteUrl())},assets:${scriptJson(assets)},embed:${embed}};</script>
+  return `<script${nonceAttr(nonce)}>window.WEBSIDIAN=window.MD2HTML={site:${scriptJson(vault.slug)},rel:${scriptJson(rel)},base:${scriptJson(vault.siteUrl())},assets:${scriptJson(assets)},embed:${embed},shell:${mode === 'shell'}};</script>
 ${graph}${drawings}
 <script src="${assets}/_vendor/mermaid/mermaid.min.js" defer></script>
 <script src="${assets}/_vendor/hljs/highlight.min.js" defer></script>
@@ -322,7 +352,9 @@ const cssClasses = data => (Array.isArray(data.cssclasses) ? data.cssclasses : S
 // editUrl: set only for requests carrying a valid editor session (see editor.js); adds the Edit button.
 // detected: { dir, lang } from the note's own letters (render.js detectDirection). It only ever turns a page
 // right-to-left: a `lang:` in the frontmatter always wins, and a site whose `lang` is already RTL stays so.
-function page({ vault, vaults, config = {}, rel, title, body, data = {}, headings = [], siteLang = 'en', detected = null, status = 200, embed = false, editUrl = '', nonce = '' }) {
+function page({ vault, vaults, config = {}, rel, title, body, data = {}, headings = [], siteLang = 'en', detected = null, status = 200, embed = false, shell = false, theme = '', editUrl = '', nonce = '' }) {
+  const mode = embed ? 'embed' : shell ? 'shell' : 'full';
+  const q = modeQuery(mode, theme);
   const autoRtl = !data.lang && !!detected && detected.dir === 'rtl';
   const lang = String(data.lang || (autoRtl ? detected.lang : '') || siteLang || 'en');
   const rtl = autoRtl || /^(ar|he|fa|ur)\b/i.test(lang);
@@ -335,7 +367,7 @@ function page({ vault, vaults, config = {}, rel, title, body, data = {}, heading
       ${metaRow(data)}
       ${body}
     </article>
-    ${footer(vault, rel, embed)}`;
+    ${footer(vault, rel, q)}`;
 
   if (embed) {
     return `<!doctype html>
@@ -345,10 +377,39 @@ ${head({ vault, config, rel, title, data, body, assets, nonce })}
 </head>
 <body class="embed">
 <main class="main embed-main">
-${langSwitch(vault, rel, data, true)}
+${langSwitch(vault, rel, data, q)}
 ${article}
 </main>
-${scripts(vault, rel, true, assets, body, nonce, false)}
+${scripts(vault, rel, 'embed', assets, body, nonce, false)}
+</body>
+</html>`;
+  }
+
+  // shell: the host application draws the application chrome (its own sidebar, theme and title bar);
+  // Websidian keeps only what is about *this vault* — the note tree, search, the reading view, the
+  // table of contents, backlinks and the local graph.
+  if (shell) {
+    return `<!doctype html>
+<html lang="${escapeHtml(lang)}" dir="${rtl ? 'rtl' : 'ltr'}" class="is-shell${extra ? ' ' + extra : ''}"${themeAttr(theme)}${untrustedAttr(vault)}>
+<head>
+${head({ vault, config, rel, title, data, body, assets, nonce })}
+</head>
+<body class="shell-host">
+<header class="topbar shell-topbar">
+  <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+  <div class="crumbs shell-crumbs">${breadcrumbs(vault, rel, q)}</div>
+  <div class="search" id="search"><input id="searchInput" type="search" placeholder="Search…" autocomplete="off" aria-label="Search"><div class="search-results" id="searchResults" hidden></div></div>
+  ${langSwitch(vault, rel, data, q)}
+  <a class="graph-btn" href="${vault.siteUrl()}_graph${rel && vault.notes.has(rel) ? '?focus=' + encodeURIComponent(rel) + '&amp;' : '?'}shell=1${theme ? '&amp;theme=' + theme : ''}" aria-label="Graph view" title="Graph view">◉</a>
+</header>
+<div class="shell">
+  <aside class="sidebar" id="sidebar"><nav class="nav" aria-label="Documents">${navTree(vault.getTree(), rel, 0, q)}</nav></aside>
+  <main class="main">
+    ${article}
+  </main>
+  <aside class="tocbar">${toc(headings)}${localGraph(vault, rel)}</aside>
+</div>
+${scripts(vault, rel, 'shell', assets, body, nonce, false)}
 </body>
 </html>`;
   }
@@ -370,22 +431,22 @@ ${head({ vault, config, rel, title, data, body, assets, nonce })}
   ${backLink}
   ${siteSwitch}
   <div class="search" id="search"><input id="searchInput" type="search" placeholder="Search…" autocomplete="off" aria-label="Search"><div class="search-results" id="searchResults" hidden></div></div>
-  ${langSwitch(vault, rel, data, false)}
+  ${langSwitch(vault, rel, data, q)}
   ${editUrl ? `<a class="edit-btn" href="${escapeHtml(editUrl)}" title="Edit this note">✎ Edit</a>` : ''}
   <a class="graph-btn" href="${vault.siteUrl()}_graph${rel && vault.notes.has(rel) ? '?focus=' + encodeURIComponent(rel) : ''}" aria-label="Graph view" title="Graph view">◉</a>
   <button class="print-btn" id="printBtn" aria-label="Print or save as PDF" title="Print / PDF">⎙</button>
-  <button class="theme-btn" id="themeBtn" aria-label="Toggle theme">◐</button>
+  ${shell ? '' : `<button class="theme-btn" id="themeBtn" aria-label="Toggle theme">◐</button>`}
 </header>
 <div class="shell">
-  <aside class="sidebar" id="sidebar"><nav class="nav" aria-label="Documents">${navTree(vault.getTree(), rel)}</nav></aside>
+  <aside class="sidebar" id="sidebar"><nav class="nav" aria-label="Documents">${navTree(vault.getTree(), rel, 0, q)}</nav></aside>
   <main class="main">
-    <div class="crumbs">${breadcrumbs(vault, rel)}</div>
+    <div class="crumbs">${breadcrumbs(vault, rel, q)}</div>
     ${article}
     ${brand.footer ? `<div class="site-footer">${brand.footer}</div>` : ''}
   </main>
   <aside class="tocbar">${toc(headings)}${localGraph(vault, rel)}</aside>
 </div>
-${scripts(vault, rel, false, assets, body, nonce, vaults.length > 1)}
+${scripts(vault, rel, 'full', assets, body, nonce, vaults.length > 1)}
 </body>
 </html>`;
 }

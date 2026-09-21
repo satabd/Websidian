@@ -1,7 +1,7 @@
 ---
 title: Testing
 tags: [websidian, internals]
-updated: 2026-09-20
+updated: 2026-09-21
 order: 4
 description: Running and extending the suite
 ---
@@ -10,11 +10,14 @@ description: Running and extending the suite
 ```bash
 npm test
 ```
-Node's built-in test runner: 221 tests on 2026-09-16 (156 on 2026-09-13, 123 on 2026-09-11).
+Node's built-in test runner: 323 tests on 2026-09-21 (221 on 2026-09-16, 156 on 2026-09-13, 123 on 2026-09-11).
 
 Hermes plugin: `cd integrations/hermes/websidian` then `python -m unittest discover` — 98 tests on 2026-09-16 (71 before the version stamps and the second skill) ([[Hermes plugin]]).
 
-OpenClaw plugin: part of `npm test` (`integrations/openclaw/websidian/test/*.test.js`, 63 tests on 2026-09-20): the guard, links/sites/tracker, runtime config + secrets + proxy rules, the sign-in route over a real HTTP server (`handler.test.js`), and `register()` against a fake plugin API ([[OpenClaw plugin]]).
+OpenClaw plugin: part of `npm test` (`integrations/openclaw/websidian/test/*.test.js`, 92 tests on 2026-09-21): the guard, links/sites/tracker, runtime config + secrets + proxy rules, the sign-in route over a real HTTP server (`handler.test.js`), the Memory model and its Gateway-authenticated route (`memory.test.js`), the browser Control UI plugin and the manifest rules the Gateway applies to its files (`control-ui.test.js`), and `register()` against a fake plugin API ([[OpenClaw plugin]]).
+
+> [!tip] A real Gateway finds what a fake API cannot
+> The first version of the Memory route was `/plugins/websidian/memory`, nested under the stand-alone prefix. Every unit test passed; OpenClaw refused it outright — *"http route overlap rejected"* — and registered one route instead of two. The fake plugin API in `plugin.test.js` has no opinion about route overlap, so nothing short of `openclaw plugins inspect websidian --runtime` against a real 2026.9.5 could have caught it. Install the release from npm into a scratch directory, point `plugins.load.paths` at the checkout, and run the Gateway in the foreground (`openclaw gateway --allow-unconfigured`; `gateway start` refuses a non-default state dir). OpenClaw 2026.9.5 needs Node 24.16+ or 26.1+ — it exits on Node 25 because `node:sqlite` truncates text at an embedded NUL there.
 
 > [!warning] Three paths have no test at all
 > The supervisor's spawn/restart cycle (only its two early-return failures are covered), an end-to-end request through the proxy (the header helpers are unit-tested, the streaming path is not), and the sign-in lockout after ten failures. Named by the 2026-09-20 audit — [[Improvements backlog|A14]].
