@@ -2,7 +2,7 @@
 title: Agent memory and second brain
 tags: [websidian, planning, agents]
 aliases: [Hermes, OpenClaw]
-updated: 2026-09-17
+updated: 2026-09-23
 order: 4
 description: A vault as an agent's second brain
 ---
@@ -57,4 +57,6 @@ The second brain (206 notes), Hermes memories and skills (1,023) open in the **W
 ```
 
 ## Open steps
+The other direction — asking Claude Code, Codex, Hermes or OpenClaw to review or edit the vault from the editor, in one continuing session — is [[Agents in the editor]] (2026-09-23).
+
 See [[Improvements backlog#For agent memory|agent items A1–A4]]. A1 (mount Hermes folders) restarts the agent and needs a backup first — not done without approval.

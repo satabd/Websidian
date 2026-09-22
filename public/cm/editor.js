@@ -235,7 +235,17 @@ export function createEditor(opts) {
   return {
     kind: 'codemirror', view, index,
     get: () => view.state.doc.toString(),
-    set: (text) => view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } }),
+    // Replace only what differs, so the cursor, the scroll position and Live Preview's widgets stay
+    // put when the file is reloaded from disk (an agent changed one line). Replacing the whole
+    // document mapped the cursor to 0 — inside the frontmatter — and Properties opened as raw YAML.
+    set: (text) => {
+      const old = view.state.doc.toString();
+      if (old === text) return;
+      let a = 0; const max = Math.min(old.length, text.length);
+      while (a < max && old.charCodeAt(a) === text.charCodeAt(a)) a++;
+      let b = 0; while (b < max - a && old.charCodeAt(old.length - 1 - b) === text.charCodeAt(text.length - 1 - b)) b++;
+      view.dispatch({ changes: { from: a, to: old.length - b, insert: text.slice(a, text.length - b) } });
+    },
     focus: () => view.focus(),
     isLivePreview: () => livePreviewOn,
     setLivePreview,

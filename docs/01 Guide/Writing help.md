@@ -1,7 +1,7 @@
 ---
 title: Writing help
 tags: [websidian, guide, editor, ai]
-updated: 2026-09-16
+updated: 2026-09-23
 order: 5
 description: An AI in the editor, for rewriting rather than writing for you
 ---
@@ -134,4 +134,7 @@ Obsidian syntax is preserved on purpose: wikilinks, embeds, tags, block ids, cal
 - A failure — a non-zero exit, a killed timeout, or an authentication message even on a clean exit — is written to the server log **in full** and comes back to the browser as one generic line. The CLI's own output can name a model, a config path or an account.
 - With the `api` backend, a refusal is reported as one. A CLI reply carries no such signal, so only empty output can be told apart; read what comes back.
 
-See also: [[Editing in the browser]], [[Editor hotkeys and commands]], [[Configuration]].
+> [!tip] For more than a rewrite
+> An agent that reads the vault, remembers the conversation and can edit files with a diff to review is in [[Agents in the editor]].
+
+See also: [[Editing in the browser]], [[Editor hotkeys and commands]], [[Configuration]], [[Agents in the editor]].

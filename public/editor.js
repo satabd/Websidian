@@ -796,6 +796,29 @@
   // and no commands are added.
   loadAssist();
 
+  // ---- a narrow handle for public/agent-panel.js (loaded only when agents are configured) ----
+  // Put the note on disk back into the editor: used after an agent changed it. Refused while
+  // there are unsaved edits, which then meet the usual conflict check at the next save.
+  function reloadFromDisk() {
+    if (dirty) return Promise.resolve(false);
+    return req('GET', 'note?rel=' + encodeURIComponent(E.rel)).then(function (j) {
+      if (j._status !== 200 || !ed || dirty) return false;
+      ed.set(j.text); stamp = j.stamp; exists = true;
+      setDirty(false); conflict.hidden = true; updateCounts(); lastPreviewed = null; renderPreview();
+      return true;
+    });
+  }
+  window.WebsidianEditor = {
+    E: E, req: req, esc: esc, store: store, setStatus: setStatus, decorate: decorate, editUrl: editUrl,
+    isDirty: function () { return dirty; },
+    selectedText: function () { return ed && ed.selectedText ? ed.selectedText() : ''; },
+    save: function () { return save(false); },
+    reloadFromDisk: reloadFromDisk,
+    addCommand: function (c) { pageCommands.push(c); },
+    isModalOpen: function () { return modalOpen; },
+  };
+  document.dispatchEvent(new CustomEvent('websidian:editor-ready'));
+
   // ---- page hotkeys (Obsidian's): work in the editor and outside it ----
   // Registered in the **capture** phase. In the bubble phase this ran last, so
   // anything nearer the key — CodeMirror's search panel, a widget's own input,

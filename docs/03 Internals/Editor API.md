@@ -1,7 +1,7 @@
 ---
 title: Editor API
 tags: [websidian, internals, reference, api]
-updated: 2026-09-13
+updated: 2026-09-23
 order: 3
 description: The JSON API under /_api
 ---
@@ -20,6 +20,13 @@ Under `/<site>/_api/`. JSON. Needs an editor session cookie or `Authorization: B
 | `GET tags` | | `[{ tag, count }]` |
 | `GET properties` | | `[{ name, count, type, values }]` |
 | `GET anchors?rel=` | | `{ headings: [{level, text, line}], blocks: [{id, text, line}] }` |
+| `GET agents` | | `{ scope, skills, agents: [{ id, label, backend, model, modes, enforcesReview }] }` — only when `agents` is configured ([[Agents in the editor]]) |
+| `POST agents/<id>/turn` | `{ rel, message, mode, selection?, dirty? }` | `202 { turn, agent, mode }`; `409` while that conversation (or another Edit turn in the vault) is running |
+| `GET agent-turns/<turn>` | | `{ state: running\|done\|failed, elapsedMs }`, then `{ text, changes: [{ rel, status, diff, protected, unexpected, revertible }], sessionId, resumed, usage, ms }` or `{ error }` |
+| `POST agent-turns/<turn>/cancel` | | Kills the agent |
+| `POST agent-turns/<turn>/revert` | `{ rel }` | `{ ok, rel, status: restored\|trashed }`; `409` when the file changed again since the turn |
+| `GET` / `DELETE agents/<id>/session?rel=` | | The conversation (`{ sessionId, turns, history }`) / forget it |
+| `POST agents/render` | `{ rel, texts: [] }` | `{ html: [] }` — agent replies rendered with the vault's links and **no raw HTML** |
 
 Rules: only `.md` files inside the vault; no dot-folders or `exclude`d paths; 2 MB limit; writes are atomic (temp file + rename).
 
