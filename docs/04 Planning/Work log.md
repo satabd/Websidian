@@ -10,6 +10,14 @@ description: What changed each session, newest first
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
 
+## 2026-09-23 — docs pass: what is true on 2026.9.5, and `clawat02` is not gone
+A consistency pass after two sessions wrote to the vault on the same day (this one and the agent-panel one).
+
+- **`clawat02` was never gone.** On 2026-09-21 `docker ps` listed nothing because Docker Desktop was not running; the 2026-09-21 entry said the container was gone, and that is corrected in place. It is up now, on OpenClaw 2026.9.5 (its `:latest` image moved on), still with the 2026-09-17 plugin — so no Memory page there yet.
+- **2026.9.5 wants two things 2026.6.9 did not**, both read off `plugins inspect --runtime` in `clawat02`: capability consent (`openclaw plugins enable websidian --accept-capabilities`) and `hooks.allowConversationAccess` for the prompt hook. Now in the guide, with the Custom plugin UI lab, as [[OpenClaw plugin#On OpenClaw 2026.9.5]].
+- The guide's status callout, config example (`ui.memory` keys), install checklist (a 2026.9.5 column, rows for the Memory route and page) and test count were still describing 2026.6.9; [[Feature status]], [[Known issues]], the backlog (A9) and [[Agent memory and second brain]] now say the same thing.
+- **Next**: redeploy to `clawat02` (installer, consent, the two settings, restart), then the live chat turn (A9).
+
 ## 2026-09-23 — the Memory page, redesigned
 The user found the first Memory page's UX lacking. Looking at it plainly: a note opened inside three layers of navigation (OpenClaw's sidebar, our tabs, then Websidian's own toolbar, search box and tree), a *Search* tab that did not search, cards that said nothing about what was in the file, and every timestamp as `9/21/2026, 8:00:21 AM`. Redesigned and checked against a real OpenClaw 2026.9.5 Gateway ([[OpenClaw plugin#The Memory page]]).
 
@@ -31,7 +39,7 @@ The ask: make Websidian Memory feel like part of OpenClaw — a **🧠 Memory** 
 
 ![[openclaw-memory-note.png]]
 
-- **Read the SDK, not the docs.** `clawat02` and every Docker image were gone, so the release came from npm and `dist/plugin-sdk/control-ui.d.ts` settled the contracts: `defineControlUiPlugin` is the identity function (so the entry can just `export default { id, activate }` and import nothing), the Gateway serves a plugin's `.js`/`.css` files from the entry's directory exactly as they are (so **no build step** — `openclaw plugins build` is for bundling dependencies we do not have), the entry must live under `dist/<subdir>/`, and the browser loader checks `module.default.id === pluginId`.
+- **Read the SDK, not the docs.** `docker ps` showed no containers and no images, so the release came from npm *(correction, 2026-09-23: Docker Desktop was not running; `clawat02` and its data were intact, and it has since come back up on 2026.9.5)* and `dist/plugin-sdk/control-ui.d.ts` settled the contracts: `defineControlUiPlugin` is the identity function (so the entry can just `export default { id, activate }` and import nothing), the Gateway serves a plugin's `.js`/`.css` files from the entry's directory exactly as they are (so **no build step** — `openclaw plugins build` is for bundling dependencies we do not have), the entry must live under `dist/<subdir>/`, and the browser loader checks `module.default.id === pluginId`.
 - **Gateway auth is a bearer token, not a cookie** — so a frame or a `fetch` from a plugin page carries nothing, and OpenClaw mints a short-lived, path-scoped *plugin-tab grant* cookie instead, but only for a registered `surface: "tab"` descriptor. That one fact decided the architecture: the backend registers the descriptor (which is also what puts the entry in the sidebar), and the browser plugin registers a native page under **the same id**, which the Control UI then renders instead of framing the route.
 - **One sign-in, not two.** The Memory route answers only requests OpenClaw has already authenticated, so it mints the plugin's *own* session cookie — the same signed, `HttpOnly`, path-scoped cookie the sign-in form mints. Notes then open through the existing proxy with no second login and no new kind of credential, and the stand-alone pages keep their sign-in untouched ([[Decisions]]).
 - **Shell mode in Websidian itself** (`?shell=1&theme=dark`): the reading experience minus the chrome a host already draws — sidebar, search, breadcrumbs, table of contents, backlinks and local graph stay; brand, site switch, print and the theme toggle go. The mode *and* the theme ride on every internal link: the ones the server renders, the ones in the note body, the search results built in the browser, and a click on a graph node ([[Embedding in your website]]).

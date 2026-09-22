@@ -83,6 +83,17 @@ openclaw gateway restart      # or restart the container
 `plugins.load.paths: ["<that folder>"]` in `openclaw.json`. A restart of the Gateway is what makes the hooks, the
 tool, the command and the pages exist.
 
+### On OpenClaw 2026.9.5
+
+`openclaw plugins inspect websidian --runtime` asks for three things 2026.6.9 did not:
+
+- *requires capability consent* → `openclaw plugins enable websidian --accept-capabilities` (once).
+- *typed hook "before_prompt_build" blocked* → `plugins.entries.websidian.hooks.allowConversationAccess: true`
+  (without it only the *Websidian vaults* prompt section is lost).
+- For the Memory page: `gateway.controlUi.experimental.customPlugins: true` (*Settings → Labs → Custom plugin UI*).
+
+Restart the Gateway afterwards. OpenClaw 2026.9.5 needs Node 24.16+ or 26.1+.
+
 ## Configure
 
 `openclaw.json`, under `plugins.entries.websidian.config` (the manifest schema is strict; unknown keys fail

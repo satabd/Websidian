@@ -9,8 +9,10 @@ description: Let OpenClaw read and write the vault safely, serve it behind the G
 
 Connects [OpenClaw](https://openclaw.ai) to Websidian the way the [[Hermes plugin]] connects Hermes: keeps agent-written vault notes plain Markdown, asks a human before the agent changes its own instruction files, replies with view/edit links for the notes it wrote, and serves the vaults behind the Gateway's own port.
 
-> [!success] Status: built and tested against OpenClaw 2026.6.9 in a throw-away container, 2026-09-17
-> The Gateway loads the plugin (4 hooks, the `websidian_links` tool, `/brain`, the `websidian-runtime` service and one HTTP route), the container installer runs end to end with its `/_health` smoke test, and the pages at `/plugins/websidian/` sign in with the Gateway token and proxy real notes with the untrusted CSP. The hooks were exercised with a fake plugin API only: no model ran in the container, so "the agent's reply carries links" and "changing `SOUL.md` prompts for approval" are unit-tested contracts, not a live chat — [[#Is it really installed?]] rows 6 and 7. Deployed to `clawat02` the same day (workspace vault, read-only, pages at `http://127.0.0.1:18794/plugins/websidian/`); its first live chat turn waits for the OpenAI backend, which answered `400` with the plugin enabled and disabled alike (weekly quota at 0 %, ~2026-09-19).
+> [!success] Status, 2026-09-23: works on OpenClaw 2026.9.5; the live chat turn is still outstanding
+> Built against 2026.6.9 on 2026-09-17 (throw-away container, then `clawat02`), and checked again on **2026.9.5** in a local lab Gateway on 2026-09-21 and 2026-09-23: it loads, registers both routes, and the Memory page was browser-tested there — [[#The Memory page]]. The hooks are still exercised with a fake plugin API only: no model has run with the plugin, so "the agent's reply carries links" and "changing `SOUL.md` prompts for approval" are unit-tested contracts, not a live chat — [[#Is it really installed?]] rows 6 and 7.
+>
+> **`clawat02`** (pages at `http://127.0.0.1:18794/plugins/websidian/`) is up on 2026.9.5 but still runs the **2026-09-17 plugin**: no Memory page, and 2026.9.5 asks for two things it did not need before — [[#On OpenClaw 2026.9.5]]. Re-run the container installer there to get the Memory page.
 
 Code: `integrations/openclaw/websidian/` (`openclaw.plugin.json`, `index.js`, `lib/`, `skills/websidian/SKILL.md`, `deploy/`, `test/`, `README.md`). Plain ESM JavaScript, no build step, no dependencies.
 
@@ -61,6 +63,18 @@ openclaw plugins install --link <state dir>/plugin-data/websidian/plugin
 openclaw gateway restart      # Docker: docker restart <container>
 ```
 
+### On OpenClaw 2026.9.5
+
+Three settings the plugin did not need on 2026.6.9, all seen in `openclaw plugins inspect websidian --runtime`:
+
+| What `inspect` says | Do | Without it |
+|---|---|---|
+| *requires capability consent* | `openclaw plugins enable websidian --accept-capabilities` (once) | OpenClaw keeps asking; seen on `clawat02` 2026-09-23 |
+| *typed hook "before_prompt_build" blocked because non-bundled plugins must set … allowConversationAccess* | `plugins.entries.websidian.hooks.allowConversationAccess: true` | The *Websidian vaults* section never reaches the system prompt; the guard, links, tool and `/brain` are unaffected |
+| *(nothing — the sidebar entry is simply missing)* | `gateway.controlUi.experimental.customPlugins: true`, or *Settings → Labs → Custom plugin UI* | No **Memory** in the sidebar |
+
+Then restart the Gateway. It needs Node 24.16+ or 26.1+; it refuses Node 25.
+
 > [!tip] `plugins.load.paths` is the other way in
 > Instead of `plugins install --link`, list the plugin folder under `plugins.load.paths` in `openclaw.json` and set `plugins.entries.websidian.enabled: true`. The live test used this route.
 
@@ -82,8 +96,10 @@ openclaw gateway restart      # Docker: docker restart <container>
     ],
     protectMode: "approve",        // or "block"
     // protect: [...], blockActiveContent: true, appendLinks: true,
-    ui: { enabled: true, port: 8095, publicBase: "http://127.0.0.1:18789", auth: "gateway" }
-  } } } }
+    ui: { enabled: true, port: 8095, publicBase: "http://127.0.0.1:18789", auth: "gateway",
+          memory: { vault: "workspace", label: "Memory" } }
+  }, hooks: { allowConversationAccess: true } } } },
+  gateway: { controlUi: { experimental: { customPlugins: true } } }   // the Memory page
 }
 ```
 
@@ -96,6 +112,9 @@ openclaw gateway restart      # Docker: docker restart <container>
 | `ui.publicBase` | How browsers reach the Gateway; used in every link. Default `http://127.0.0.1:<gateway.port>`. |
 | `ui.auth` | `gateway` (sign in with the Gateway token or password, default) or `password` + `ui.password`. |
 | `ui.enabled: false` | Guard and links only; no Websidian process, no route. |
+| `ui.memory.vault` | Slug of the vault the Memory page reads. Default: the first vault the plugin serves itself. |
+| `ui.memory.label`, `icon`, `order` | The sidebar entry: default `Memory`, `brain`, `20`. |
+| `ui.memory.enabled: false` | No Memory route, no sidebar entry; everything else unchanged. |
 
 ## Pages
 
@@ -143,15 +162,17 @@ The page reads OpenClaw's theme off the surface it is painted on and hands it do
 
 ## Is it really installed?
 
-| # | Check | Live test 2026-09-17 |
-|---|---|---|
-| 1 | `openclaw plugins inspect websidian --runtime`: 4 typed hooks, tool `websidian_links`, command `brain`, service `websidian-runtime`, 1 HTTP route | ✅ |
-| 2 | `<appDir>/src/server.js` and `node_modules/` exist; the installer's smoke test passed | ✅ |
-| 3 | `GET /plugins/websidian/` without a session → `302` to the sign-in; a wrong secret → `401`; a tampered cookie → `302` | ✅ |
-| 4 | Signed in: `status.json` says `running: true` and lists the sites | ✅ `running: true, pid 210`, sites `brain`, `workspace` |
-| 5 | A proxied note answers `200` with a CSP and `nosniff`, no `Set-Cookie` | ✅ also: editor `200` on the `edit: true` vault, `404` on the read-only one; dot segments `404`; the Control UI root still answers |
-| 6 | A reply after writing a note ends with *Notes updated:* and a working link | unit-tested contract only |
-| 7 | Changing `SOUL.md` produces an approval prompt | unit-tested contract only |
+| # | Check | 2026.6.9, container, 2026-09-17 | 2026.9.5, lab Gateway, 2026-09-21/23 |
+|---|---|---|---|
+| 1 | `openclaw plugins inspect websidian --runtime`: typed hooks, tool `websidian_links`, command `brain`, service `websidian-runtime`, **2** HTTP routes, no diagnostics beyond the trust note | ✅ 4 hooks, 1 route (before the Memory page) | ✅ 2 routes; 3 hooks until `allowConversationAccess` is set, then 4 |
+| 2 | `<appDir>/src/server.js` and `node_modules/` exist; the installer's smoke test passed | ✅ | ✅ (runtime pointed at the checkout) |
+| 3 | `GET /plugins/websidian/` without a session → `302` to the sign-in; a wrong secret → `401`; a tampered cookie → `302` | ✅ | ✅ `302` |
+| 4 | Signed in: `status.json` says `running: true` and lists the sites | ✅ `running: true, pid 210`, sites `brain`, `workspace` | ✅ |
+| 5 | A proxied note answers `200` with a CSP and `nosniff`, no `Set-Cookie` | ✅ also: editor `200` on the `edit: true` vault, `404` on the read-only one; dot segments `404`; the Control UI root still answers | ✅ |
+| 6 | A reply after writing a note ends with *Notes updated:* and a working link | unit-tested contract only | unit-tested contract only |
+| 7 | Changing `SOUL.md` produces an approval prompt | unit-tested contract only | unit-tested contract only |
+| 8 | `/plugins/websidian-memory/memory.json`: `401` without Gateway auth, `200` with it, and a `websidian_session` cookie that opens the proxied notes | — | ✅ |
+| 9 | **Memory** in the Control UI sidebar, highlighted when open; every tab, search and the reading pane work, light and dark | — | ✅ |
 
 ## Updating
 
@@ -159,4 +180,4 @@ Re-run the installer, then restart the Gateway (it owns the supervised Websidian
 
 ## Tests
 
-`npm test` at the repository root runs the plugin suite too (`integrations/openclaw/websidian/test/`, 63 tests): the guard, links and slugs, the runtime config and secrets, the proxy rules, the sign-in route over a real HTTP server, and `register()` against a fake plugin API whose contracts were read from OpenClaw 2026.6.9's bundled runtime — [[Testing]].
+`npm test` at the repository root runs the plugin suite too (`integrations/openclaw/websidian/test/`, 98 tests): the guard, links and slugs, the runtime config and secrets, the proxy rules, the sign-in route over a real HTTP server, the Memory model and its route, the browser Control UI plugin against the Gateway's own asset rules, and `register()` against a fake plugin API whose contracts were read from OpenClaw 2026.6.9 and 2026.9.5 — [[Testing]].

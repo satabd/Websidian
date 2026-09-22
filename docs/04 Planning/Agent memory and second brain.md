@@ -2,7 +2,7 @@
 title: Agent memory and second brain
 tags: [websidian, planning, agents]
 aliases: [Hermes, OpenClaw]
-updated: 2026-09-17
+updated: 2026-09-23
 order: 4
 description: A vault as an agent's second brain
 ---
@@ -21,7 +21,7 @@ Using Websidian to read and edit what AI agents write: their memory, instruction
 
 ### OpenClaw (`openclaw-clawat02`)
 - Data mounted from `D:\VibeProjects\OpenclawTools\.openclaw-tools\instances\clawat02\data`.
-- `workspace/`: `AGENTS.md`, `SOUL.md`, `USER.md`, `IDENTITY.md`, `TOOLS.md`, `HEARTBEAT.md`, daily notes in `memory/`.
+- `workspace/`: `AGENTS.md`, `SOUL.md`, `USER.md`, `IDENTITY.md`, `TOOLS.md`, `HEARTBEAT.md`, daily notes in `memory/`; on 2026.9.5 also `DREAMS.md` and the dreaming passes under `memory/dreaming/` (light, REM, deep).
 
 ## How Websidian helps
 - See and edit both agents' memory in one browser, from any device.
@@ -41,6 +41,9 @@ Using Websidian to read and edit what AI agents write: their memory, instruction
 - **Never** point a site root at `~/.hermes` or an OpenClaw data folder itself: it holds `auth.json`, `.env`, databases. Point only at `memories/`, `skills/`, `workspace/` or a vault folder.
 
 Configuration keys: [[Configuration]].
+
+## OpenClaw Memory page (2026-09-21, redesigned 2026-09-23)
+The agent's memory now has a place **inside OpenClaw**: a **🧠 Memory** entry in the Control UI sidebar with the long-term, user and dreams files as cards with previews, a day-by-day timeline of `memory/`, search, the vault tree and the graph — read-only, from the workspace itself, no second sign-in — [[OpenClaw plugin#The Memory page]]. Not yet on `clawat02`, which still runs the 2026-09-17 plugin ([[Improvements backlog#For agent memory|A9]]).
 
 ## OpenClaw (2026-09-17)
 The same protections exist for OpenClaw as an OpenClaw plugin — [[OpenClaw plugin]]: the guard runs in `before_tool_call` (approval through OpenClaw's plugin approvals), links in `message_sending`, and the vaults are served behind the Gateway at `/plugins/websidian/` with a sign-in by Gateway token. Deployed into `clawat02` on 2026-09-17 with the workspace as a read-only vault: `http://127.0.0.1:18794/plugins/websidian/` (sign in with the Gateway token). The first real chat turn through it waits for the OpenAI weekly quota ([[Improvements backlog#For agent memory|A9]]).
