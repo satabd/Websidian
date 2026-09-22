@@ -1,7 +1,7 @@
 ---
 title: Embedding in your website
 tags: [websidian, guide]
-updated: 2026-09-21
+updated: 2026-09-23
 order: 11
 description: Put a note inside another site, or a whole vault inside another application
 ---
@@ -46,8 +46,16 @@ https://docs.example.com/notes/guide/What%20It%20Does?shell=1&theme=dark
 | Posts `websidian:navigate` when the reader opens a note | — | ✅ |
 | Accepts `websidian:theme` from the parent | — | ✅ |
 
-`&theme=dark` or `&theme=light` hands your theme down; without it the reader's browser decides. The mode and
-the theme ride along on every internal link — the ones the server renders, the ones inside the note body, the
+**How much of Websidian's own navigation** is the host's choice, with `&chrome=`:
+
+| `chrome` | Topbar (breadcrumbs, search, graph button) | Note tree | For |
+|---|---|---|---|
+| *(absent)* | ✅ | ✅ | A host that has nothing of its own |
+| `tree` | — | ✅ | A host with its own search and title bar (OpenClaw's *Browse* tab) |
+| `none` | — | — | A reading pane: the note, its table of contents, backlinks and local graph (OpenClaw's reader) |
+
+`&theme=dark` or `&theme=light` hands your theme down; without it the reader's browser decides. The mode, the
+theme and the chrome ride along on every internal link — the ones the server renders, the ones inside the note body, the
 search results built in the browser, and a click on a node in the graph — so the reader cannot fall out of the
 frame into the full site.
 

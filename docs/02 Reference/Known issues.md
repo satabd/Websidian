@@ -1,7 +1,7 @@
 ---
 title: Known issues
 tags: [websidian, reference, issues]
-updated: 2026-09-21
+updated: 2026-09-23
 order: 3
 description: Limits and gotchas, stated plainly
 ---
@@ -65,6 +65,8 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 - **`before_prompt_build` is refused on OpenClaw 2026.9.5** unless `plugins.entries.websidian.hooks.allowConversationAccess: true` is set: *"typed hook blocked because non-bundled plugins must set…"*. The *Websidian vaults* section then silently never reaches the system prompt. The other three hooks, the tool and `/brain` are unaffected. Seen in `plugins inspect --runtime` on 2026-09-21.
 - **OpenClaw has a built-in page called "Memory" too** (`/settings/memory`). Ours is the sidebar destination with the brain icon; a text search for "Memory" in the Control UI can land on the other one. Rename it with `ui.memory.label` if that is confusing.
 - **The Memory page's frame needs a secure context when the Gateway has auth.** OpenClaw mints its plugin-tab grant cookie only when `window.isSecureContext` is true, which `127.0.0.1` and HTTPS satisfy but a plain-HTTP LAN address does not. On such a host the Memory page cannot fetch its model.
+- **The Memory page cannot be shared as a link to a note.** The view is kept per browser tab, not in the URL, because OpenClaw stops highlighting the sidebar entry when page parameters are present. A link that carries `p.view`/`p.note` still works; it just opens with **Memory** un-highlighted.
+- **The framed fallback page names days in the Gateway's timezone** (UTC). The native page works them out in the browser; the fallback is only seen on a host with no native view.
 - **The Memory model re-reads the workspace on every request.** No cache, by design — the workspace is the source of truth — but the walk is bounded at 5,000 entries, so a `memory/` folder larger than that is listed only in part.
 - **`message_sending` may not cover every OpenClaw surface**: it fires on channel delivery (WhatsApp, Telegram, …). Whether the Control UI chat passes through it was not checked; `websidian_links` and `/brain` work regardless.
 - **The OpenClaw guard resolves relative tool paths against the agent's workspace** (`agents.list[].workspace`, else `agents.defaults.workspace`), because the hook does not receive the tool's cwd. Sandboxed sessions (`agents.defaults.sandbox`) write under `~/.openclaw/sandboxes`, which the guard does not know about.

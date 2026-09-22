@@ -89,13 +89,20 @@
     else if (e.key === 'Escape') panel.classList.add('is-hidden');
   });
 
-  // theme toggle (same behaviour as app.js, which is not loaded on this page)
+  // theme toggle (same behaviour as app.js, which is not loaded on this page). In shell mode the host owns
+  // the theme: there is no button, the saved choice is ignored, and the host can push a change down.
   var root = document.documentElement;
-  try { var t = localStorage.getItem('md2html-theme'); if (t) root.setAttribute('data-theme', t); } catch (e) {}
-  $('themeBtn').addEventListener('click', function () {
+  var hosted = !!(window.WEBSIDIAN && window.WEBSIDIAN.shell);
+  if (!hosted) { try { var t = localStorage.getItem('md2html-theme'); if (t) root.setAttribute('data-theme', t); } catch (e) {} }
+  var themeBtn = $('themeBtn');
+  if (themeBtn) themeBtn.addEventListener('click', function () {
     var dark = root.getAttribute('data-theme') === 'dark' || (!root.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
     root.setAttribute('data-theme', dark ? 'light' : 'dark'); try { localStorage.setItem('md2html-theme', dark ? 'light' : 'dark'); } catch (e) {}
     g.redraw();
+  });
+  if (hosted) window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (d && d.type === 'websidian:theme' && (d.theme === 'dark' || d.theme === 'light')) { root.setAttribute('data-theme', d.theme); g.redraw(); }
   });
   window.WEBSIDIAN_GRAPH.instance = g;
 })();

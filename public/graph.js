@@ -15,18 +15,19 @@
  * own behaviour.
  */
 (function () {
-  // Keep the chrome mode (?embed=1 / ?shell=1) when a click on the canvas opens a note; the
-  // server writes it onto rendered links, but these URLs come from the graph JSON.
+  'use strict';
+  // Keep the chrome mode (?embed=1 / ?shell=1, and in shell mode the host's theme and chrome) when a
+  // click on the canvas opens a note; the server writes it onto rendered links, but these URLs come from
+  // the graph JSON.
   function withMode(u) {
     var W = window.WEBSIDIAN || window.MD2HTML;
     var m = W && W.embed ? 'embed' : W && W.shell ? 'shell' : '';
     if (!m || !u || u.indexOf(m + '=') >= 0) return u;
-    var t = m === 'shell' ? (/[?&]theme=(dark|light)/.exec(location.search) || ['', ''])[1] : '';
+    var t = m === 'shell' ? (/[?&]theme=(dark|light)\b/.exec(location.search) || ['', ''])[1] : '';
+    var c = m === 'shell' ? (/[?&]chrome=(tree|none)\b/.exec(location.search) || ['', ''])[1] : '';
     var i = u.indexOf('#'); var hash = i >= 0 ? u.slice(i) : ''; var p = i >= 0 ? u.slice(0, i) : u;
-    return p + (p.indexOf('?') >= 0 ? '&' : '?') + m + '=1' + (t ? '&theme=' + t : '') + hash;
+    return p + (p.indexOf('?') >= 0 ? '&' : '?') + m + '=1' + (t ? '&theme=' + t : '') + (c ? '&chrome=' + c : '') + hash;
   }
-
-  'use strict';
   var PALETTE = ['#4c8dff', '#ff7a45', '#2fbf71', '#b56cff', '#f2b134', '#ff5c8a', '#00b8d9', '#8d6e63', '#7cb342', '#e91e63', '#5c6bc0', '#26a69a'];
   var DEFAULTS = {
     // filters

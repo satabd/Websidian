@@ -250,8 +250,11 @@ r.get('/:site/*', async (req, res, next) => {
   // shell: the host application (OpenClaw's Memory page) draws its own chrome around this one.
   const shell = !embed && req.query.shell !== undefined && req.query.shell !== '0';
   const theme = shell && (req.query.theme === 'dark' || req.query.theme === 'light') ? req.query.theme : '';
-  const modeKey = embed ? 'e' : shell ? 's' + (theme || '') : '';
-  const modeQuery = embed ? '?embed=1' : shell ? '?shell=1' + (theme ? '&theme=' + theme : '') : '';
+  // chrome: how much of Websidian's own navigation the host wants — '' (topbar and note tree), 'tree'
+  // (the note tree only; the host has its own search) or 'none' (the note alone, for a reading pane).
+  const chrome = shell && (req.query.chrome === 'tree' || req.query.chrome === 'none') ? req.query.chrome : '';
+  const modeKey = embed ? 'e' : shell ? 's' + (theme || '') + (chrome || '') : '';
+  const modeQuery = embed ? '?embed=1' : shell ? '?shell=1' + (theme ? '&theme=' + theme : '') + (chrome ? '&chrome=' + chrome : '') : '';
 
   // A drawing (the plugin's `.excalidraw.md` note, or a plain `.excalidraw` file) is a page with the viewer.
   const drawingPage = async (drawingRel, title) => {
@@ -261,7 +264,7 @@ r.get('/:site/*', async (req, res, next) => {
     const stem = drawingRel.replace(/\.md$/i, '');
     const exp = vault.resolveFile(stem + '.svg', drawingRel) || vault.resolveFile(stem + '.png', drawingRel);
     const body = viewerHtml({ vault, drawing: drawingRel, exportRel: exp, title, page: true });
-    res.type('html').send(page({ vault, vaults, config, rel: drawingRel, title: title.replace(/\.excalidraw$/i, ''), body, data: {}, headings: [], siteLang: config.lang, embed, shell, theme, nonce: res.locals.cspNonce }));
+    res.type('html').send(page({ vault, vaults, config, rel: drawingRel, title: title.replace(/\.excalidraw$/i, ''), body, data: {}, headings: [], siteLang: config.lang, embed, shell, theme, chrome, nonce: res.locals.cspNonce }));
   };
 
   // 1. Attachments (images, PDFs...): served straight from the vault with caching. Bases are rendered.
@@ -274,7 +277,7 @@ r.get('/:site/*', async (req, res, next) => {
     if (sendConditional(req, res, etag)) return;
     let text; try { text = await fsp.readFile(file.abs, 'utf8'); } catch { return notFound(res, vault, 'Base not readable'); }
     const body = `<h1>${escapeHtml(file.base)}</h1>` + renderBase(vault, text, { baseName: file.base });
-    return res.type('html').send(page({ vault, vaults, config, rel, title: file.base, body, data: { lang: config.lang }, headings: [], embed, shell, theme, nonce: res.locals.cspNonce }));
+    return res.type('html').send(page({ vault, vaults, config, rel, title: file.base, body, data: { lang: config.lang }, headings: [], embed, shell, theme, chrome, nonce: res.locals.cspNonce }));
   }
   if (file) {
     if (vault.untrusted) {
@@ -298,7 +301,7 @@ r.get('/:site/*', async (req, res, next) => {
       const etag = etagFor([vault.listHash, vault.linkHash, 'l' + LAYOUT_VERSION, 's1', modeKey]);
       if (sendConditional(req, res, etag)) return;
       const body = sectionPage(vault, folderNode);
-      return res.type('html').send(page({ vault, vaults, config, rel: folderNode.path, title: folderNode.title, body, data: {}, headings: [], siteLang: config.lang, embed, shell, theme, nonce: res.locals.cspNonce }));
+      return res.type('html').send(page({ vault, vaults, config, rel: folderNode.path, title: folderNode.title, body, data: {}, headings: [], siteLang: config.lang, embed, shell, theme, chrome, nonce: res.locals.cspNonce }));
     }
   }
 
@@ -337,7 +340,7 @@ r.get('/:site/*', async (req, res, next) => {
       headings = [...headings, { level: 2, text: 'In this section', id: 'in-this-section' }];
     }
   }
-  res.type('html').send(page({ vault, vaults, config, rel: noteRel, title: note.title, body, data: entry.data, headings, siteLang: config.lang, detected: { dir: entry.dir, lang: entry.lang }, embed, shell, theme, editUrl: editUser && !embed && !shell ? vault.editUrl(noteRel) : '', nonce: res.locals.cspNonce }));
+  res.type('html').send(page({ vault, vaults, config, rel: noteRel, title: note.title, body, data: entry.data, headings, siteLang: config.lang, detected: { dir: entry.dir, lang: entry.lang }, embed, shell, theme, chrome, editUrl: editUser && !embed && !shell ? vault.editUrl(noteRel) : '', nonce: res.locals.cspNonce }));
 });
 
 app.use((req, res) => notFound(res, null, 'Not found'));

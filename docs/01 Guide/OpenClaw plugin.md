@@ -1,7 +1,7 @@
 ---
 title: OpenClaw plugin
 tags: [websidian, guide, agents, openclaw]
-updated: 2026-09-21
+updated: 2026-09-23
 order: 14
 description: Let OpenClaw read and write the vault safely, serve it behind the Gateway, and give OpenClaw a native Memory page
 ---
@@ -109,12 +109,23 @@ A **🧠 Memory** entry in OpenClaw's own sidebar — beside Home, Agents and Pl
 
 | Tab | Shows |
 |---|---|
-| **Overview** | A card each for `MEMORY.md` (long-term), `USER.md` (what it learned about you) and `DREAMS.md` (consolidation), with the file and when it changed — greyed out, and named, when the workspace has no such file yet — then the ten most recent dated entries. |
-| **Timeline** | Every dated note under `memory/`, grouped by day, with *today* and *yesterday* spelled out. |
-| **Graph** | Websidian's graph of the workspace. |
-| **Search** | The vault itself: note tree, search box, reading view. |
+| **Overview** | A card each for `MEMORY.md` (long-term), `USER.md` (what it learned about you) and `DREAMS.md` (consolidation): its first lines, when it changed ("2 hours ago") and how long it is. A file the workspace does not have yet is shown dashed and named, not hidden. Below, the eight most recent dated notes with their first heading and a two-line preview. |
+| **Timeline** | Every dated note under `memory/` — including OpenClaw's own dreaming output under `memory/dreaming/` — grouped by day. *Today* and *Yesterday* are the reader's, worked out in the browser, not the Gateway's (which is usually another machine, in UTC). |
+| **Browse** | The vault's note tree beside the note, for wandering. |
+| **Graph** | Websidian's graph of the workspace; clicking a node opens that note in the reading pane. |
 
-Opening a note swaps the content area for Websidian in [[Embedding in your website#Inside another application shell mode|shell mode]], which keeps the note tree, search, backlinks and the local graph and drops the header, branding and theme toggle OpenClaw already draws. The page reads OpenClaw's theme off the surface it is painted on and hands it down, so light and dark follow the host.
+**Search** sits in the header on every tab (`/` focuses it, arrows and Enter pick a result, Esc clears). It queries Websidian's own index and shows the hits natively, with the matched words marked.
+
+**Reading a note** — a card, a row or a search hit — turns the content area into a reading pane: a native bar with *Back*, the note's title and path, *Graph* (this note in the graph) and *Open* (the full page in a new tab), over Websidian in [[Embedding in your website#Inside another application shell mode|shell mode]] with `chrome=none`: the note, its table of contents, backlinks and local graph, and no second toolbar, search box or note tree. Links followed inside it update the bar.
+
+The page reads OpenClaw's theme off the surface it is painted on and hands it down, so light and dark follow the host, live. It refreshes itself when you come back to the tab and once a minute on Overview and Timeline, and remembers the view and the open note for the browser tab, so a reload lands where you were.
+
+> [!note] Why the view is not in the URL
+> OpenClaw highlights a sidebar entry only when the page's parameters match it exactly, so writing `?p.view=…` into the address bar turned **Memory** grey in the sidebar after a reload. The view is kept in `sessionStorage` instead; a link that does carry `p.view` / `p.note` is still honoured.
+
+> [!tip] Nothing an agent wrote is ever markup in the Control UI
+> The page runs with the operator's authority, so titles, previews and search snippets are built as text — a snippet's `<mark>` is rebuilt as an element and everything else in it is dropped — and a frame only ever points at a same-origin path from the plugin's own model.
+
 
 **Turn it on.** *Settings → Labs → Custom plugin UI*, or `gateway.controlUi.experimental.customPlugins: true` in `openclaw.json`; then restart the Gateway and reload the page. Without it the backend still registers the route and the descriptor, and everything else in the plugin works unchanged. `ui.memory.enabled: false` removes the sidebar entry entirely.
 

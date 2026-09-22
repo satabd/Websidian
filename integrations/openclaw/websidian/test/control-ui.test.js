@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import entry, { activate, PAGE_ID } from '../dist/control-ui/websidian.js';
-import { shellUrl, themeFromColour } from '../dist/control-ui/memory-page.js';
+import { groupDays, localDay, markText, relativeTime, safePath, shellUrl, themeFromColour } from '../dist/control-ui/memory-page.js';
 import { MEMORY_PAGE_ID, MEMORY_PREFIX } from '../lib/sites.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -117,6 +117,45 @@ describe('page helpers', () => {
     assert.equal(shellUrl('/w/x/Note', ''), '/w/x/Note?shell=1');
     assert.equal(shellUrl('/w/x/_graph?focus=a', 'light'), '/w/x/_graph?focus=a&shell=1&theme=light');
     assert.equal(shellUrl('', 'dark'), '');
+    assert.equal(shellUrl('/w/x/Note', 'dark', 'none'), '/w/x/Note?shell=1&theme=dark&chrome=none', 'a reading pane');
+    assert.equal(shellUrl('/w/x/', '', 'tree'), '/w/x/?shell=1&chrome=tree', 'the tree without a second search box');
+    assert.equal(shellUrl('/w/x/', 'blue', 'everything'), '/w/x/?shell=1', 'anything else is dropped');
+  });
+
+  test('frames and links only ever point back at the Gateway', () => {
+    assert.equal(safePath('/plugins/websidian/w/x/Note'), '/plugins/websidian/w/x/Note');
+    for (const bad of ['https://evil.example/', '//evil.example/x', 'javascript:alert(1)', '/a b', '/a\\b', '', null]) {
+      assert.equal(safePath(bad), '', String(bad));
+      assert.equal(shellUrl(bad, 'dark'), '', 'no frame for ' + String(bad));
+    }
+  });
+
+  test('search snippets become text pieces; only <mark> is honoured', () => {
+    assert.deepEqual(markText('a &lt;b&gt; <mark>guard</mark> c'), [{ text: 'a <b> ', marked: false }, { text: 'guard', marked: true }, { text: ' c', marked: false }]);
+    const hostile = markText('<img src=x onerror=alert(1)><mark>x</mark>&amp;lt;script&amp;gt;');
+    assert.ok(hostile.every(p => !p.text.includes('<img')), 'a tag that is not <mark> is dropped, never built');
+    assert.equal(hostile.map(p => p.text).join(''), 'x&lt;script&gt;', 'entities are decoded once, to text');
+  });
+
+  test('times read as relative, and a clock ahead of the browser reads as "now"', () => {
+    const now = Date.parse('2026-09-23T10:00:00Z');
+    assert.equal(relativeTime(now - 3 * 3600e3, now, 'en'), '3 hours ago');
+    assert.equal(relativeTime(now - 26 * 3600e3, now, 'en'), 'yesterday');
+    assert.equal(relativeTime(now + 6 * 3600e3, now, 'en'), 'now', 'the Gateway is often another machine');
+    assert.equal(relativeTime(0, now, 'en'), '');
+    assert.match(relativeTime(now - 7 * 3600e3, now, 'ar'), /7|٧/, 'in the host locale');
+  });
+
+  test("timeline days are the reader's days, not the Gateway's", () => {
+    const now = new Date(2026, 8, 23, 1, 24).getTime(); // 01:24 local: still the 22nd in UTC east of Greenwich
+    assert.equal(localDay(now), '2026-09-23');
+    const days = groupDays([
+      { named: true, day: '2026-09-23', mtime: now - 3600e3 },
+      { named: false, day: '2026-09-22', mtime: new Date(2026, 8, 22, 18, 20).getTime() },
+      { named: false, day: 'ignored', mtime: new Date(2026, 8, 23, 0, 30).getTime() },
+      { named: true, day: '2026-09-20', mtime: now },
+    ], now);
+    assert.deepEqual(days.map(d => [d.day, d.when, d.notes.length]), [['2026-09-23', 'today', 2], ['2026-09-22', 'yesterday', 1], ['2026-09-20', '', 1]]);
   });
 
   test('the theme is read off the surface the host painted', () => {

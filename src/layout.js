@@ -19,7 +19,7 @@ const { folderTitle } = require('./vault');
 const { pageTags } = require('./seo');
 const { nonceAttr, withNonce } = require('./untrusted');
 
-const LAYOUT_VERSION = 22;   // 22: dates in `title:`/`updated:` print as days, not Date strings; 21: shell mode (?shell=1) for a host application's own chrome; 20: Explore reach + named views (explore.js, app.css); 19: dir="auto" on sidebar, table of contents and backlink titles; detected page direction
+const LAYOUT_VERSION = 24;   // 24: graph and explore pages take the host theme and survive a missing theme button; 23: shell chrome levels (&chrome=tree|none) and their CSS; 22: dates in `title:`/`updated:` print as days, not Date strings; 21: shell mode (?shell=1) for a host application's own chrome; 20: Explore reach + named views (explore.js, app.css); 19: dir="auto" on sidebar, table of contents and backlink titles; detected page direction
 
 // JSON inside <script>: a note path containing "</script>" must not close the tag.
 const scriptJson = v => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -33,10 +33,17 @@ const langName = l => LANG_NAMES[String(l).toLowerCase()] || String(l).toUpperCa
 // the host handed down, so one click inside the frame does not drop back to the browser's own theme.
 // `&amp;` because this is concatenated straight into an href. public/app.js does the same for links
 // inside the note body and for search results, which are built in the browser.
-function modeQuery(mode, theme = '') {
+function modeQuery(mode, theme = '', chrome = '') {
   if (mode === 'embed') return '?embed=1';
   if (mode !== 'shell') return '';
-  return '?shell=1' + (theme === 'dark' || theme === 'light' ? '&amp;theme=' + theme : '');
+  return '?shell=1' + (theme === 'dark' || theme === 'light' ? '&amp;theme=' + theme : '')
+    + (chrome === 'tree' || chrome === 'none' ? '&amp;chrome=' + chrome : '');
+}
+
+// The same query appended to a URL that may already carry one (the graph pages' own links).
+function withShell(url, shell, theme) {
+  if (!shell) return url;
+  return url + (url.includes('?') ? '&amp;' : '?') + modeQuery('shell', theme).slice(1);
 }
 
 // A host application (OpenClaw) can hand its own theme down; anything else is left to the browser.
@@ -198,12 +205,12 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
 </head>
 <body class="graph-body">
 <header class="topbar graph-topbar">
-  <a class="back-link" href="${focusNote ? vault.noteUrl(focus) : vault.siteUrl()}" title="Back">← ${escapeHtml(focusNote ? focusNote.title : (brand.name || vault.title))}</a>
+  ${shell ? '' : `<a class="back-link" href="${focusNote ? vault.noteUrl(focus) : vault.siteUrl()}" title="Back">← ${escapeHtml(focusNote ? focusNote.title : (brand.name || vault.title))}</a>`}
   <span class="graph-title">${focusNote ? 'Local graph' : 'Graph view'}</span>
   <span class="graph-stats muted" id="graphStats"></span>
   <span class="topbar-spacer"></span>
   ${vaults.length > 1 ? `<select class="site-switch" data-suffix="_graph" aria-label="Site">${vaults.map(v => `<option value="${v.siteUrl()}"${v.slug === vault.slug ? ' selected' : ''}>${escapeHtml(v.title)}</option>`).join('')}</select>` : ''}
-  <a class="theme-btn graph-nav-link" href="${vault.siteUrl()}_explore${focus ? `?focus=${encodeURIComponent(focus)}` : ''}" title="Explore view">Explore ◈</a>
+  <a class="theme-btn graph-nav-link" href="${withShell(vault.siteUrl() + '_explore' + (focus ? `?focus=${encodeURIComponent(focus)}` : ''), shell, theme)}" title="Explore view">Explore ◈</a>
   ${shell ? '' : `<button class="theme-btn" id="themeBtn" aria-label="Toggle theme">◐</button>`}
   <button class="theme-btn" id="gpToggle" aria-label="Show or hide settings" title="Settings">⚙</button>
 </header>
@@ -270,12 +277,12 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
 </head>
 <body class="graph-body">
 <header class="topbar graph-topbar">
-  <a class="back-link" href="${focusNote ? vault.noteUrl(focus) : vault.siteUrl()}" title="Back">← ${escapeHtml(focusNote ? focusNote.title : (brand.name || vault.title))}</a>
+  ${shell ? '' : `<a class="back-link" href="${focusNote ? vault.noteUrl(focus) : vault.siteUrl()}" title="Back">← ${escapeHtml(focusNote ? focusNote.title : (brand.name || vault.title))}</a>`}
   <span class="graph-title">${focusNote ? 'Explore · local' : 'Explore view'}</span>
   <span class="graph-stats muted" id="exploreStats"></span>
   <span class="topbar-spacer"></span>
   ${vaults.length > 1 ? `<select class="site-switch" data-suffix="_explore" aria-label="Site">${vaults.map(v => `<option value="${v.siteUrl()}"${v.slug === vault.slug ? ' selected' : ''}>${escapeHtml(v.title)}</option>`).join('')}</select>` : ''}
-  <a class="theme-btn graph-nav-link" href="${vault.siteUrl()}_graph${focus ? `?focus=${encodeURIComponent(focus)}` : ''}" title="Classic graph view">Graph ◉</a>
+  <a class="theme-btn graph-nav-link" href="${withShell(vault.siteUrl() + '_graph' + (focus ? `?focus=${encodeURIComponent(focus)}` : ''), shell, theme)}" title="Classic graph view">Graph ◉</a>
   ${shell ? '' : `<button class="theme-btn" id="themeBtn" aria-label="Toggle theme">◐</button>`}
   <button class="theme-btn" id="exToggle" aria-label="Show or hide settings" title="Settings">⚙</button>
 </header>
@@ -352,9 +359,9 @@ const cssClasses = data => (Array.isArray(data.cssclasses) ? data.cssclasses : S
 // editUrl: set only for requests carrying a valid editor session (see editor.js); adds the Edit button.
 // detected: { dir, lang } from the note's own letters (render.js detectDirection). It only ever turns a page
 // right-to-left: a `lang:` in the frontmatter always wins, and a site whose `lang` is already RTL stays so.
-function page({ vault, vaults, config = {}, rel, title, body, data = {}, headings = [], siteLang = 'en', detected = null, status = 200, embed = false, shell = false, theme = '', editUrl = '', nonce = '' }) {
+function page({ vault, vaults, config = {}, rel, title, body, data = {}, headings = [], siteLang = 'en', detected = null, status = 200, embed = false, shell = false, theme = '', chrome = '', editUrl = '', nonce = '' }) {
   const mode = embed ? 'embed' : shell ? 'shell' : 'full';
-  const q = modeQuery(mode, theme);
+  const q = modeQuery(mode, theme, chrome);
   const autoRtl = !data.lang && !!detected && detected.dir === 'rtl';
   const lang = String(data.lang || (autoRtl ? detected.lang : '') || siteLang || 'en');
   const rtl = autoRtl || /^(ar|he|fa|ur)\b/i.test(lang);
@@ -388,23 +395,29 @@ ${scripts(vault, rel, 'embed', assets, body, nonce, false)}
   // shell: the host application draws the application chrome (its own sidebar, theme and title bar);
   // Websidian keeps only what is about *this vault* — the note tree, search, the reading view, the
   // table of contents, backlinks and the local graph.
+  // `chrome` lets a host that has its own search and title bar drop Websidian's topbar ('tree'), or the
+  // note tree as well ('none', a reading pane); the table of contents, backlinks and local graph stay.
   if (shell) {
+    const bar = chrome !== 'tree' && chrome !== 'none';
+    const tree = chrome !== 'none';
+    const lang2 = bar ? '' : langSwitch(vault, rel, data, q);
     return `<!doctype html>
-<html lang="${escapeHtml(lang)}" dir="${rtl ? 'rtl' : 'ltr'}" class="is-shell${extra ? ' ' + extra : ''}"${themeAttr(theme)}${untrustedAttr(vault)}>
+<html lang="${escapeHtml(lang)}" dir="${rtl ? 'rtl' : 'ltr'}" class="is-shell${bar ? '' : ' shell-no-bar'}${tree ? '' : ' shell-no-tree'}${extra ? ' ' + extra : ''}"${themeAttr(theme)}${untrustedAttr(vault)}>
 <head>
 ${head({ vault, config, rel, title, data, body, assets, nonce })}
 </head>
 <body class="shell-host">
-<header class="topbar shell-topbar">
+${bar ? `<header class="topbar shell-topbar">
   <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
   <div class="crumbs shell-crumbs">${breadcrumbs(vault, rel, q)}</div>
   <div class="search" id="search"><input id="searchInput" type="search" placeholder="Search…" autocomplete="off" aria-label="Search"><div class="search-results" id="searchResults" hidden></div></div>
   ${langSwitch(vault, rel, data, q)}
-  <a class="graph-btn" href="${vault.siteUrl()}_graph${rel && vault.notes.has(rel) ? '?focus=' + encodeURIComponent(rel) + '&amp;' : '?'}shell=1${theme ? '&amp;theme=' + theme : ''}" aria-label="Graph view" title="Graph view">◉</a>
-</header>
+  <a class="graph-btn" href="${withShell(vault.siteUrl() + '_graph' + (rel && vault.notes.has(rel) ? '?focus=' + encodeURIComponent(rel) : ''), true, theme)}" aria-label="Graph view" title="Graph view">◉</a>
+</header>` : ''}
 <div class="shell">
-  <aside class="sidebar" id="sidebar"><nav class="nav" aria-label="Documents">${navTree(vault.getTree(), rel, 0, q)}</nav></aside>
+  ${tree ? `<aside class="sidebar" id="sidebar"><nav class="nav" aria-label="Documents">${navTree(vault.getTree(), rel, 0, q)}</nav></aside>` : ''}
   <main class="main">
+    ${lang2}
     ${article}
   </main>
   <aside class="tocbar">${toc(headings)}${localGraph(vault, rel)}</aside>

@@ -2,7 +2,7 @@
 title: Improvements backlog
 tags: [websidian, planning]
 aliases: [Suggestions, Backlog]
-updated: 2026-09-21
+updated: 2026-09-23
 order: 3
 description: Suggestions ranked by value for effort
 ---
@@ -76,6 +76,7 @@ See [[Agent memory and second brain]].
 | A16 | **Memory per agent**: one vault per OpenClaw agent, chosen from `host.agents.selectedId`. The page already shows the selected agent and `memoryVault()` already takes a slug, so this is a map from agent id to vault plus an agent picker in the header — [[OpenClaw plugin#Agents]] |
 | A17 | Memory **Overview**: read the `§` entries inside `MEMORY.md` and list them with a character meter against the agent's limit, instead of one card for the whole file (the same idea as A2 for Hermes) |
 | A18 | Memory **Timeline**: the model stops at the 40 most recent dated notes and the page at 10 on Overview; a long-lived workspace needs paging or a month picker |
+| A20 | A shareable link to a note on the Memory page, once OpenClaw can match a sidebar entry by page id alone (today page parameters cost the highlight — [[Known issues]]) |
 | A19 | Use OpenClaw's own components on the Memory page (`host.components.mountAgentPicker`, `mountSelectPicker`) so the controls are the host's, not ours |
 
 ## Rejected or parked

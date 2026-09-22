@@ -1,11 +1,12 @@
 // The Memory surface inside OpenClaw's Control UI.
 //
-// A second HTTP route, `/plugins/websidian/memory`, registered with auth: "gateway" — the Gateway
+// A second HTTP route, `/plugins/websidian-memory` (a sibling of the stand-alone prefix, not a child:
+// OpenClaw refuses overlapping plugin routes), registered with auth: "gateway" — the Gateway
 // authenticates the operator before this handler runs, so there is no second sign-in. It serves:
 //
-//   GET /plugins/websidian/memory              the Memory dashboard as HTML, for a host that frames the
+//   GET /plugins/websidian-memory              the Memory dashboard as HTML, for a host that frames the
 //                                              tab because it has no native view for it
-//   GET /plugins/websidian/memory/memory.json  the same model as JSON, for the native Control UI page
+//   GET /plugins/websidian-memory/memory.json  the same model as JSON, for the native Control UI page
 //
 // Both answers also mint the plugin's own session cookie for the browser that asked. That cookie is the
 // one a successful sign-in on the form mints — same secret, same HMAC, same scope — so the notes the page
@@ -79,6 +80,7 @@ const PAGE_CSS = [
   'ul.notes a:hover{text-decoration:underline}',
   '.links a{margin-inline-end:1rem}',
   '.err{color:#d1242f}',
+  '.ex{margin:.2rem 0 .3rem;font-size:.86rem;opacity:.75;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}',
 ].join('\n');
 
 const stamp = (ms) => new Date(ms).toISOString().slice(0, 16).replace('T', ' ');
@@ -90,13 +92,13 @@ export function memoryPage(payload, { theme = '' } = {}) {
   const foot = '</main></body></html>';
   if (!payload.ok) return head + `<h1>${esc(payload.label || 'Memory')}</h1><p class="err">${esc(payload.error)}</p>` + foot;
   const card = (label, entry) => entry
-    ? `<a class="card" href="${esc(noteHref(entry.url, theme))}"><h2>${esc(label)}</h2><div class="meta">${esc(entry.rel)} · ${esc(stamp(entry.mtime))}</div></a>`
+    ? `<a class="card" href="${esc(noteHref(entry.url, theme))}"><h2>${esc(label)}</h2>${entry.excerpt ? `<p class="ex" dir="auto">${esc(entry.excerpt)}</p>` : ''}<div class="meta">${esc(entry.rel)} · ${esc(stamp(entry.mtime))}</div></a>`
     : `<div class="card absent"><h2>${esc(label)}</h2><div class="meta">not in this workspace yet</div></div>`;
   const cards = [
     ...payload.sections.map(s => card(s.label, s.entry)),
     ...payload.missing.map(m => card(m.label, null)),
   ].join('');
-  const days = payload.timeline.map(d => `<h3 class="day">${esc(d.label)}</h3><ul class="notes">${d.notes.map(n => `<li><a href="${esc(noteHref(n.url, theme))}" dir="auto">${esc(n.title)}</a></li>`).join('')}</ul>`).join('');
+  const days = payload.timeline.map(d => `<h3 class="day">${esc(d.label)}</h3><ul class="notes">${d.notes.map(n => `<li><a href="${esc(noteHref(n.url, theme))}" dir="auto">${esc(n.title)}</a>${n.excerpt ? `<p class="ex" dir="auto">${esc(n.excerpt)}</p>` : ''}</li>`).join('')}</ul>`).join('');
   return head + `<h1>${esc(payload.label)}</h1>
 <p class="sub">${esc(payload.title)} · ${payload.counts.dated} dated ${payload.counts.dated === 1 ? 'entry' : 'entries'}</p>
 <div class="cards">${cards}</div>

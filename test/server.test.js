@@ -111,7 +111,28 @@ test('shell mode keeps the vault chrome, drops the application chrome, and carri
   assert.equal(redirect.status, 301);
   assert.match(redirect.headers.get('location'), /\?shell=1$/);
   // The graph page takes the mode too, so a click inside it does not escape the frame.
-  assert.match(await (await get('/docs/s/_graph?shell=1')).text(), /shell:true/);
+  const graph = await (await get('/docs/s/_graph?shell=1&theme=dark')).text();
+  assert.match(graph, /shell:true/);
+  assert.ok(!graph.includes('class="back-link"'), 'no way "back" out of a frame');
+  assert.match(graph, /_explore\?shell=1&amp;theme=dark"/, 'the Explore link keeps the mode');
+  assert.ok(!graph.includes('id="themeBtn"'), 'the host owns the theme');
+  // Without the button the page script must still run to the end (it once crashed on the missing button).
+  const pageJs = await (await get('/docs/_static/graph-page.js')).text();
+  assert.match(pageJs, /if \(themeBtn\) themeBtn\.addEventListener/);
+});
+
+test('shell chrome levels: the host can drop the topbar, then the note tree too', async () => {
+  const tree = await (await get('/docs/s/Home?shell=1&chrome=tree')).text();
+  assert.ok(!tree.includes('class="topbar'), 'chrome=tree: no topbar (the host has its own search)');
+  assert.match(tree, /id="sidebar"/, 'chrome=tree keeps the note tree');
+  assert.match(tree, /class="is-shell shell-no-bar"/);
+  const none = await (await get('/docs/s/Home?shell=1&chrome=none&theme=light')).text();
+  assert.ok(!none.includes('id="sidebar"') && !none.includes('class="topbar'), 'chrome=none: the note alone');
+  assert.match(none, /class="backlinks".*href="\/docs\/s\/sub\/Second\?shell=1&amp;theme=light&amp;chrome=none"/s, 'and it rides on every link');
+  assert.match(none, /class="tocbar"/, 'the table of contents and local graph stay');
+  const junk = await (await get('/docs/s/Home?shell=1&chrome=%22%3E%3Cscript%3E')).text();
+  assert.ok(!junk.includes('"><script>') && !junk.includes('chrome=') && junk.includes('class="topbar'), 'anything else is ignored, and never reflected');
+  assert.notEqual((await get('/docs/s/Home?shell=1&chrome=none')).headers.get('etag'), (await get('/docs/s/Home?shell=1')).headers.get('etag'));
 });
 
 test('graph endpoints: json with etag, local variant, page with focus', async () => {

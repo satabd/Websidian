@@ -1,7 +1,7 @@
 ---
 title: Decisions
 tags: [websidian, internals, decisions]
-updated: 2026-09-21
+updated: 2026-09-23
 order: 5
 description: The choices we made, and why
 ---
@@ -28,6 +28,9 @@ description: The choices we made, and why
 | 2026-09-21 | **The Memory surface is a sibling route (`/plugins/websidian-memory`), not a child of the stand-alone one** | OpenClaw refuses two plugin routes whose prefixes overlap ("http route overlap rejected"), and the stand-alone prefix route claims everything below it. Moving the stand-alone pages instead would have broken a URL people already use — [[OpenClaw plugin#The Memory page]] |
 | 2026-09-21 | **A Gateway-authenticated request mints the plugin's existing session cookie, rather than adding a second credential** | OpenClaw has already said who the operator is; minting the same signed cookie a successful sign-in mints lets the notes open through the existing, tested proxy with no second sign-in and no new code path. It is the one-login decision of 2026-09-16 applied to OpenClaw's login |
 | 2026-09-21 | **Shell mode is a third layout mode, not a second product** | An application embedding Websidian wants the reading experience minus the chrome it already draws. Making that a mode of the same page keeps one renderer, one set of links and one set of tests; `?embed=1` stays what it was — [[Embedding in your website]] |
+| 2026-09-23 | **The Memory page draws its own chrome and frames only the reading** | The first version framed Websidian with its own toolbar, search and tree inside OpenClaw's page — three layers of navigation, the "browser inside a browser" the user did not want. Search, previews and the timeline are native now; the frame is a reading pane (`chrome=none`) or the tree (`chrome=tree`) — [[OpenClaw plugin#The Memory page]] |
+| 2026-09-23 | **"Today" is the reader's today** | Day labels are worked out in the browser, not on the Gateway, which is often another machine in UTC; at 01:24 local the Gateway's "today" was yesterday |
+| 2026-09-23 | **The open view lives in the tab, not in the URL** | OpenClaw highlights a sidebar entry only when the page parameters match exactly; losing the highlight on reload cost more than a shareable URL gained |
 | 2026-09-21 | **A date in `title:` or `updated:` prints as a day** | YAML turns an unquoted `2026-09-21` into a Date, and `String(Date)` is "Sun Sep 21 2026 03:00:00 GMT+0300 (…)" — which is what an agent's daily memory note showed in the sidebar and the graph until it was seen in the Memory page |
 | 2026-09-17 | **No archify-style authored diagrams for the vault graph**; Explore takes its viewer ideas (reach, guided views) instead | archify places every node by hand and refuses auto-layout; a vault has no author placing hundreds of notes — [[Graph and Explore]] |
 | 2026-09-17 | **Named views live in note frontmatter (`views:`), not in the config**, and the active view or reach lives in the URL, not localStorage | Authors own them and they travel with the vault; hidden notes drop out by themselves; a `?view=` link can be shared |

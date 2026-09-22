@@ -12,11 +12,12 @@
   // In shell mode the host's theme travels with the mode, so one click does not drop back to the
   // browser's own theme; the server writes the same pair onto the links it renders.
   var THEME = MODE === 'shell' ? (/[?&]theme=(dark|light)\b/.exec(location.search) || ['', ''])[1] : '';
+  var CHROME = MODE === 'shell' ? (/[?&]chrome=(tree|none)\b/.exec(location.search) || ['', ''])[1] : '';
   function withMode(h) {
     if (!MODE || !h || h.indexOf(W.base) !== 0) return h;
     if (h.indexOf(MODE + '=') >= 0 || /\.(png|jpe?g|gif|svg|webp|pdf)(\?|#|$)/i.test(h)) return h;
     var i = h.indexOf('#'); var hash = i >= 0 ? h.slice(i) : ''; var p = i >= 0 ? h.slice(0, i) : h;
-    return p + (p.indexOf('?') >= 0 ? '&' : '?') + MODE + '=1' + (THEME ? '&theme=' + THEME : '') + hash;
+    return p + (p.indexOf('?') >= 0 ? '&' : '?') + MODE + '=1' + (THEME ? '&theme=' + THEME : '') + (CHROME ? '&chrome=' + CHROME : '') + hash;
   }
   if (MODE) {
     document.addEventListener('click', function (ev) {

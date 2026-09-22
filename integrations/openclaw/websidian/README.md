@@ -39,7 +39,7 @@ lib/native.js          the Memory route (auth: "gateway"): model JSON + a framed
 lib/memory.js          which workspace files are memory, and how they group (pure)
 dist/control-ui/       the browser Control UI plugin the Gateway serves as-is
   websidian.js           entry: { id, activate(host) }, registers the Memory page and navigation
-  memory-page.js         the native page: Overview / Timeline / Graph / Search
+  memory-page.js         the native page: search, Overview, Timeline, Browse, Graph, reading pane
   memory.css             styles, all under .websidian-memory
 skills/websidian/      SKILL.md
 deploy/                installers (native profile, Docker container)
@@ -139,8 +139,9 @@ without the other:
   the same dashboard as plain HTML. A `surface: "tab"` Control UI descriptor points at it, which is what puts the
   entry in the sidebar *and* what makes the Gateway mint the browser's grant for that route.
 - **Browser.** `dist/control-ui/websidian.js` is loaded by the Control UI (`defineControlUiPlugin`'s shape) and
-  registers a native page with the same id, `memory`, plus a navigation item. It draws Overview, Timeline, Graph
-  and Search itself and renders notes with Websidian in shell mode inside the content area.
+  registers a native page with the same id, `memory`, plus a navigation item. It draws the header search, the
+  Overview cards with previews, the Timeline and the reading pane's bar itself; Websidian, in shell mode, renders
+  the note (`chrome=none`), the Browse tree (`chrome=tree`) and the Graph inside the content area.
 
 Turn it on with *Settings → Labs → Custom plugin UI*, or in `openclaw.json`:
 

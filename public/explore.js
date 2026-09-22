@@ -14,18 +14,19 @@
  * so it can be shared, and is never persisted.
  */
 (function () {
-  // Keep the chrome mode (?embed=1 / ?shell=1) when a click on the canvas opens a note; the
-  // server writes it onto rendered links, but these URLs come from the graph JSON.
+  'use strict';
+  // Keep the chrome mode (?embed=1 / ?shell=1, and in shell mode the host's theme and chrome) when a
+  // click on the canvas opens a note; the server writes it onto rendered links, but these URLs come from
+  // the graph JSON.
   function withMode(u) {
     var W = window.WEBSIDIAN || window.MD2HTML;
     var m = W && W.embed ? 'embed' : W && W.shell ? 'shell' : '';
     if (!m || !u || u.indexOf(m + '=') >= 0) return u;
-    var t = m === 'shell' ? (/[?&]theme=(dark|light)/.exec(location.search) || ['', ''])[1] : '';
+    var t = m === 'shell' ? (/[?&]theme=(dark|light)\b/.exec(location.search) || ['', ''])[1] : '';
+    var c = m === 'shell' ? (/[?&]chrome=(tree|none)\b/.exec(location.search) || ['', ''])[1] : '';
     var i = u.indexOf('#'); var hash = i >= 0 ? u.slice(i) : ''; var p = i >= 0 ? u.slice(0, i) : u;
-    return p + (p.indexOf('?') >= 0 ? '&' : '?') + m + '=1' + (t ? '&theme=' + t : '') + hash;
+    return p + (p.indexOf('?') >= 0 ? '&' : '?') + m + '=1' + (t ? '&theme=' + t : '') + (c ? '&chrome=' + c : '') + hash;
   }
-
-  'use strict';
   var G = window.WEBSIDIAN_GRAPH || window.MD2HTML_GRAPH; if (!G) return;
   var canvas = document.getElementById('exploreCanvas'); if (!canvas) return;
   var ctx = canvas.getContext('2d');
@@ -777,13 +778,19 @@
     else if (e.key === 'Escape') { if (hl) clearHighlight(); else if (panel) panel.classList.add('is-hidden'); }
   });
 
+  // In shell mode the host owns the theme: the saved choice is ignored and the host can push a change down.
   var root = document.documentElement;
-  try { var th = localStorage.getItem('md2html-theme'); if (th) root.setAttribute('data-theme', th); } catch (e) {}
+  var hosted = !!(window.WEBSIDIAN && window.WEBSIDIAN.shell);
+  if (!hosted) { try { var th = localStorage.getItem('md2html-theme'); if (th) root.setAttribute('data-theme', th); } catch (e) {} }
   var themeBtn = $('themeBtn');
   if (themeBtn) themeBtn.addEventListener('click', function () {
     var dark = root.getAttribute('data-theme') === 'dark' || (!root.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
     root.setAttribute('data-theme', dark ? 'light' : 'dark'); try { localStorage.setItem('md2html-theme', dark ? 'light' : 'dark'); } catch (e) {}
     draw();
+  });
+  if (hosted) window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (d && d.type === 'websidian:theme' && (d.theme === 'dark' || d.theme === 'light')) { root.setAttribute('data-theme', d.theme); draw(); }
   });
 
   // the URL's view or reach, applied once the first graph has loaded

@@ -334,3 +334,9 @@ html.is-shell body.shell-host { min-height: 100%; }
 .is-shell .main { padding-top: 16px; }
 @media (max-width: 1100px) { .is-shell .tocbar { display: none; } }
 @media (max-width: 800px) { .is-shell .shell-crumbs { display: none; } }
+/* chrome=tree: the host has its own search and title bar; chrome=none: a reading pane, the note alone. */
+html.is-shell.shell-no-bar { --topbar-h: 0px; }
+.is-shell.shell-no-tree .shell { grid-template-columns: minmax(0, 1fr) var(--toc-w); }
+.is-shell.shell-no-tree .main { max-width: 860px; }
+.is-shell.shell-no-bar .main { padding-top: 24px; }
+@media (max-width: 1100px) { .is-shell.shell-no-tree .shell { grid-template-columns: minmax(0, 1fr); } }

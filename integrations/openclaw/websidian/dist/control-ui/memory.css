@@ -1,115 +1,198 @@
 /* Websidian's Memory page inside OpenClaw's Control UI.
  *
- * Every rule is under .websidian-memory, and every class starts with wsd-, so this cannot reach the
- * host's own elements or collide with another plugin's stylesheet. Colours come from currentColor and
- * from colour-mix against the surface the host already painted, so the page follows OpenClaw's theme
- * instead of declaring one of its own. */
+ * Every rule is under .websidian-memory and every class starts with wsd-, so nothing here can reach the
+ * host's own elements or another plugin's. Colours are derived from currentColor with color-mix, so the
+ * page takes the host's text colour and surface in light and dark instead of declaring a palette of its
+ * own. */
 
 .websidian-memory {
+  --wsd-fg-2: color-mix(in srgb, currentColor 68%, transparent);
+  --wsd-fg-3: color-mix(in srgb, currentColor 48%, transparent);
+  --wsd-line: color-mix(in srgb, currentColor 13%, transparent);
+  --wsd-line-2: color-mix(in srgb, currentColor 22%, transparent);
+  --wsd-hover: color-mix(in srgb, currentColor 6%, transparent);
+  --wsd-active: color-mix(in srgb, currentColor 10%, transparent);
+  --wsd-surface: color-mix(in srgb, currentColor 3%, transparent);
+  --wsd-mark: color-mix(in srgb, #f2b134 38%, transparent);
+  --wsd-radius: 12px;
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 20px 24px 0;
-  gap: 4px;
+  padding: 22px 28px 0;
+  box-sizing: border-box;
   font: inherit;
   color: inherit;
 }
+.websidian-memory *, .websidian-memory *::before, .websidian-memory *::after { box-sizing: border-box; }
 
-.websidian-memory .wsd-header { display: flex; align-items: flex-start; gap: 16px; }
-.websidian-memory .wsd-heading { flex: 1; min-width: 0; }
-.websidian-memory .wsd-title { margin: 0; font-size: 1.35rem; font-weight: 600; }
-.websidian-memory .wsd-subtitle { margin: 2px 0 0; font-size: 0.85rem; opacity: 0.65; }
-.websidian-memory .wsd-actions { display: flex; gap: 8px; }
+.websidian-memory .wsd-icon {
+  width: 16px; height: 16px; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
 
+/* ---- header ---- */
+.websidian-memory .wsd-header { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.websidian-memory .wsd-heading { flex: 1 1 16rem; min-width: 0; }
+.websidian-memory .wsd-title-row { display: flex; align-items: center; gap: 10px; }
+.websidian-memory .wsd-title-icon { width: 22px; height: 22px; stroke-width: 1.6; }
+.websidian-memory .wsd-title { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; }
+.websidian-memory .wsd-subtitle { margin: 4px 0 0; margin-inline-start: 32px; font-size: 0.85rem; color: var(--wsd-fg-3); min-height: 1.2em; }
+
+.websidian-memory .wsd-tools { display: flex; align-items: center; gap: 8px; flex: 0 1 26rem; min-width: 14rem; }
+.websidian-memory .wsd-search {
+  flex: 1; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px;
+  border: 1px solid var(--wsd-line-2); border-radius: 10px; background: var(--wsd-surface);
+  color: var(--wsd-fg-3); cursor: text; transition: border-color .15s, box-shadow .15s;
+}
+.websidian-memory .wsd-search:focus-within { border-color: color-mix(in srgb, currentColor 45%, transparent); box-shadow: 0 0 0 3px var(--wsd-active); color: inherit; }
+.websidian-memory .wsd-search-input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 0.9rem; color: inherit; padding: 0; }
+.websidian-memory .wsd-search-input::placeholder { color: var(--wsd-fg-3); }
+.websidian-memory .wsd-search-input::-webkit-search-cancel-button { cursor: pointer; }
+.websidian-memory .wsd-kbd {
+  font: inherit; font-size: 0.72rem; line-height: 1; padding: 3px 6px; border-radius: 5px;
+  border: 1px solid var(--wsd-line-2); color: var(--wsd-fg-3);
+}
+.websidian-memory .wsd-search:focus-within .wsd-kbd { visibility: hidden; }
+
+/* ---- buttons ---- */
 .websidian-memory .wsd-button,
-.websidian-memory .wsd-tab,
+.websidian-memory .wsd-icon-button,
 .websidian-memory .wsd-link {
-  font: inherit;
-  color: inherit;
-  background: transparent;
-  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
-  border-radius: 8px;
-  padding: 5px 12px;
-  cursor: pointer;
+  font: inherit; color: inherit; background: transparent; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  text-decoration: none; transition: background-color .12s, border-color .12s;
 }
-.websidian-memory .wsd-button:hover,
-.websidian-memory .wsd-tab:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
-.websidian-memory .wsd-button[disabled] { opacity: 0.5; cursor: default; }
-
-.websidian-memory .wsd-tabs { display: flex; gap: 6px; margin: 14px 0 12px; flex-wrap: wrap; }
-.websidian-memory .wsd-tab.is-current { background: color-mix(in srgb, currentColor 14%, transparent); font-weight: 600; }
-
-.websidian-memory .wsd-body { flex: 1; min-height: 0; overflow: auto; padding-bottom: 20px; }
-
-.websidian-memory .wsd-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
+.websidian-memory .wsd-button { height: 32px; padding: 0 12px; border: 1px solid var(--wsd-line-2); border-radius: 8px; font-size: 0.85rem; }
+.websidian-memory .wsd-icon-button { width: 36px; height: 36px; border: 1px solid var(--wsd-line-2); border-radius: 10px; }
+.websidian-memory .wsd-link { border: 0; padding: 0; font-size: 0.82rem; color: var(--wsd-fg-2); }
+.websidian-memory .wsd-link:hover { color: inherit; text-decoration: underline; }
+.websidian-memory .wsd-button:hover, .websidian-memory .wsd-icon-button:hover { background: var(--wsd-hover); border-color: color-mix(in srgb, currentColor 32%, transparent); }
+.websidian-memory :is(.wsd-button, .wsd-icon-button, .wsd-tab, .wsd-card, .wsd-row, .wsd-link):focus-visible {
+  outline: 2px solid color-mix(in srgb, currentColor 55%, transparent); outline-offset: 2px;
 }
+.websidian-memory .wsd-icon-button[disabled] { opacity: .5; cursor: default; }
+.websidian-memory.is-loading .wsd-icon-button .wsd-icon { animation: wsd-spin .8s linear infinite; }
+@keyframes wsd-spin { to { transform: rotate(360deg); } }
+
+/* ---- tabs: an underline, like the host's own navigation, not a row of buttons ---- */
+.websidian-memory .wsd-tabs {
+  display: flex; gap: 4px; margin: 18px 0 0; border-bottom: 1px solid var(--wsd-line);
+  overflow-x: auto; scrollbar-width: none;
+}
+.websidian-memory .wsd-tab {
+  font: inherit; font-size: 0.88rem; color: var(--wsd-fg-2); background: transparent; border: 0; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px 10px; margin-bottom: -1px;
+  border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; white-space: nowrap;
+}
+.websidian-memory .wsd-tab:hover { color: inherit; background: var(--wsd-hover); }
+.websidian-memory .wsd-tab.is-current { color: inherit; font-weight: 600; border-bottom-color: currentColor; }
+
+/* ---- body ---- */
+.websidian-memory .wsd-body { flex: 1; min-height: 0; overflow: auto; padding: 20px 0 32px; }
+.websidian-memory.is-framed .wsd-body { overflow: hidden; display: flex; flex-direction: column; padding: 14px 0 18px; }
+.websidian-memory .wsd-overview, .websidian-memory .wsd-timeline, .websidian-memory .wsd-results { max-width: 72rem; }
+
+.websidian-memory .wsd-section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 4px 0 10px; }
+.websidian-memory .wsd-section-title h2 {
+  margin: 0; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--wsd-fg-3);
+}
+.websidian-memory .wsd-cards + .wsd-section-title { margin-top: 28px; }
+
+/* ---- cards ---- */
+.websidian-memory .wsd-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 12px; }
 .websidian-memory .wsd-card {
-  font: inherit;
-  color: inherit;
-  text-align: start;
-  background: transparent;
-  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
-  border-radius: 10px;
-  padding: 14px 16px;
-  cursor: pointer;
-  display: block;
-  width: 100%;
+  font: inherit; color: inherit; text-align: start; cursor: pointer;
+  display: flex; flex-direction: column; gap: 10px; min-height: 9.5rem; padding: 16px 16px 14px;
+  background: var(--wsd-surface); border: 1px solid var(--wsd-line); border-radius: var(--wsd-radius);
+  transition: border-color .15s, background-color .15s, transform .15s;
 }
-.websidian-memory .wsd-card:hover { border-color: color-mix(in srgb, currentColor 45%, transparent); }
-.websidian-memory .wsd-card-absent { opacity: 0.55; cursor: default; }
-.websidian-memory .wsd-card-title { margin: 0 0 3px; font-size: 0.95rem; font-weight: 600; }
-.websidian-memory .wsd-card-meta { font-size: 0.78rem; opacity: 0.65; }
-.websidian-memory .wsd-card-note { font-size: 0.82rem; opacity: 0.8; margin-top: 6px; }
+.websidian-memory .wsd-card:hover { border-color: var(--wsd-line-2); background: var(--wsd-hover); }
+.websidian-memory .wsd-card:active { transform: translateY(1px); }
+.websidian-memory .wsd-card.is-absent { cursor: default; background: transparent; border-style: dashed; color: var(--wsd-fg-3); }
+.websidian-memory .wsd-card.is-absent:hover { background: transparent; }
+.websidian-memory .wsd-card-top { display: flex; align-items: center; gap: 9px; }
+.websidian-memory .wsd-card-icon {
+  width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--wsd-active); stroke-width: 1.7;
+}
+.websidian-memory .wsd-card-label { font-weight: 600; font-size: 0.95rem; }
+.websidian-memory .wsd-card-excerpt {
+  margin: 0; flex: 1; font-size: 0.86rem; line-height: 1.5; color: var(--wsd-fg-2);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.websidian-memory .wsd-card-foot { display: flex; justify-content: space-between; gap: 10px; font-size: 0.76rem; color: var(--wsd-fg-3); }
+.websidian-memory .wsd-card-file { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.72rem; }
 
-.websidian-memory .wsd-day {
-  margin: 18px 0 6px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.6;
+/* ---- note rows ---- */
+.websidian-memory .wsd-notes { list-style: none; margin: 0; padding: 0; border: 1px solid var(--wsd-line); border-radius: var(--wsd-radius); overflow: hidden; }
+.websidian-memory .wsd-notes li + li { border-top: 1px solid var(--wsd-line); }
+.websidian-memory .wsd-row {
+  font: inherit; color: inherit; background: transparent; border: 0; cursor: pointer; width: 100%; text-align: start;
+  display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px;
 }
-.websidian-memory .wsd-notes { list-style: none; margin: 0; padding: 0; }
-.websidian-memory .wsd-notes li { border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent); }
-.websidian-memory .wsd-note {
-  font: inherit;
-  color: inherit;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 4px;
-  text-align: start;
+.websidian-memory .wsd-row:hover, .websidian-memory .wsd-row.is-active { background: var(--wsd-hover); }
+.websidian-memory .wsd-row-icon { margin-top: 2px; color: var(--wsd-fg-3); }
+.websidian-memory .wsd-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.websidian-memory .wsd-row-title { font-weight: 500; font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.websidian-memory .wsd-row-excerpt {
+  font-size: 0.83rem; line-height: 1.45; color: var(--wsd-fg-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.websidian-memory .wsd-note:hover { background: color-mix(in srgb, currentColor 7%, transparent); }
-.websidian-memory .wsd-note-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.websidian-memory .wsd-note-meta { font-size: 0.78rem; opacity: 0.55; white-space: nowrap; }
+.websidian-memory .wsd-row-excerpt mark { background: var(--wsd-mark); color: inherit; border-radius: 3px; padding: 0 1px; }
+.websidian-memory .wsd-row-time { flex: none; font-size: 0.76rem; color: var(--wsd-fg-3); white-space: nowrap; margin-top: 2px; }
 
-.websidian-memory .wsd-crumb { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.websidian-memory .wsd-crumb-title { font-size: 0.82rem; opacity: 0.65; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ---- timeline ---- */
+.websidian-memory .wsd-day + .wsd-day { margin-top: 22px; }
+.websidian-memory .wsd-day-title {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 8px;
+  font-size: 0.9rem; font-weight: 600;
+}
+.websidian-memory .wsd-day-count {
+  font-size: 0.7rem; font-weight: 600; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center; background: var(--wsd-active); color: var(--wsd-fg-2);
+}
+
+/* ---- reading pane ---- */
+.websidian-memory .wsd-reader { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.websidian-memory .wsd-reader-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.websidian-memory .wsd-reader-title { margin: 0; font-size: 1.05rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.websidian-memory .wsd-reader-path { font-size: 0.76rem; color: var(--wsd-fg-3); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.websidian-memory .wsd-reader-actions { display: flex; gap: 8px; }
 
 .websidian-memory .wsd-frame {
-  width: 100%;
-  height: 100%;
-  min-height: 24rem;
-  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
-  border-radius: 10px;
-  background: transparent;
-  display: block;
+  flex: 1; width: 100%; min-height: 20rem; display: block;
+  border: 1px solid var(--wsd-line); border-radius: var(--wsd-radius); background: transparent;
 }
 
-.websidian-memory .wsd-empty { opacity: 0.65; }
-.websidian-memory .wsd-error { color: #d1242f; }
+/* ---- states ---- */
+.websidian-memory .wsd-empty { padding: 28px 20px; text-align: center; border: 1px dashed var(--wsd-line-2); border-radius: var(--wsd-radius); }
+.websidian-memory .wsd-empty-title { margin: 0 0 4px; font-weight: 600; }
+.websidian-memory .wsd-empty-text { margin: 0; font-size: 0.85rem; color: var(--wsd-fg-3); }
+.websidian-memory .wsd-problem { max-width: 30rem; margin: 48px auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.websidian-memory .wsd-problem-icon { width: 36px; height: 36px; color: var(--wsd-fg-3); stroke-width: 1.4; }
+.websidian-memory .wsd-problem-title { margin: 8px 0 0; font-weight: 600; }
+.websidian-memory .wsd-problem-hint { margin: 0 0 10px; font-size: 0.86rem; color: var(--wsd-fg-2); }
 
-@media (max-width: 700px) {
+.websidian-memory .wsd-skeleton { cursor: default; position: relative; overflow: hidden; background: var(--wsd-surface); border-color: var(--wsd-line); }
+.websidian-memory .wsd-row.wsd-skeleton { height: 58px; margin-top: 10px; border: 1px solid var(--wsd-line); border-radius: 10px; }
+.websidian-memory .wsd-skeleton::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, var(--wsd-hover), transparent);
+  animation: wsd-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes wsd-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+.websidian-memory .wsd-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .websidian-memory *, .websidian-memory *::after { animation: none !important; transition: none !important; }
+}
+
+@media (max-width: 760px) {
   .websidian-memory { padding: 14px 14px 0; }
-  .websidian-memory .wsd-note-meta { display: none; }
+  .websidian-memory .wsd-tools { flex-basis: 100%; }
+  .websidian-memory .wsd-subtitle { margin-inline-start: 0; }
+  .websidian-memory .wsd-row-time { display: none; }
+  .websidian-memory .wsd-reader-actions .wsd-button span { display: none; }
 }
+.websidian-memory .wsd-results-title { margin: 2px 0 12px; font-size: 0.88rem; color: var(--wsd-fg-2); }

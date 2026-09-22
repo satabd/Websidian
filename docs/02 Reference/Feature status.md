@@ -1,7 +1,7 @@
 ---
 title: Feature status
 tags: [websidian, reference, status]
-updated: 2026-09-21
+updated: 2026-09-23
 order: 1
 description: Done, partial, in progress, missing
 ---
@@ -23,7 +23,7 @@ description: Done, partial, in progress, missing
 | Navigation order (`order:`), folder notes, generated section pages | ✅ | [[Navigation and sections]] |
 | Arabic / English language switch, RTL pages | ✅ | Notes without `lang:` get their page direction from their letters (browser-checked on an untrusted site under the dashboard mount, 2026-09-16) |
 | Embed mode for iframes | ✅ | [[Embedding in your website]] |
-| Shell mode (`?shell=1`, `&theme=`) for a host application's own chrome | ✅ | Sidebar, search, backlinks and local graph kept; brand, print and theme dropped; the mode and the theme ride on every link. Browser-tested inside OpenClaw's Control UI, light and dark, 2026-09-21 — [[Embedding in your website#Inside another application shell mode]] |
+| Shell mode (`?shell=1`, `&theme=`, `&chrome=tree|none`) for a host application's own chrome | ✅ | Sidebar, search, backlinks and local graph kept; brand, print and theme dropped; the mode and the theme ride on every link. Browser-tested inside OpenClaw's Control UI, light and dark, 2026-09-21 — [[Embedding in your website#Inside another application shell mode]] |
 | Drafts and visibility rules | ✅ | [[Publishing and visibility]] |
 | Site auth (basic / share token) | ✅ | Cookies are `websidian_<site>` since 2026-09-16 |
 | Generated favicon from `brand.color`, OpenGraph and Twitter cards | ✅ | [[Deploying#A public, read-only site]] |
@@ -79,5 +79,5 @@ description: Done, partial, in progress, missing
 | OpenClaw plugin (`integrations/openclaw/websidian`): write guard on `write`/`edit`/`apply_patch`/`exec`, links footer, `websidian_links`, `/brain`, skill — [[OpenClaw plugin]] | 🟡 deployed in `clawat02` 2026-09-17 (loaded, supervisor running, pages probed through port 18794); guard ported with zero differences from the Python one on 140 inputs, and two bypasses in the adapters around it (new-file path resolution, split multi-edit) found and closed by review on 2026-09-20; hooks exercised with a fake API only — the live chat turn waits for the OpenAI backend (`400` with or without the plugin; weekly quota at 0 %, ~2026-09-19) |
 | OpenClaw plugin: pages behind the Gateway (`/plugins/websidian/`, supervised Websidian, sign-in with the Gateway token) — [[OpenClaw plugin#Pages]] | ✅ 2026-09-17, probed over HTTP in the container: sign-in, status, proxied notes with CSP, editor gating, path validation |
 | OpenClaw plugin: installers (`deploy/install-into-container.sh`, `install-local.sh`, `.ps1`) | 🟡 the container one ran end to end twice (throw-away container, then `clawat02` with `--register`); the native ones are untested copies of the Hermes ones |
-| OpenClaw plugin: native **Memory** page in the Control UI (`defineControlUiPlugin` + `host.ui.registerPage`/`registerNavigation`, a `surface: "tab"` descriptor and the `auth: "gateway"` route) — [[OpenClaw plugin#The Memory page]] | ✅ 2026-09-21, browser-tested against a real OpenClaw 2026.9.5 Gateway: the sidebar entry, all four tabs, opening a note, Arabic RTL, light and dark, and one sign-in rather than two |
+| OpenClaw plugin: native **Memory** page in the Control UI (`defineControlUiPlugin` + `host.ui.registerPage`/`registerNavigation`, a `surface: "tab"` descriptor and the `auth: "gateway"` route) — [[OpenClaw plugin#The Memory page]] | ✅ 2026-09-21, redesigned 2026-09-23 (previews, native search, a reading pane, Browse, relative times, days in the reader's timezone). Browser-tested both times against a real OpenClaw 2026.9.5 Gateway: the sidebar entry, every tab, search, the reading pane, a graph click, reload, Arabic RTL, light and dark live, one sign-in |
 | MCP server for agents | ⬜ |

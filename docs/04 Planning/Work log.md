@@ -2,13 +2,29 @@
 title: Work log
 tags: [websidian, log]
 aliases: [Changelog]
-updated: 2026-09-21
+updated: 2026-09-23
 order: 5
 description: What changed each session, newest first
 ---
 # Work log
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
+
+## 2026-09-23 — the Memory page, redesigned
+The user found the first Memory page's UX lacking. Looking at it plainly: a note opened inside three layers of navigation (OpenClaw's sidebar, our tabs, then Websidian's own toolbar, search box and tree), a *Search* tab that did not search, cards that said nothing about what was in the file, and every timestamp as `9/21/2026, 8:00:21 AM`. Redesigned and checked against a real OpenClaw 2026.9.5 Gateway ([[OpenClaw plugin#The Memory page]]).
+
+![[openclaw-memory.png]]
+
+- **The page draws its own chrome; Websidian only does the reading.** Search moved into the header on every tab and shows Websidian's hits natively. Cards and rows carry the note's first heading and a preview (`previewOf()` in the plugin: plain text, frontmatter, code, scripts, comments and `§` markers removed). Opening anything turns the content area into a reading pane: a native bar (back, title, path, *Graph*, *Open*) over the note with **`chrome=none`** — a new shell level in Websidian itself that drops its toolbar and tree ([[Embedding in your website]]). *Browse* uses `chrome=tree`: the tree without a second search box.
+- **Underline tabs, relative times, loading skeletons, empty and error states with a way out**, `/` to search, arrow keys on the tabs, refresh when you come back to the tab. Colours are derived from the host's own text colour, so light and dark follow OpenClaw live.
+- **Nothing an agent wrote is markup in the Control UI.** The page runs with the operator's authority, so search snippets are rebuilt from text (`markText`: only `<mark>` survives) and frames only point at same-origin paths from the plugin's own model.
+- **Found in the live run, fixed with tests:**
+  - "Today" was the *Gateway's* today, in UTC — at 01:24 local the 23rd showed as a date and the 22nd as *Today*. Days are grouped in the browser now.
+  - Files dated ahead of the browser's clock read "in 6 hours"; they read "now".
+  - Writing the view into the URL (`p.view=…`) made OpenClaw stop highlighting **Memory** in the sidebar after a reload — it matches page parameters exactly. The view is remembered per tab instead.
+  - The reading pane came up as a 200-pixel column: new shell CSS behind an unchanged `LAYOUT_VERSION`, so browsers kept the old stylesheet. Bumped to 24.
+  - Two bugs from 2026-09-21's shell mode: the graph page crashed on the theme button shell mode had removed (so nothing after that line ran), and the graph's link helper carried a literal backspace in its regex and sat above `'use strict'`, which switched strict mode off for the whole file.
+- **Learned — a UI review needs the real host and real data.** Half of these only appeared with OpenClaw's own dreaming notes in the workspace, a browser in a timezone other than the Gateway's, and a reload.
 
 ## 2026-09-21 — Websidian Memory as a native page in OpenClaw
 The ask: make Websidian Memory feel like part of OpenClaw — a **🧠 Memory** entry in its sidebar, opening inside the Control UI, not a link to another application. Shipped and browser-tested against a real OpenClaw 2026.9.5 Gateway ([[OpenClaw plugin#The Memory page]]).

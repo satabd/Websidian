@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { dateFromName, dayLabel, groupByDay, memoryModel, memoryVault, MEMORY_SECTIONS } from '../lib/memory.js';
+import { dateFromName, dayLabel, groupByDay, memoryModel, memoryVault, previewOf, MEMORY_SECTIONS } from '../lib/memory.js';
 import { createMemoryHandler, memoryPage, memoryPayload, noteHref, siteBase, themeOf } from '../lib/native.js';
 import { createRouteHandler, COOKIE_NAME, readSession } from '../lib/proxy.js';
 import { Settings } from '../lib/guard.js';
@@ -83,6 +83,35 @@ describe('the memory model', () => {
     assert.deepEqual(days.map(d => d.day), ['2026-09-21', '2026-09-19']);
     assert.equal(days[0].notes.length, 2);
     assert.equal(days[0].label, 'today');
+  });
+
+  test('previews are plain text: the first heading, an excerpt and a word count', () => {
+    const source = [
+      '---', 'title: x', '---',
+      '# Long-term memory', '',
+      '§ Prefers **short** updates.',
+      '§ See [[USER|the user]], [[Websidian]] and [a site](https://x).',
+      '- [x] done', '',
+      '```js', 'secret()', '```',
+      '<script>alert(1)</script>',
+      '%% hidden %%',
+      '| a | b |',
+    ].join('\n');
+    const p = previewOf(source);
+    assert.equal(p.heading, 'Long-term memory');
+    assert.equal(p.excerpt, 'Prefers short updates. See the user, Websidian and a site. done');
+    assert.equal(p.words, 11);
+    assert.ok(!/secret|alert|hidden|<|§/.test(p.excerpt), 'code, script, comments, tags and entry markers never reach it');
+    const long = previewOf('word '.repeat(200));
+    assert.ok(long.excerpt.length <= 221 && long.excerpt.endsWith('…'));
+    assert.deepEqual(previewOf(''), { heading: '', excerpt: '', words: 0 });
+  });
+
+  test('the model carries previews for what the page shows, and when anything last changed', () => {
+    const model = memoryModel(vaultOf(), { base: BASE });
+    assert.equal(model.sections[0].entry.heading, 'Long term');
+    assert.equal(model.recent.find(n => n.rel === 'memory/2026-09-21.md').named, true);
+    assert.ok(model.updated >= Math.max(...model.recent.map(n => n.mtime)));
   });
 
   test('memoryVault picks the named vault, else the first the plugin serves itself', () => {

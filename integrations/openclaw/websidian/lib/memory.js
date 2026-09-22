@@ -19,6 +19,62 @@ export const MEMORY_SECTIONS = Object.freeze([
 export const MEMORY_FOLDERS = Object.freeze(['memory']);
 const MAX_RECENT = 40;
 const MAX_WALK_ENTRIES = 5000;
+// A preview needs the top of a note, not all of it: memory files grow for as long as the agent runs.
+const PREVIEW_BYTES = 16 * 1024;
+const EXCERPT_CHARS = 220;
+
+// {heading, excerpt, words} from the top of a note, as plain text. Everything the page shows is set with
+// textContent in the Control UI document, so this only has to read well — it is never trusted as markup.
+export function previewOf(text) {
+  let body = String(text || '').replace(/^﻿/, '');
+  const fm = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/.exec(body);
+  if (fm) body = body.slice(fm[0].length);
+  body = body.replace(/```[\s\S]*?(```|$)/g, ' ').replace(/<!--[\s\S]*?-->/g, ' ').replace(/%%[\s\S]*?%%/g, ' ')
+    .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, ' ');
+  let heading = '';
+  const lines = [];
+  for (const raw of body.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const h = /^#{1,6}\s+(.*)$/.exec(line);
+    if (h) { if (!heading && /^#\s/.test(line)) heading = inline(h[1]); continue; }
+    if (/^(\||-{3,}|\*{3,}|>\s*\[!)/.test(line)) continue; // tables, rules, callout titles
+    // Bullets, numbers, task boxes, quotes, and the § that separates entries in an agent's memory file.
+    lines.push(inline(line.replace(/^([-*+§]|\d+[.)])\s+(\[.\]\s+)?/, '').replace(/^>\s?/, '')));
+  }
+  const flat = lines.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  const words = flat ? flat.split(' ').length : 0;
+  const excerpt = flat.length > EXCERPT_CHARS ? flat.slice(0, EXCERPT_CHARS).replace(/\s+\S*$/, '') + '…' : flat;
+  return { heading, excerpt, words };
+}
+
+// Obsidian inline syntax to the words a reader sees.
+function inline(t) {
+  return String(t)
+    .replace(/!\[\[[^\]]*\]\]/g, '')                                   // embeds
+    .replace(/\[\[[^\]|]*\|([^\]]*)\]\]/g, '$1')                        // [[target|label]]
+    .replace(/\[\[([^\]#]*)(#([^\]]*))?\]\]/g, (m, a, b, c) => a || c || '') // [[target]], [[#heading]]
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')                          // [label](url), images
+    .replace(/<[^>]+>/g, '')                                            // stray HTML
+    .replace(/(\*\*|__|\*|~~|==|`)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function readHead(abs) {
+  let fd;
+  try {
+    fd = fs.openSync(abs, 'r');
+    const buf = Buffer.alloc(PREVIEW_BYTES);
+    const n = fs.readSync(fd, buf, 0, PREVIEW_BYTES, 0);
+    return buf.subarray(0, n).toString('utf8');
+  } catch { return ''; } finally { if (fd !== undefined) try { fs.closeSync(fd); } catch { /* ignore */ } }
+}
+
+function withPreview(root, entry) {
+  if (!entry) return entry;
+  return { ...entry, ...previewOf(readHead(path.join(root, entry.rel))) };
+}
 
 // "2026-09-21" from a name like 2026-09-21.md or 2026-09-21-groceries.md; "" when there is no date in it.
 export function dateFromName(name) {
@@ -61,6 +117,9 @@ function entryFor(root, rel, base) {
     mtime: Math.round(stat.mtimeMs),
     bytes: stat.size,
     day: dateFromName(path.basename(rel)) || isoDay(stat.mtimeMs),
+    // Whether `day` is the date the author put in the name. When it is not, the day is the modification
+    // time's, and only the reader's browser knows which day that is in the reader's timezone.
+    named: !!dateFromName(path.basename(rel)),
     url: base ? base + noteRelToUrlPath(rel) : '',
   };
 }
@@ -112,7 +171,7 @@ export function memoryModel(vault, { base = '', now = Date.now(), folders = MEMO
   const found = [];
   const missing = [];
   for (const section of sections) {
-    const entry = entryFor(root, section.file, base);
+    const entry = withPreview(root, entryFor(root, section.file, base));
     if (entry) found.push({ id: section.id, label: section.label, note: section.note, entry });
     else missing.push({ id: section.id, label: section.label, file: section.file });
   }
@@ -124,7 +183,9 @@ export function memoryModel(vault, { base = '', now = Date.now(), folders = MEMO
     if (stat.isDirectory()) dated.push(...walkNotes(root, folder, base));
   }
   dated.sort((a, b) => b.mtime - a.mtime);
-  const recent = dated.slice(0, MAX_RECENT);
+  // Only the notes the page will show are opened; the rest of the walk is a stat each.
+  const recent = dated.slice(0, MAX_RECENT).map(e => withPreview(root, e));
+  const latest = [...found.map(x => x.entry.mtime), ...(recent[0] ? [recent[0].mtime] : [])];
   return {
     slug: vault.slug,
     title: vault.title,
@@ -133,6 +194,7 @@ export function memoryModel(vault, { base = '', now = Date.now(), folders = MEMO
     recent,
     timeline: groupByDay(recent, now),
     counts: { sections: found.length, dated: dated.length },
+    updated: latest.length ? Math.max(...latest) : 0,
   };
 }
 
