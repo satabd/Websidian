@@ -1,7 +1,7 @@
 ---
 title: Configuration
 tags: [websidian, guide, reference]
-updated: 2026-09-16
+updated: 2026-09-23
 order: 9
 description: Every key, with examples
 ---
@@ -59,7 +59,8 @@ names are in `.gitignore`: the real one holds passwords, tokens and webhook secr
 | `adminToken` | Enables `POST /_purge` |
 | `cacheDir`, `diskCache`, `cache.maxEntries` | Render cache — see [[Architecture]] |
 | `warm` | Pre-render every note at start |
-| `rateLimit.search`, `rateLimit.login`, `rateLimit.assist` | Per minute per IP: searches; failed sign-ins (editor login and site `auth.users`); [[Writing help]] requests, default 20 — each one spawns a CLI process or spends API tokens |
+| `agents` | `{ list: [{ id, backend, command, model, effort, modes, … }], skills, sessionScope, instructions, timeoutMs, stateFile }` — optional agent panel in the editor: Claude Code, Codex, Hermes Agent or OpenClaw, each configured on its own, one continuing session per note, the Obsidian skills (`npm run skills`), Review by default and Edit only where listed. An agent whose CLI does not answer `--version` is left out ([[Agents in the editor]]) |
+| `rateLimit.search`, `rateLimit.login`, `rateLimit.assist`, `rateLimit.agents` | Per minute per IP: searches; failed sign-ins (editor login and site `auth.users`); [[Writing help]] requests, default 20 — each one spawns a CLI process or spends API tokens; agent turns, default 10 |
 | `trustProxy` | `true` behind nginx/Caddy |
 | `proxyAuth` | Sign-in through a trusted reverse proxy — see [[#Behind a trusted proxy]] |
 | `log` | `"text"`, `"json"` or `false` |

@@ -10,7 +10,7 @@ description: Running and extending the suite
 ```bash
 npm test
 ```
-Node's built-in test runner: 330 tests on 2026-09-23 (323 on 2026-09-21, 221 on 2026-09-16, 156 on 2026-09-13, 123 on 2026-09-11).
+Node's built-in test runner: 348 tests on 2026-09-23 with the agent panel (330 before it the same day, 323 on 2026-09-21, 221 on 2026-09-16, 156 on 2026-09-13, 123 on 2026-09-11).
 
 Hermes plugin: `cd integrations/hermes/websidian` then `python -m unittest discover` — 98 tests on 2026-09-16 (71 before the version stamps and the second skill) ([[Hermes plugin]]).
 
@@ -35,6 +35,7 @@ OpenClaw plugin: part of `npm test` (`integrations/openclaw/websidian/test/*.tes
 | `test/cache.test.js` | Both cache layers |
 | `test/hardening.test.js` | Auth, rate limits, SEO, webhook signatures, search |
 | `test/untrusted.test.js` | `untrusted` sites: no raw HTML, CSP, attachment allowlist, snippets default |
+| `test/agents.test.js` | The agent panel: each backend's argv and parser against what the real CLIs print, per-agent config, skills, the context sent once, diffs, and the HTTP flow (session reuse, edit + revert, a write in Review, failures, safe rendering) against `test/fake-agent.js` — [[Agents in the editor]] |
 | `test/editor-guards.test.js` | `edit.protect`, memory limits, sign-in 429, symlink/junction refusal |
 | `test/proxy-auth.test.js` | `proxyAuth`: secret, address, user name cleaning, editor and site auth, denied fallback |
 | `test/dotpath.test.js` | Install and vault under a dot-folder (`~/.hermes`): editor modules and attachments still served |

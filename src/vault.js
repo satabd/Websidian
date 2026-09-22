@@ -97,6 +97,7 @@ class Vault {
     this.auth = site.auth && (site.auth.users || site.auth.token) ? site.auth : null;
     this.webhook = site.webhook || null;
     this.edit = site.edit;          // editor settings; resolved in editor.js against the global `edit`
+    this.agents = site.agents;      // `false` turns the editor's agent panel off for this site
     this.untrusted = !!site.untrusted;
     this.excalidraw = site.excalidraw === false || site.excalidraw === 'image' ? 'image' : 'viewer'; // "image": only the plugin's exported picture, no viewer
     this.snippetsCfg = site.snippets === undefined ? !site.untrusted : site.snippets; // untrusted: an agent could write CSS, so off unless asked // true = Obsidian's enabled ones, "all", [names], or false

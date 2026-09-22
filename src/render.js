@@ -442,8 +442,9 @@ class Renderer {
 
   // Render Markdown source as if it were the note at `rel` (links, embeds and
   // images resolve relative to that path). Used for the editor's live preview
-  // of unsaved text; the disk file, if any, is not read.
-  async renderSource(vault, rel, text, { stamp = 'preview', mtimeMs = Date.now() } = {}) {
+  // of unsaved text; the disk file, if any, is not read. `safe` renders without raw HTML
+  // whatever the site allows — for text an agent wrote (the editor's agent panel).
+  async renderSource(vault, rel, text, { stamp = 'preview', mtimeMs = Date.now(), safe = false } = {}) {
     const sources = new Map([[rel, text]]);
     // Preload every note this one might transclude (one level is enough to seed;
     // deeper levels are loaded on demand with a sync read, which is rare).
@@ -452,7 +453,7 @@ class Renderer {
       if (r && r.kind === 'note' && !sources.has(r.rel)) { try { sources.set(r.rel, await fsp.readFile(require('path').join(vault.root, r.rel), 'utf8')); } catch { /* skip */ } }
     }
     const deps = new Set(); const headings = [];
-    const md = this.mdFor(vault);
+    const md = safe ? this.mdSafe : this.mdFor(vault);
     const env = {
       vault, rel, depth: 0, deps, headings,
       renderSync(subRel, fragment, depth) {

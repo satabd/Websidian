@@ -20,6 +20,7 @@ const express = require('express');
 const { safeEqual, parseCookies } = require('./auth');
 const { RateLimiter } = require('./ratelimit');
 const assistLib = require('./assist');
+const agentsLib = require('./agents');
 const { faviconTag } = require('./layout');   // the editor and login pages had no icon, so every visit logged a /favicon.ico 404
 const { escapeHtml } = require('./render');
 const { isServableAttachment } = require('./untrusted');
@@ -304,7 +305,7 @@ function assetVersion(name, fallback) {
   try { return Math.floor(require('fs').statSync(path.join(__dirname, '..', 'public', name)).mtimeMs).toString(36); } catch { return fallback; }
 }
 
-function editorDocument({ vault, vaults, config, rel, exists, user, proxied = false, layoutVersion, settings, importMap, nonce = '' }) {
+function editorDocument({ vault, vaults, config, rel, exists, user, proxied = false, layoutVersion, settings, importMap, nonce = '', agents = false }) {
   const n = nonce ? ` nonce="${nonce}"` : '';   // CSP nonce on untrusted sites (see untrusted.js)
   const assets = vault.basePath; const brand = vault.brand;
   const title = exists ? (vault.note(rel)?.title || rel) : rel.replace(/\.md$/, '');
@@ -380,7 +381,8 @@ ${brand.favicon ? `<link rel="icon" href="${escapeHtml(brand.favicon)}">` : ''}
 <script src="${assets}/_vendor/hljs/highlight.min.js" defer></script>
 <script src="${assets}/_vendor/katex/katex.min.js" defer></script>
 <script src="${assets}/_static/excalidraw-view.js?v=${layoutVersion}" defer></script>
-<script src="${assets}/_static/editor.js?v=${assetVersion('editor.js', layoutVersion)}" defer></script>${vaults.length > 1 ? `\n<script src="${assets}/_static/site-switch.js?v=${layoutVersion}" defer></script>` : ''}
+<script src="${assets}/_static/editor.js?v=${assetVersion('editor.js', layoutVersion)}" defer></script>${agents ? `
+<script src="${assets}/_static/agent-panel.js?v=${assetVersion('agent-panel.js', layoutVersion)}" defer></script>` : ''}${vaults.length > 1 ? `\n<script src="${assets}/_static/site-switch.js?v=${layoutVersion}" defer></script>` : ''}
 </body>
 </html>`;
 }
@@ -423,11 +425,15 @@ ${brand.color ? `<style>:root{--accent:${brand.color}}</style>` : ''}
 
 // ---- routes ------------------------------------------------------------------------
 
-function install(router, { config, vaults, bySlug, renderer, log, layoutVersion, esm, proxyAuth = null, assist = null }) {
+function install(router, { config, vaults, bySlug, renderer, log, layoutVersion, esm, proxyAuth = null, assist = null, agents = null }) {
   const secret = config.edit && config.edit.secret ? String(config.edit.secret) : crypto.randomBytes(32).toString('hex');
   const loginLimiter = new RateLimiter({ limit: (config.rateLimit && config.rateLimit.login) || 10, windowMs: 60_000 });
   // Every assist call costs money, so it has its own, tighter budget.
   const assistLimiter = new RateLimiter({ limit: (config.rateLimit && config.rateLimit.assist) || 20, windowMs: 60_000 });
+  // An agent turn runs a whole agent — tools, many model calls — so it is budgeted tighter still.
+  const agentLimiter = new RateLimiter({ limit: (config.rateLimit && config.rateLimit.agents) || 10, windowMs: 60_000 });
+  // The agent panel: on when `agents` is configured, unless the site says `"agents": false`.
+  const agentsOn = vault => !!agents && vault.agents !== false;
   for (const v of vaults) {
     v.editor = resolveConfig(v.edit, config.edit, { proxy: !!proxyAuth });
     v.editUrl = rel => v.siteUrl() + '_edit/' + rel.replace(/\.md$/i, '').split('/').map(encodeURIComponent).join('/');
@@ -505,7 +511,7 @@ function install(router, { config, vaults, bySlug, renderer, log, layoutVersion,
     res.set('Cache-Control', 'no-store');
     const settings = await obsidianSettings(vault);
     const importMap = esm && esm.packages.size ? esm.importMap(vault.basePath) : null;
-    res.type('html').send(editorDocument({ vault, vaults, config, rel: target.rel, exists: !!existing, user, proxied: !!(vault.editor.proxy && req.proxyUser && user === req.proxyUser), layoutVersion, settings, importMap, nonce: res.locals.cspNonce }));
+    res.type('html').send(editorDocument({ vault, vaults, config, rel: target.rel, exists: !!existing, user, proxied: !!(vault.editor.proxy && req.proxyUser && user === req.proxyUser), layoutVersion, settings, importMap, nonce: res.locals.cspNonce, agents: agentsOn(vault) }));
   });
 
   // -- JSON API -------------------------------------------------------------------------
@@ -663,7 +669,91 @@ function install(router, { config, vaults, bySlug, renderer, log, layoutVersion,
     });
   }
 
-  return { currentUser, assist };
+  // -- agents (optional; only routed when `agents` is configured) ---------------------
+  if (agents) {
+    const fail = (req, res, e, what) => {
+      const status = e.expose ? (e.status || 400) : 500;
+      if (!e.expose) log('agent-error', { site: req.vault.slug, user: req.user, what, error: e.message });
+      res.status(status).json({ error: e.expose ? e.message : 'The agent panel hit an error — the server log has the detail.' });
+    };
+    const noteRel = (req, input) => { const t = safeNoteRel(req.vault, input, { strict: true }); if (t.error) throw agentsLib.mine(t.error, 400); return t.rel; };
+    const off = (req, res, next) => (agentsOn(req.vault) ? next() : res.status(404).json({ error: 'Agents are off for this site.' }));
+
+    api.get('/agents', off, (req, res) => res.json(agentsLib.menu(agents, req.vault, req.user)));
+
+    // An agent's reply rendered like a note (wikilinks resolve), but never with raw HTML: the
+    // agent may have read a note that told it to write some.
+    api.post('/agents/render', off, async (req, res) => {
+      const body = req.body || {};
+      try {
+        const rel = noteRel(req, body.rel);
+        const texts = (Array.isArray(body.texts) ? body.texts : []).slice(0, 120).map(t => String(t == null ? '' : t).slice(0, 200_000));
+        const html = [];
+        for (const t of texts) html.push((await renderer.renderSource(req.vault, rel, t, { safe: true })).html);
+        res.json({ html });
+      } catch (e) { fail(req, res, e, 'render'); }
+    });
+
+    api.get('/agents/:agent/session', off, (req, res) => {
+      try { res.json(agentsLib.getSession(agents, { site: req.vault.slug, user: req.user, agentId: req.params.agent, rel: noteRel(req, req.query.rel) })); }
+      catch (e) { fail(req, res, e, 'session'); }
+    });
+    // Forget the conversation: the next message starts a new session (the CLI keeps its own copy).
+    api.delete('/agents/:agent/session', off, (req, res) => {
+      try { agentsLib.resetSession(agents, { site: req.vault.slug, user: req.user, agentId: req.params.agent, rel: noteRel(req, req.query.rel) }); res.json({ ok: true }); }
+      catch (e) { fail(req, res, e, 'reset'); }
+    });
+
+    api.post('/agents/:agent/turn', off, agentLimiter.middleware(), (req, res) => {
+      const body = req.body || {}; const vault = req.vault;
+      try {
+        const patterns = protectPatterns(vault);
+        const out = agentsLib.startTurn(agents, {
+          vault, user: req.user, agentId: req.params.agent, rel: noteRel(req, body.rel),
+          message: body.message, mode: body.mode, selection: body.selection, dirty: !!body.dirty,
+          protect: patterns.length ? patterns : DEFAULT_PROTECT, isProtected: rel => isProtected(patterns.length ? patterns : DEFAULT_PROTECT, rel), log,
+        });
+        res.status(202).json(out);
+      } catch (e) { fail(req, res, e, 'turn'); }
+    });
+
+    api.get('/agent-turns/:turn', off, (req, res) => {
+      try { res.json(agentsLib.turnStatus(agents, { id: req.params.turn, site: req.vault.slug, user: req.user })); }
+      catch (e) { fail(req, res, e, 'status'); }
+    });
+    api.post('/agent-turns/:turn/cancel', off, (req, res) => {
+      try { res.json(agentsLib.cancelTurn(agents, { id: req.params.turn, site: req.vault.slug, user: req.user })); }
+      catch (e) { fail(req, res, e, 'cancel'); }
+    });
+
+    // Undo one file of a turn. Writes go through the same guards as a save: inside the vault,
+    // no symlink escape; a file the agent created is moved to .trash, like a delete.
+    api.post('/agent-turns/:turn/revert', off, async (req, res) => {
+      const vault = req.vault; const rel = String((req.body || {}).rel || '');
+      const inside = async relPath => {
+        const abs = path.join(vault.root, ...relPath.split('/'));
+        if (relPath.split('/').includes('..') || !insideRoot(path.resolve(vault.root), path.resolve(abs))) throw agentsLib.mine('Not inside the vault.', 400);
+        const escape = await linkEscape(vault, abs); if (escape) throw agentsLib.mine(escape, 400);
+        return abs;
+      };
+      try {
+        const out = await agentsLib.revert(agents, {
+          turn: req.params.turn, rel, vault, user: req.user,
+          writeFile: async (r, text) => atomicWrite(await inside(r), text),
+          trashFile: async r => {
+            const abs = await inside(r);
+            let dest = path.join(vault.root, '.trash', ...r.split('/'));
+            if (await stampOf(dest)) { const p = path.parse(dest); dest = path.join(p.dir, `${p.name}.${Date.now()}${p.ext}`); }
+            await fsp.mkdir(path.dirname(dest), { recursive: true }); await fsp.rename(abs, dest);
+          },
+        });
+        log('agent-revert', { site: vault.slug, user: req.user, rel: out.rel, status: out.status });
+        res.json(out);
+      } catch (e) { fail(req, res, e, 'revert'); }
+    });
+  }
+
+  return { currentUser, assist, agents };
 }
 
 module.exports = { install, resolveConfig, ipAllowed, safeNoteRel, linkEscape, isProtected, memoryWarnings, DEFAULT_PROTECT, makeSession, readSession, cookieName, obsidianSettings, anchorsOf, OBSIDIAN_DEFAULTS };

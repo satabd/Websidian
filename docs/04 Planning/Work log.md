@@ -18,6 +18,23 @@ A consistency pass after two sessions wrote to the vault on the same day (this o
 - The guide's status callout, config example (`ui.memory` keys), install checklist (a 2026.9.5 column, rows for the Memory route and page) and test count were still describing 2026.6.9; [[Feature status]], [[Known issues]], the backlog (A9) and [[Agent memory and second brain]] now say the same thing.
 - **Next**: redeploy to `clawat02` (installer, consent, the two settings, restart), then the live chat turn (A9).
 
+## 2026-09-23 — agents in the editor
+The ask: with OpenClaw in, make Codex, Claude Code, Hermes (and OpenClaw) usable to edit or review the vault from Websidian, with the [Obsidian skills](https://github.com/kepano/obsidian-skills), each conversation kept open so the context is not injected again on every message — and every agent configurable. Shipped as an opt-in **agent panel** in the editor ([[Agents in the editor]]).
+
+![[editor-agents.png]]
+
+- **The session belongs to the CLI.** Tried each one first: Claude Code `--session-id` then `--resume` (the resumed turn read 222k cached tokens and cost a sixth of the first), `codex exec` then `codex exec resume <thread>`, Hermes `--resume <id>` (its id arrives on stderr as `session_id: …`), OpenClaw `agent --session-id`. So the first message carries the context — vault, note, mode, the skills with their `SKILL.md` paths — and later ones carry only what was typed, plus one line when the note or the mode changed. `src/agents.js`; ids and the panel's transcript in `.websidian/agent-sessions.json`.
+- **Review is read-only where the CLI can enforce it** — Claude Code gets only `Read/Glob/Grep/Skill` in `dontAsk` mode with reads scoped to the vault and the skills; Codex the `read-only` sandbox. Edit is opt-in per agent (`modes`). Either way the vault is **snapshotted before and after** each turn, so every file touched comes back as a diff with **Revert** (refused if the file changed again; created files go to `.trash`). That is also how a Hermes or OpenClaw write in Review mode is caught: they cannot be locked from the command line.
+- **Skills**: `npm run skills` clones kepano/obsidian-skills into `agent-skills/`. Claude Code loads it natively (`--plugin-dir`, the repository is a Claude plugin); every agent also gets the list with paths in its first message.
+- **Every agent is configured on its own**: command (or an argv wrapper such as `docker exec`), model, effort, modes, sites, users, env, args, timeout, vault paths for a container, and per-backend keys (`tools`, `sandbox`, `windowsSandbox`, `toolsets`, `preloadSkills`, `agent`, `local`).
+- **Agent replies render like notes but never with raw HTML** (`renderSource(…, { safe: true })`) — the agent may have read a note telling it to write some.
+- **Checked in a browser on a copy of this vault, with the real CLIs**: Claude Code (review; a follow-up answered from memory for $0.016; *add a tag* in Edit mode — a one-line frontmatter diff, the open note reloaded, Revert restored it), Codex (review, follow-up, an edit), Hermes (review, follow-up; a `[[wikilink]]` in its reply resolved). 18 new tests, including an end-to-end run against `test/fake-agent.js`. OpenClaw is unit-tested only — no Gateway was up.
+- **Found in the live run, fixed:**
+  - Reloading the note after an agent's edit replaced the whole CodeMirror document, which dropped the cursor into the frontmatter and turned Properties into raw YAML. `set()` now replaces only the part that changed, so the cursor, scroll and widgets stay.
+  - On a phone the top bar wraps onto two rows and covered the panel's header; the panel is placed under the bar's real height.
+  - Codex exists on Windows only as a `.cmd` shim, which Node will not spawn without a shell; its script is now run with Node directly. Its elevated Windows sandbox then could not start a shell at all (*CreateProcessAsUserW failed: 5*) — `windowsSandbox: "unelevated"` ([[Known issues#Agents]]).
+- **Next**: stream progress (G1), keep the process open (G2), a git commit per agent turn (G3), OpenClaw live (G4) — [[Improvements backlog#For the agent panel]].
+
 ## 2026-09-23 — the Memory page, redesigned
 The user found the first Memory page's UX lacking. Looking at it plainly: a note opened inside three layers of navigation (OpenClaw's sidebar, our tabs, then Websidian's own toolbar, search box and tree), a *Search* tab that did not search, cards that said nothing about what was in the file, and every timestamp as `9/21/2026, 8:00:21 AM`. Redesigned and checked against a real OpenClaw 2026.9.5 Gateway ([[OpenClaw plugin#The Memory page]]).
 

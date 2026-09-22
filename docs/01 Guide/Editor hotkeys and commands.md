@@ -2,7 +2,7 @@
 title: Editor hotkeys and commands
 tags: [websidian, guide, editor, cheatsheet]
 aliases: [Hotkeys, Shortcuts]
-updated: 2026-09-16
+updated: 2026-09-23
 order: 4
 description: The cheat sheet
 ---
@@ -20,6 +20,7 @@ description: The cheat sheet
 | `Ctrl+E` | Toggle reading view |
 | `Ctrl+Alt+N` | New note |
 | `Alt+W` | Writing help menu — only when the site has it ([[Writing help]]) |
+| `Alt+A` | Agent panel — only when the server has `agents` ([[Agents in the editor]]) |
 | Right-click in the editor | Writing help, Undo, Redo, Select all — only when the site has writing help; otherwise the browser's own menu |
 
 > [!note] `Ctrl+P` and the print dialog

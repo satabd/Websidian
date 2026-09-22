@@ -219,6 +219,22 @@ Off unless you configure it, and off unless the CLI answers `--version` at start
 
 Full reference: [Writing help](docs/01%20Guide/Writing%20help.md).
 
+## Agents in the editor (optional)
+
+Add an `agents` block and the editor gets a **◈ Agents** panel (`Alt+A`): talk to **Claude Code**, **Codex**, **Hermes Agent** or **OpenClaw** about the open note — review it, check its links, or (where you allow it) edit it.
+
+```json
+"agents": { "list": [
+  { "id": "claude", "backend": "claude-cli", "modes": ["review", "edit"] },
+  { "id": "codex",  "backend": "codex-cli",  "model": "gpt-5.5" },
+  { "id": "hermes", "backend": "hermes-cli" }
+] }
+```
+
+Run `npm run skills` once to fetch the [Obsidian skills](https://github.com/kepano/obsidian-skills); every agent is given them. Each conversation is a session of the agent's own CLI, so the context is sent once and later messages carry only what you type. Review is read-only where the CLI can enforce it; Edit is opt-in per agent, and every file an agent changes comes back as a diff with a Revert button. Every agent is configured on its own — command, model, effort, modes, sites, users.
+
+Full reference: [Agents in the editor](docs/01%20Guide/Agents%20in%20the%20editor.md).
+
 ## Serving folders written by AI agents
 
 Websidian is a comfortable way to read what an agent (Hermes Agent, OpenClaw…) writes: its notes, memories, reports and skills. But an agent copies text from web pages and tool output into those files, so treat that text as written by a stranger. A note could contain a `<script>` that, opened by a signed-in editor, calls the editor API and rewrites the agent's instruction files. Mark such sites `"untrusted": true`:

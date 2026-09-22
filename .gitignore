@@ -9,3 +9,7 @@ __pycache__/
 # Anchored: demo/websidian.config.json is part of the project.
 /websidian.config.json
 /md2html.config.json
+
+# Fetched by `npm run skills`, and the agent panel's session ids.
+/agent-skills/
+/.websidian/

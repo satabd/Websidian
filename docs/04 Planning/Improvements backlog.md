@@ -79,6 +79,19 @@ See [[Agent memory and second brain]].
 | A20 | A shareable link to a note on the Memory page, once OpenClaw can match a sidebar entry by page id alone (today page parameters cost the highlight — [[Known issues]]) |
 | A19 | Use OpenClaw's own components on the Memory page (`host.components.mountAgentPicker`, `mountSelectPicker`) so the controls are the host's, not ours |
 
+## For the agent panel
+See [[Agents in the editor]].
+
+| # | Improvement |
+|---|---|
+| G1 | **Stream the agent's progress** — Claude Code `--output-format stream-json`, Codex `--json` events — so a long turn shows what it is reading and doing, not only a timer |
+| G2 | **Keep the process open** between messages (Claude Code `--input-format stream-json`, Codex `app-server`, Hermes ACP) instead of resuming a session per message: no start-up cost |
+| G3 | **A git commit per agent turn**, authored as the agent — Revert that survives a restart, and history (#2) |
+| G4 | Try **OpenClaw** live against a Gateway (the CLI's `agent --session-id` path), including a vault mapped with `paths` |
+| G5 | Apply one hunk of a diff rather than the whole file; "accept all / revert all" for a turn |
+| G6 | Let a Review reply's fenced block be applied to the selection in one click (as Writing help does) |
+| G7 | Hermes: pin a narrow toolset for Review (`toolsets`) by default once Hermes has a read-only one |
+
 ## Rejected or parked
 - **Community plugin compatibility** — plugins are arbitrary Electron JavaScript; replaced by our own plugin API (#21).
 - **Static generation instead of the server** — rejected early; see [[Decisions]].

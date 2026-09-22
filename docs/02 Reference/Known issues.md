@@ -22,6 +22,17 @@ Limits and gotchas as they stand. When one is fixed, move it to the [[Work log]]
 
 - **Page direction is a guess when a note has no `lang:`**: more Arabic or Hebrew letters than other letters makes the page right-to-left. A short Arabic note full of English terms can land left-to-right, and Persian or Urdu is labelled `lang="ar"` (the direction is right, the language tag is not). Set `lang:` in the frontmatter when it matters.
 
+## Agents
+Details: [[Agents in the editor]].
+- **Hermes and OpenClaw cannot be locked to read-only.** Review is an instruction for them; a file they change anyway is shown under the reply as *"Changed in Review mode"* with Revert. Claude Code and Codex are enforced (tools and sandbox).
+- **Codex on Windows**: its default (elevated) sandbox could not start a shell here — *"CreateProcessAsUserW failed: 5 (Access is denied.)"* — so it could not even read the note, and said so. `"windowsSandbox": "unelevated"` fixed it (2026-09-23). The Codex in `~/.codex/config.toml` also named a model this CLI version refuses (*"requires a newer version of Codex"*); set `model` per agent.
+- **Revert only lasts until a restart.** The text of each file before a turn is kept in memory for the last 50 turns. After a restart, the vault's own git is the way back.
+- **The snapshot has limits**: text files up to 2 MB each and 64 MB in all are kept for diffs and Revert; beyond that a change is listed without a diff and cannot be reverted. `.git`, `node_modules` and `.trash` are not watched.
+- **A change is attributed to the turn it happened in.** Obsidian or another editor saving during a turn shows up as the agent's change. Two Edit turns in one vault are refused for this reason; a person's save is not.
+- **No progress while an agent works** — the panel shows a timer until the turn ends (a few seconds to minutes). The reply is not streamed.
+- **Each message starts the CLI again** (the session is resumed, not the process). The context is not re-sent, and prompt caching makes a resumed turn cheap, but there is a start-up cost of a few seconds per message.
+- **OpenClaw is untested live**: no Gateway was available on 2026-09-23.
+
 ## Server and setup
 - **Writing help through the `claude` CLI needs a signed-in CLI** on the server (`claude login`). A signed-out or expired CLI answers *Not logged in* / *OAuth session expired*; Websidian logs it and shows the generic failure line — it never pastes that into the note ([[Writing help]]).
 - **`Ctrl+P` still prints when the editor is embedded and the outer page has focus** — inside the Hermes dashboard, for instance. The editor page cancels the browser shortcut only for its own document. Use `Ctrl+Shift+P` for the palette, or the **✦ Writing help ▾** button / `Alt+W` for the actions ([[Editor hotkeys and commands]]).
