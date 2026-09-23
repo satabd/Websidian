@@ -187,7 +187,7 @@ Only if they reach the Gateway by another address than `127.0.0.1:18789` (a LAN 
 
 | Way | What they type | Status |
 |---|---|---|
-| **ClawHub** | `openclaw plugins install clawhub:websidian` | ✅ published 2026-09-23 (`websidian@0.2.0`, package and release scans clean, source-linked to `satabd/Websidian`); installed by name into a fresh OpenClaw 2026.9.5 and working |
+| **ClawHub** | `openclaw plugins install clawhub:websidian` | ✅ published 2026-09-23 (`websidian@0.2.0`, then `0.2.1` with the showcase README and the **Memory** category; package and release scans clean, source-linked to `satabd/Websidian`); installed by name into a fresh OpenClaw 2026.9.5 and working |
 | **A tarball** (`npm run pack:openclaw`) | `openclaw plugins install npm-pack:<file>.tgz` | ✅ the same package, for a machine without ClawHub access; no `plugins update` |
 | **npm** | `openclaw plugins install npm:websidian` | Not published; the npm name `websidian` would have to be free and owned |
 | `git:github.com/satabd/Websidian` | — | Does not work: the repository root is Websidian, not the plugin |
@@ -203,6 +203,7 @@ Only if they reach the Gateway by another address than `127.0.0.1:18789` (a LAN 
      --source-path integrations/openclaw/websidian --changelog "…" --wait
    ```
    Run it with `--dry-run` first. `clawhub package moderation-status websidian` shows the scans.
+   Add `--categories memory --topics obsidian,memory,markdown,notes,knowledge-base` each time. The listing shows the plugin README: its top half is the showcase, keep it about the user, not the hooks.
 
 > [!warning] What ClawHub insisted on, 2026-09-23
 > - `openclaw.build.openclawVersion` (and `pluginSdkVersion`) in `package.json` — *required for external code plugins*.

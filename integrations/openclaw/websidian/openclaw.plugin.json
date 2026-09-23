@@ -1,8 +1,8 @@
 {
   "id": "websidian",
   "name": "Websidian",
-  "version": "0.2.0",
-  "description": "Connect OpenClaw to Websidian (an Obsidian vault served as a website): guard writes so vault notes stay plain Markdown and agent instruction files need human approval, share view/edit links for the notes the agent writes, and serve the vaults behind the Gateway.",
+  "version": "0.2.1",
+  "description": "See what your agent remembers: a Memory page in OpenClaw's sidebar (long-term memory, what it knows about you, daily notes, timeline, graph, search), its notes as a readable Obsidian-style website behind the Gateway, links to the notes it writes, and human approval before it changes its own instruction files.",
   "activation": {
     "onStartup": true,
     "onCommands": [

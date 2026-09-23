@@ -1,7 +1,7 @@
 {
   "name": "websidian",
-  "version": "0.2.0",
-  "description": "OpenClaw plugin for Websidian: write guard, note links and the vaults served behind the Gateway.",
+  "version": "0.2.1",
+  "description": "See what your OpenClaw agent remembers: a Memory page inside OpenClaw, its notes as a readable Obsidian-style website, and a guard so it can't quietly rewrite its own rules.",
   "type": "module",
   "license": "MIT",
   "files": ["index.js", "lib", "dist", "skills", "openclaw.plugin.json", "README.md"],
