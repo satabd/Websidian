@@ -12,7 +12,7 @@ description: The choices we made, and why
 | early | **Dynamic server, not a static generator** | Changes are live on save; no rebuilds; drafts and auth are trivial |
 | early | **Public site and editor are separate surfaces** | The same server is a public website and a private team editor; editor URLs do not exist unless configured |
 | 2026-09-11 | **Emit Obsidian's DOM and class names** | Obsidian themes and CSS snippets work unchanged; decide before more custom CSS accumulates |
-| 2026-09-11 | **Git is the history engine** — one commit per save, authored by the editor | Audit, diff, undo and sync for free (not built yet) |
+| 2026-09-11 | ~~**Git is the history engine** — one commit per save, authored by the editor~~ | Reversed 2026-09-23, see below |
 | 2026-09-11 | **One Node process, no database, no build step** | Deploying stays `node src/server.js` |
 | 2026-09-11 | **CodeMirror 6 for the editor**, loaded from `node_modules` via an import map | It is what Obsidian uses; the import map keeps "no build step" |
 | 2026-09-11 | **Widgets edit the text, not a model** (tables, properties) | Undo, conflicts and diffs stay correct; the file stays Obsidian-compatible |
@@ -34,6 +34,7 @@ description: The choices we made, and why
 | 2026-09-21 | **A date in `title:` or `updated:` prints as a day** | YAML turns an unquoted `2026-09-21` into a Date, and `String(Date)` is "Sun Sep 21 2026 03:00:00 GMT+0300 (…)" — which is what an agent's daily memory note showed in the sidebar and the graph until it was seen in the Memory page |
 | 2026-09-17 | **No archify-style authored diagrams for the vault graph**; Explore takes its viewer ideas (reach, guided views) instead | archify places every node by hand and refuses auto-layout; a vault has no author placing hundreds of notes — [[Graph and Explore]] |
 | 2026-09-17 | **Named views live in note frontmatter (`views:`), not in the config**, and the active view or reach lives in the URL, not localStorage | Authors own them and they travel with the vault; hidden notes drop out by themselves; a `?view=` link can be shared |
+| 2026-09-23 | **Websidian does not run git on saves: no commit per save, no automatic push or pull back to a remote** (confirmed by the user; reverses 2026-09-11) | Two-way sync brings conflicts, deploy keys and a failing `git pull --ff-only` whenever the server has uncommitted edits — more complexity than the team wants to carry. Saves stay plain file writes; the team commits, pushes and pulls itself. The existing pull webhook stays as an optional tool — [[Deploying]] |
 | 2026-09-16 | **Screenshots are captured from the running app, never mocked** | `test/docs-links.test.js` fails if a note embeds a screenshot that does not exist, so they cannot quietly rot |
 | 2026-09-16 | **Section lists are generated, never written by hand** | A hand-kept list of what is in a folder is wrong the day after it is written |
 | 2026-09-16 | **A folder note lives at the folder's URL**, and its own path redirects there | One canonical URL per page; `/site/Guide/` reads better than `/site/Guide/Guide` |

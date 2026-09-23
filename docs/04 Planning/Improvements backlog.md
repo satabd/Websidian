@@ -14,7 +14,6 @@ Suggestions ranked by value for effort. **P1** = next, **P2** = soon, **P3** = l
 | # | Improvement | Why | Effort |
 |---|---|---|---|
 | 1 | **A git worktree per Claude session** | The repo exists now, but parallel sessions still share one folder and overwrite each other ([[Known issues]]) | S |
-| 2 | **Git commit per save**, authored by the signed-in editor; history panel with diff and restore | Decided ([[Decisions]]); makes every other change safe; audit trail | M |
 | 3 | **Paste and drop images** into the editor → upload to the vault's attachment folder (`app.json` `attachmentFolderPath`) → insert `![[name.png]]` | Nobody writes real documentation without screenshots | M |
 | 4 | **Live reload of the open note** when the file changes on disk (server-sent events), with a merge prompt if you have unsaved edits | Obsidian desktop, git pulls and agents write the same files; today you only find out at save time | M |
 | 5 | **Rename / move with link rewriting** across the vault, plus `redirect_from` so old URLs keep working | Otherwise people avoid renaming and links rot | M |
@@ -86,7 +85,6 @@ See [[Agents in the editor]].
 |---|---|
 | G1 | **Stream the agent's progress** — Claude Code `--output-format stream-json`, Codex `--json` events — so a long turn shows what it is reading and doing, not only a timer |
 | G2 | **Keep the process open** between messages (Claude Code `--input-format stream-json`, Codex `app-server`, Hermes ACP) instead of resuming a session per message: no start-up cost |
-| G3 | **A git commit per agent turn**, authored as the agent — Revert that survives a restart, and history (#2) |
 | G4 | Try **OpenClaw** live against a Gateway (the CLI's `agent --session-id` path), including a vault mapped with `paths` |
 | G5 | Apply one hunk of a diff rather than the whole file; "accept all / revert all" for a turn |
 | G6 | Let a Review reply's fenced block be applied to the selection in one click (as Writing help does) |
@@ -94,4 +92,5 @@ See [[Agents in the editor]].
 
 ## Rejected or parked
 - **Community plugin compatibility** — plugins are arbitrary Electron JavaScript; replaced by our own plugin API (#21).
+- **Git commit per save / per agent turn, and automatic push-pull sync** (#2, G3) — rejected 2026-09-23: the team handles git itself ([[Decisions]]).
 - **Static generation instead of the server** — rejected early; see [[Decisions]].

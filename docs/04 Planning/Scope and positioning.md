@@ -2,7 +2,7 @@
 title: Scope and positioning
 tags: [websidian, planning]
 aliases: [Positioning, What full Obsidian means]
-updated: 2026-09-16
+updated: 2026-09-23
 order: 2
 description: What full Obsidian can honestly mean
 ---
@@ -35,7 +35,7 @@ A CMS needs five things a notes app does not: **workflow, history, media, struct
 | Need | How Websidian does it | Frontmatter it reads |
 |---|---|---|
 | Workflow | draft → review → published; scheduled publish/unpublish; "unpublished changes" badge; preview drafts through a signed share link | `status`, `publish`, `publishAt`, `unpublishAt` |
-| History | every save is a git commit authored by the editor; history panel with diff and restore; the existing git webhook keeps other servers in sync | — |
+| History | out of Websidian: the team keeps the vault in git and commits, pushes and pulls itself; the optional pull webhook refreshes the server ([[Decisions]]) | — |
 | Media | paste and drop images into a note; upload goes to the attachment folder from `.obsidian/app.json`; media browser | — |
 | Structure | navigation order, folder notes as section index pages, redirects when a note is renamed, custom slugs | `order`, `slug`, `redirect_from`, `aliases` |
 | People | named accounts with roles (viewer / editor / admin), per-folder rights later; the audit log is `git log` | — |
@@ -57,7 +57,7 @@ One line: **your Obsidian vault as a website you can edit from anywhere.**
 These shape the phases and are worth answering before the work they block.
 
 1. **Look of the public site** — branded documentation site (what it does today) or "looks like Obsidian" with the reader's theme? Emitting Obsidian's DOM gives both; the default decides the first impression.
-2. **Is the server's vault a git checkout?** If yes, a commit per save is straightforward. Pushing back to a remote needs a deploy key, or the webhook stays pull-only.
+2. ~~**Is the server's vault a git checkout?**~~ Answered 2026-09-23: Websidian does not run git on saves; the team handles it ([[Decisions]]).
 3. **Who edits** — one person or a team? Roles and per-folder rights only matter for a team.
 4. **The Arabic mirror** — should translation status be first class? English changes, the Arabic note is marked stale, the two edit side by side.
 5. **Hosting** — one server for many vaults (multi-tenant, needs isolation and quotas) or one deployment per vault (simple, and what happens today)?

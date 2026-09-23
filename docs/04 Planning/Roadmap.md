@@ -1,7 +1,7 @@
 ---
 title: Roadmap
 tags: [websidian, planning]
-updated: 2026-09-16
+updated: 2026-09-23
 order: 1
 description: The phases, and what is done in each
 ---
@@ -32,7 +32,7 @@ Done in one sweep on 2026-09-16:
 ## Phase 1 — CMS essentials
 Make the editor something you use every day.
 
-1. **Git commit per save**, history panel (list, diff, restore), author = the signed-in editor. Decided in [[Decisions]], not built.
+1. ~~Git commit per save~~ — dropped 2026-09-23; the team handles git itself ([[Decisions]]).
 2. **Attachments**: paste and drag-drop images into the editor → upload to the attachment folder from `.obsidian/app.json` → `![[name.png]]` inserted; a media browser to reuse existing files.
 3. **Rename / move** with wikilink rewriting across the vault, and an automatic `301` from the old URL (`redirect_from` written to frontmatter).
 4. ✅ **Properties panel** — form above the editor, types from `.obsidian/types.json`, raw YAML still editable.
@@ -70,8 +70,7 @@ Make the editor something you use every day.
 
 ## What to do first
 
-1. **Git commit per save + history panel.** Cheapest, highest CMS value, and it makes every later feature safe to try because everything can be undone.
-2. **Paste-to-upload images.** Nobody writes real documentation in a browser without it.
-3. **Rename with link rewriting and a `301`.** Without it people avoid renaming, and the vault rots.
+1. **Paste-to-upload images.** Nobody writes real documentation in a browser without it.
+2. **Rename with link rewriting and a `301`.** Without it people avoid renaming, and the vault rots.
 
 Then decide the public site's default look — the first open question in [[Scope and positioning#Open questions]] — before more CSS accumulates.

@@ -1,7 +1,7 @@
 ---
 title: Deploying
 tags: [websidian, guide, ops]
-updated: 2026-09-16
+updated: 2026-09-23
 order: 12
 description: A real host, HTTPS, and the git webhook
 ---
@@ -53,5 +53,5 @@ For your own vault, mount it **read-write** if you use the editor; read-only is 
 - [ ] `publicUrl` set to the real hostname (sitemap, canonical, OpenGraph)
 - [ ] `warm: true` so the first visitor does not pay for the first render
 
-> [!warning] Edits on the server are not committed yet
-> Browser edits are plain file writes. If the vault is a git checkout, commit them yourself until *git commit per save* ships ([[Improvements backlog]]).
+> [!warning] Websidian never commits or pushes
+> Browser and agent edits are plain file writes. If the vault is a git checkout, commit and push them yourself, or the webhook's `git pull --ff-only` will refuse once the server has uncommitted changes. This is by design ([[Decisions]]).

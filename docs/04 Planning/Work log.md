@@ -10,6 +10,13 @@ description: What changed each session, newest first
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
 
+## 2026-09-23 — Git stays with the team
+The ask: is git wired up so edits can be pushed by a user and pulled on the server?
+
+- **Found**: pull-only. The per-site webhook (`/_hooks/git/:site`, default `git pull --ff-only`) refreshes the server on a push; browser and agent saves are plain file writes, never committed or pushed.
+- **Decided (user)**: no git automation in Websidian — commit per save, per agent turn and push-back are all dropped as too much complexity; the team handles git itself. Reverses the 2026-09-11 decision ([[Decisions]]). Backlog #2 and G3 moved to *Rejected*; [[Roadmap]], [[Scope and positioning]], [[Feature status]] and [[Deploying]] updated.
+- **Next**: nothing on git. Paste-to-upload images is now the top editor gap ([[Improvements backlog]]).
+
 ## 2026-09-23 — OpenClaw plugin: the architecture and the hand-over, written down
 The ask: what the OpenClaw integration is now, how to use it, and how someone else installs it — documented, plus a plain-English summary.
 
