@@ -171,6 +171,60 @@ The plugin can also add links to notes the agent creates and protect important i
 
 **Full OpenClaw reference:** [integrations/openclaw/websidian/README.md](integrations/openclaw/websidian/README.md)
 
+## Hermes Agent: a second-brain workspace inside the dashboard
+
+Websidian also has a native integration for **Hermes Agent**.
+
+Instead of treating Hermes memory, skills and project notes as files you have to inspect from the shell, the plugin adds a **Websidian** workspace to the Hermes dashboard.
+
+From one place you can work with:
+
+- **Overview** — memory status, configured vaults and recently changed notes
+- **Memory** — `MEMORY.md` and `USER.md` as readable entries, including their configured size limits
+- **Skills** — browse and search Hermes skills and their `SKILL.md` files
+- **Browse** — navigate any configured Obsidian or Markdown vault
+- **Graph** — explore how notes connect
+- **Ask** — optionally talk to Hermes Agent, Claude Code or Codex about the note you are reading
+- **Deep links** — links from Hermes replies can open the exact note inside the dashboard
+
+The integration is not only a viewer. It also adds safeguards around the files that shape the agent.
+
+When Hermes tries to change protected instruction or memory files such as `SOUL.md`, `AGENTS.md`, `MEMORY.md`, `USER.md` or `SKILL.md`, Websidian can route that change through Hermes's own human-approval flow or block it entirely.
+
+Agent-written vault content is also checked before it is written: active HTML and dangerous browser content are refused, and agent-facing vaults default to Websidian's `untrusted` mode.
+
+The plugin also adds:
+
+- a `websidian_links` tool
+- a `/brain [query]` command for recent notes
+- **Notes updated:** links after Hermes writes notes
+- a Websidian skill for writing vault-compatible notes
+- an install/update skill that Hermes itself can follow
+- multi-vault support for a second brain, memories, skills and project knowledge
+
+### Install the Hermes integration
+
+The Hermes plugin lives inside this repository, so install it from the repository checkout:
+
+```bash
+bash integrations/hermes/websidian/deploy/install-local.sh
+hermes plugins enable websidian
+```
+
+On Windows, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File integrations\hermes\websidian\deploy\install-local.ps1
+```
+
+Restart the **Hermes dashboard** to load the Websidian dashboard extension, and restart the **Hermes gateway** for the write guard and reply links to become active.
+
+The installer keeps the Websidian runtime under the Hermes profile and performs a health check before it finishes. Browser editing is opt-in per vault; agent-facing vaults default to `untrusted: true`.
+
+**Hermes integration reference:** [integrations/hermes/websidian/README.md](integrations/hermes/websidian/README.md)
+
+**Hermes guide:** [docs/01 Guide/Hermes plugin.md](docs/01%20Guide/Hermes%20plugin.md)
+
 ## AI without turning the vault into an AI database
 
 Websidian deliberately keeps the Markdown files at the center.
@@ -327,6 +381,7 @@ Good starting points:
 - [Writing help](docs/01%20Guide/Writing%20help.md)
 - [Agents in the editor](docs/01%20Guide/Agents%20in%20the%20editor.md)
 - [OpenClaw plugin](docs/01%20Guide/OpenClaw%20plugin.md)
+- [Hermes plugin](docs/01%20Guide/Hermes%20plugin.md)
 
 You can also run:
 
@@ -346,7 +401,7 @@ Run the complete test suite with:
 npm test
 ```
 
-The repository includes tests for rendering, vault indexing, links, search, authentication, hardening, caching, editor behavior, graph data, Excalidraw, Bases, proxy authentication, server routes and the OpenClaw integration.
+The repository includes tests for rendering, vault indexing, links, search, authentication, hardening, caching, editor behavior, graph data, Excalidraw, Bases, proxy authentication, server routes, and the OpenClaw and Hermes integrations.
 
 ## From md2html
 
