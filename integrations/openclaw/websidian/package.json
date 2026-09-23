@@ -19,6 +19,10 @@
     "compat": {
       "pluginApi": ">=2026.6.9",
       "minGatewayVersion": "2026.6.9"
+    },
+    "build": {
+      "openclawVersion": "2026.9.5",
+      "pluginSdkVersion": "2026.9.5"
     }
   }
 }
