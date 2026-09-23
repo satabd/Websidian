@@ -81,7 +81,7 @@ if ($LASTEXITCODE -ne 0) { throw "npm ci failed in $AppDir" }
 # in the dashboard's status instead of showing up as odd behaviour.
 $rev = (& git -C $repo rev-parse --short HEAD 2>$null)
 if ($LASTEXITCODE -ne 0 -or -not $rev) { $rev = 'unknown' }
-elseif (& git -C $repo status --porcelain 2>$null) { $rev = "$rev-dirty" }
+elseif (& git -C $repo status --porcelain --untracked-files=no 2>$null) { $rev = "$rev-dirty" }
 $stamp = @{ revision = "$rev".Trim(); installed_at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); source = $repo }
 function Write-Stamp($path, $component) {
   Set-Content -Path $path -Value (($stamp + @{ component = $component }) | ConvertTo-Json)

@@ -86,7 +86,7 @@ npm --prefix "$APP_DIR" ci --omit=dev --ignore-scripts
 # The plugin (Python) and the runtime (Node) are separate copies: stamp both so half an upgrade is visible
 # in the dashboard's status instead of showing up as odd behaviour. A checkout outside git stamps "unknown".
 REV="$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || true)"
-if [ -n "$REV" ] && [ -n "$(git -C "$REPO" status --porcelain 2>/dev/null || true)" ]; then REV="$REV-dirty"; fi
+if [ -n "$REV" ] && [ -n "$(git -C "$REPO" status --porcelain --untracked-files=no 2>/dev/null || true)" ]; then REV="$REV-dirty"; fi
 NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 write_stamp() {
   cat > "$1" <<EOF

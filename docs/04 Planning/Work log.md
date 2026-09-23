@@ -19,6 +19,7 @@ The redesigned tab, the reading themes and the agent panel are live in `hermes01
 - **Not answering yet, and not ours to fix**: Hermes's provider is at its usage limit (HTTP 429); Claude Code's and Codex's OAuth tokens in the container have expired and cannot be refreshed — they need `claude` → `/login` and `codex login --device-auth` inside the container ([[Hermes plugin#Asking an agent]]).
 - **A mistake of mine, 2 minutes of downtime**: a `pgrep -f "hermes dashboard"` also matched the shell running it, the `kill` took that shell down and the `&&` chain never started the new dashboard. Restarted by hand; since then stop and start run as separate commands with an explicit PID.
 - `npm test` agents suite 22/22; plugin suite OK.
+- **Redeployed from `main` (`fee4058`) once committed**, so the stamps name a real revision. The installers now ignore untracked files when they decide a checkout is `-dirty`: another session's worktree folder (`.claude/worktrees/`) made a clean `main` stamp itself dirty, and untracked files are never packed anyway.
 
 ## 2026-09-23 — the agent panel in the Hermes tab
 The ask: use the agent panel in the Hermes tab. The user chose a panel **beside the note**, working on read-only vaults too, with **Hermes first** "to keep context updated" and Claude Code and Codex also offered ([[Decisions]]).

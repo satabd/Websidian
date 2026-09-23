@@ -47,7 +47,7 @@ if command -v cygpath >/dev/null 2>&1; then HOST_TMP="$(cygpath -m "$TMP")"; fi
 # Stamp both copies with the revision they came from: the plugin (Python) and the runtime (Node) are
 # installed separately, and the dashboard's status flags them when the two disagree.
 REV="$(git rev-parse --short HEAD 2>/dev/null || true)"
-if [ -n "$REV" ] && [ -n "$(git status --porcelain 2>/dev/null || true)" ]; then REV="$REV-dirty"; fi
+if [ -n "$REV" ] && [ -n "$(git status --porcelain --untracked-files=no 2>/dev/null || true)" ]; then REV="$REV-dirty"; fi
 stamp() {
   printf '{\n  "revision": "%s",\n  "installed_at": "%s",\n  "source": "%s",\n  "component": "%s"\n}\n' \
     "${REV:-unknown}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$PWD" "$1"
