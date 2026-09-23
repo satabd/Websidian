@@ -1,7 +1,7 @@
 {
   "name": "websidian",
-  "version": "0.2.1",
-  "description": "See what your OpenClaw agent remembers: a Memory page inside OpenClaw, its notes as a readable Obsidian-style website, and a guard so it can't quietly rewrite its own rules.",
+  "version": "0.2.2",
+  "description": "Turn OpenClaw's hidden Markdown memory into a visible second brain: browse what your agent remembers, follow its timeline, search its knowledge and explore connections, without leaving OpenClaw.",
   "type": "module",
   "license": "MIT",
   "files": ["index.js", "lib", "dist", "skills", "openclaw.plugin.json", "README.md"],

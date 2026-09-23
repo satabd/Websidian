@@ -171,7 +171,7 @@ Then restart the Gateway. It needs Node 24.16+ or 26.1+; it refuses Node 25.
 
 ## Installing it for someone else
 
-It is on **ClawHub** as [`websidian`](https://clawhub.ai/plugins/websidian) (owner `satabd`, published 2026-09-23). They need a running OpenClaw (**2026.9.5** tested; Node 24.16+ or 26.1+) with `npm` available — no checkout, no git, no installer script, no Websidian config.
+It is on **ClawHub** as [`websidian`](https://clawhub.ai/satabd/plugins/websidian) (owner `satabd`, published 2026-09-23). They need a running OpenClaw (**2026.9.5** tested; Node 24.16+ or 26.1+) with `npm` available — no checkout, no git, no installer script, no Websidian config.
 
 1. `openclaw plugins install clawhub:websidian --accept-capabilities`
 2. `openclaw config set gateway.controlUi.experimental.customPlugins true`

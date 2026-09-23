@@ -16,9 +16,10 @@ version. There is no build step and no publish step.
 vault/guide/Start Here.md   →   https://docs.example.com/notes/guide/Start%20Here
 ```
 
-> **Using OpenClaw?** Websidian is on ClawHub as [`websidian`](https://clawhub.ai/plugins/websidian): one command
-> gives your agent a **🧠 Memory** page inside OpenClaw and its notes as a website —
-> see [OpenClaw plugin](#openclaw-plugin-on-clawhub).
+> **Using OpenClaw? See what your AI remembers.** Websidian is on ClawHub as
+> [`websidian`](https://clawhub.ai/satabd/plugins/websidian): one command adds a **🧠 Memory** page to OpenClaw — what
+> your agent knows about you, its long-term memory, a timeline of its days, search and a graph — straight from the
+> Markdown files it already keeps. See [OpenClaw plugin](#openclaw-plugin-on-clawhub).
 
 ## Quick start
 

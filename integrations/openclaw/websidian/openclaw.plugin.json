@@ -1,8 +1,8 @@
 {
   "id": "websidian",
   "name": "Websidian",
-  "version": "0.2.1",
-  "description": "See what your agent remembers: a Memory page in OpenClaw's sidebar (long-term memory, what it knows about you, daily notes, timeline, graph, search), its notes as a readable Obsidian-style website behind the Gateway, links to the notes it writes, and human approval before it changes its own instruction files.",
+  "version": "0.2.2",
+  "description": "Turn OpenClaw's hidden Markdown memory into a visible second brain: browse what your agent remembers, follow its timeline, search its knowledge and explore connections, without leaving OpenClaw. Also asks for your approval before the agent changes its own instruction files.",
   "activation": {
     "onStartup": true,
     "onCommands": [

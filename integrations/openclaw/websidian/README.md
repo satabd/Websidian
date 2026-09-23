@@ -1,34 +1,62 @@
-# Websidian for OpenClaw — see what your agent remembers
+# 🧠 Websidian for OpenClaw
 
-Your OpenClaw agent keeps its memory in Markdown files: what it learned about you, what it decided to keep, a note
-for every day, its dreams. Those files are the agent's mind — and normally you only see them if you go digging in a
-folder. **Websidian puts them in front of you, inside OpenClaw, and keeps the agent from quietly rewriting its own
-rules.**
+**See what your AI remembers.**
+
+OpenClaw remembers — what it learns about you, your projects, the decisions it made, what happened each day. But
+that memory lives quietly in Markdown files in its workspace, where you never look.
+
+Websidian turns that hidden memory into a place you can actually see and explore, **directly inside OpenClaw**.
+No digging through folders, no separate knowledge-base app, no copying your memory somewhere else. Install it, and
+a **🧠 Memory** section appears in OpenClaw's sidebar.
 
 ![The Memory page inside OpenClaw: long-term memory, what the agent knows about you, its dreams, and the latest daily notes](https://raw.githubusercontent.com/satabd/Websidian/main/docs/attachments/openclaw-memory.png)
 
-## What you get
+## Your agent has a memory. Now you can see it.
 
-- **🧠 A Memory page in OpenClaw's own sidebar.** At a glance: the agent's long-term memory (`MEMORY.md`), what it
-  knows about you (`USER.md`), its dream consolidation (`DREAMS.md`) and its latest daily notes — each with a
-  preview and when it last changed. A **Timeline** of every day, a **Graph** of how notes link, **Browse** and
-  **Search**. Click any note to read it right there. Light and dark follow OpenClaw. No second login.
-- **📖 The agent's notes as a readable website.** Rendered the way Obsidian renders them — links between notes,
-  backlinks, tables, diagrams, math, Arabic and other right-to-left text — at `/plugins/websidian/` on your Gateway,
-  behind your Gateway token.
-- **🔗 Links in the agent's replies.** When the agent writes or updates notes, its reply ends with links to open them.
-  `/brain` lists the ten most recent notes.
-- **🛡️ A guard on the agent's own rules.** If the agent tries to change `SOUL.md`, `AGENTS.md`, `MEMORY.md` or its
-  other instruction files, you are asked to approve first. Notes must stay plain Markdown, so text the agent copied
-  from a web page can never turn into a script in your browser.
+![You chat, the agent learns, it writes Markdown memory, and Websidian shows it in OpenClaw: Memory, Timeline, Search, Graph, Browse](https://raw.githubusercontent.com/satabd/Websidian/main/docs/attachments/openclaw-journey.png)
+
+Open the Memory page to understand what is happening behind your conversations:
+
+- what OpenClaw remembers **about you**
+- its **long-term memory**
+- its **recent daily memories**, and what changed lately
+- how its notes **connect** to each other
+- everything it has written into its workspace
+
+Instead of wondering *"what does my agent actually remember?"*, you simply look. And when the agent creates or
+updates a note, its reply ends with a link to open it.
+
+## One place for the agent's second brain
+
+- **🧠 Memory** — the most important things your agent remembers, at a glance: long-term memory, what it knows
+  about you, its consolidated memories ("dreams") and its recent activity, each with a preview and when it changed.
+- **🕒 Timeline** — memory as it developed, day by day. What did it learn yesterday, last week, during that project?
+- **🔎 Search** — search everything the agent has written, instead of asking it to recall something and hoping it
+  finds the right context.
+- **🕸️ Graph** — see how notes link to each other, and jump from one to the next.
+- **📖 Browse** — open any note as a clean Obsidian-style page: wikilinks, backlinks, tables, diagrams, math,
+  images, and Arabic or other right-to-left text.
 
 ![Reading a note inside the Memory page, in dark mode](https://raw.githubusercontent.com/satabd/Websidian/main/docs/attachments/openclaw-memory-note.png)
 
-## Why it matters
+## More than a viewer
 
-An agent that remembers is only as trustworthy as what it remembers. With Websidian you can **see** the memory
-instead of guessing — catch a wrong fact about you, notice what it chose to keep, follow how one day's notes led to
-the next — and you stay in control of the files that shape its behaviour.
+Websidian also keeps you in control of the files that shape your agent. When the agent tries to change its own
+instruction or memory files — `SOUL.md`, `AGENTS.md`, `MEMORY.md`, `USER.md` and the rest — **you are asked to
+approve first**. The same tool that lets you see the agent's brain tells you when that brain is being changed.
+And notes must stay plain Markdown, so text the agent copied from a web page can never turn into a script in your
+browser.
+
+## Your files stay your files
+
+Websidian is not another memory database. It reads the Markdown files OpenClaw already uses:
+
+- no second copy of your memory
+- no cloud knowledge base
+- no migration of your notes
+- no second account — it uses your OpenClaw login
+
+Your workspace stays the source of truth. Websidian simply makes it visible.
 
 ## Install
 
@@ -39,17 +67,32 @@ openclaw config set plugins.entries.websidian.hooks.allowConversationAccess true
 openclaw gateway restart
 ```
 
-That's it: no other setup. About 15 seconds after the restart, **🧠 Memory** appears in the sidebar showing your
-agent's workspace. Everything is **read-only** by default and served only through your Gateway. Needs OpenClaw
-2026.9.5 or later (tested) with `npm` available; the first start downloads Websidian's own libraries once.
+About 15 seconds after the restart, **🧠 Memory** appears in the sidebar. The default workspace works immediately —
+no Websidian configuration needed — and everything starts **read-only**. Needs OpenClaw 2026.9.5 or later (tested)
+with `npm` available; the first start downloads Websidian's own libraries once.
 
-Source, issues and the full documentation: [github.com/satabd/Websidian](https://github.com/satabd/Websidian).
+## Who is it for?
+
+Anyone who uses OpenClaw as more than a chatbot — especially if your agent:
+
+- remembers things between conversations
+- keeps project notes or writes daily memories
+- holds research or operational knowledge
+- works across several projects for weeks or months
+- has instruction files you want to keep under human control
+
+The longer your agent runs, the more it pays to understand what it has accumulated.
+
+> **OpenClaw gives your agent memory. Websidian gives you a window into it.**
+
+Source, issues and full documentation: [github.com/satabd/Websidian](https://github.com/satabd/Websidian).
 
 ---
 
-## Reference
+## Technical reference
 
-The rest of this page is for operators: every feature in detail, configuration, and how it works.
+Everything below is for operators and developers: every feature in detail, configuring vaults, security, editing,
+proxy authentication, hooks, routes and deployment.
 
 - **Write guard** (`before_tool_call`): agent instruction files (`SKILL.md`, `SOUL.md`, `AGENTS.md`, `MEMORY.md`,
   `USER.md`, `TOOLS.md`, `IDENTITY.md`, `HEARTBEAT.md`, `BOOTSTRAP.md`) under the OpenClaw state dir, an agent
@@ -99,7 +142,7 @@ test/                  node --test
 
 ### From ClawHub (recommended)
 
-Published as [`websidian`](https://clawhub.ai/plugins/websidian) (owner `satabd`). On the OpenClaw host:
+Published as [`websidian`](https://clawhub.ai/satabd/plugins/websidian) (owner `satabd`). On the OpenClaw host:
 
 ```bash
 openclaw plugins install clawhub:websidian --accept-capabilities
