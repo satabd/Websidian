@@ -23,6 +23,8 @@ process.stdin.on('end', () => {
   if (/QUOTA/.test(last)) { process.stdout.write('Provider said: HTTP 429: The usage limit has been reached\n'); process.exit(1); }
   if (/NOAUTH/.test(last)) { process.stdout.write('HTTP 401: Missing Authentication header\n'); process.exit(1); }
   // How Codex reports a sign-in it cannot refresh.
+  // How Codex reports its account's usage limit.
+  if (/SPENT/.test(last)) { process.stderr.write("ERROR: You've hit your usage limit. Try again at Sep 25th.\n"); process.exit(1); }
   if (/EXPIRED/.test(last)) { process.stderr.write('Failed to refresh token: Your access token could not be refreshed. Please log out and sign in again.\n'); process.exit(1); }
   if (/WRITE/.test(last)) fs.appendFileSync(path.join(process.cwd(), 'Home.md'), '\nagent was here\n');
   if (/CREATE/.test(last)) fs.writeFileSync(path.join(process.cwd(), 'Made by agent.md'), '# Made by agent\n');

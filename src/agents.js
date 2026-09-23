@@ -37,8 +37,9 @@ const SNAPSHOT_FILE_MAX = 2 * 1024 * 1024;
 const SNAPSHOT_TOTAL_MAX = 64 * 1024 * 1024;
 const TEXT_EXT = /\.(md|canvas|base|json|txt|css|ya?ml|excalidraw|csv|html?|js)$/i;
 const SKIP_DIRS = new Set(['.git', 'node_modules', '.trash']);
-// A provider that refused for quota or rate (Hermes: "HTTP 429: The usage limit has been reached").
-const RATE_LIMITED = /HTTP 429|rate[- ]limit|usage limit has been reached|quota exceeded|insufficient_quota/i;
+// A provider that refused for quota or rate (Hermes: "HTTP 429: The usage limit has been reached";
+// Codex: "You've hit your usage limit").
+const RATE_LIMITED = /HTTP 429|rate[- ]limit|usage limit has been reached|hit your usage limit|quota exceeded|insufficient_quota/i;
 // A CLI whose account or provider key is missing or refused (Hermes prints the provider's HTTP 401).
 const AUTH_FAILED = /Failed to authenticate|Not logged in|Please run .*login|HTTP 401|Missing Authentication header|Invalid API key|sign in again|token could not be refreshed/i;
 const SKILLS_REPO = 'https://github.com/kepano/obsidian-skills';

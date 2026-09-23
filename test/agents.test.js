@@ -352,6 +352,8 @@ test('a provider out of quota, or a CLI not signed in, is said so plainly', asyn
   const q = await turn('QUOTA now');
   assert.equal(q.state, 'failed');
   assert.match(q.error, /rate-limited or out of quota/);
+  const s = await turn('SPENT now');
+  assert.match(s.error, /rate-limited or out of quota/);
   const a = await turn('NOAUTH now');
   assert.match(a.error, /not signed in on the server/);
   const x = await turn('EXPIRED now');

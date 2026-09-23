@@ -10,6 +10,14 @@ description: What changed each session, newest first
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
 
+## 2026-09-23 — `hermes01` redeployed; the agents signed in
+
+- Redeployed `main` to `hermes01` after Docker came back: the stamp reads a clean revision (the installer fix for untracked files works), only the Websidian process was restarted, and `/_health` lists all three sites.
+- With Claude Code and Codex signed in inside the container (their own OAuth logins, API keys dropped): Claude Code answers. Codex signs in but the account is at its usage limit, which Codex words as *You've hit your usage limit*. The panel did not recognise that wording and would have shown the generic "could not answer"; it now says the provider is out of quota. Test: `SPENT` in `test/fake-agent.js`.
+- `codex-cli 0.128.0` in the container logs a models-list decode error (*unknown variant `max`*) on every run; it still works, but it is old.
+- Seen once: *one session across turns* failed in a full `npm test` (the first turn came back resumed) and passed on every rerun — a race between test files, not yet found.
+- Next: a live turn through the panel in the dashboard (it now needs a sign-in), Codex once its quota resets, update Codex in the container.
+
 ## 2026-09-23 — deployed to `hermes01`
 The redesigned tab, the reading themes and the agent panel are live in `hermes01` (plugin and runtime stamped `c30922c-dirty`: the work is not committed yet). Config backup: `/root/.hermes/config.yaml.bak-websidian-agents-20260923-140134`; `agents: true` added to the plugin settings. Only the dashboard and the Websidian runtime were restarted — never the gateway.
 
