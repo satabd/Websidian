@@ -788,8 +788,19 @@
     root.setAttribute('data-theme', dark ? 'light' : 'dark'); try { localStorage.setItem('md2html-theme', dark ? 'light' : 'dark'); } catch (e) {}
     draw();
   });
+  // A host palette over the theme's colours (see app.js applyPalette): #rrggbb values only.
+  function applyPalette(p) {
+    if (!p || typeof p !== 'object') return;
+    var names = { bg: '--bg', bg2: '--bg2', fg: '--fg', muted: '--muted', line: '--line', accent: '--accent', accentBg: '--accent-bg', codeBg: '--code-bg', mark: '--mark' };
+    Object.keys(names).forEach(function (k) {
+      var v = p[k];
+      if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) root.style.setProperty(names[k], v);
+      else root.style.removeProperty(names[k]);
+    });
+  }
   if (hosted) window.addEventListener('message', function (ev) {
     var d = ev.data;
+    if (d && d.type === 'websidian:palette' && ev.source === window.parent) { applyPalette(d.palette); draw(); return; }
     if (d && d.type === 'websidian:theme' && (d.theme === 'dark' || d.theme === 'light')) { root.setAttribute('data-theme', d.theme); draw(); }
   });
 

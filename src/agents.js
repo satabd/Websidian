@@ -37,7 +37,10 @@ const SNAPSHOT_FILE_MAX = 2 * 1024 * 1024;
 const SNAPSHOT_TOTAL_MAX = 64 * 1024 * 1024;
 const TEXT_EXT = /\.(md|canvas|base|json|txt|css|ya?ml|excalidraw|csv|html?|js)$/i;
 const SKIP_DIRS = new Set(['.git', 'node_modules', '.trash']);
-const AUTH_FAILED = /Failed to authenticate|Not logged in|Please run .*login/i;
+// A provider that refused for quota or rate (Hermes: "HTTP 429: The usage limit has been reached").
+const RATE_LIMITED = /HTTP 429|rate[- ]limit|usage limit has been reached|quota exceeded|insufficient_quota/i;
+// A CLI whose account or provider key is missing or refused (Hermes prints the provider's HTTP 401).
+const AUTH_FAILED = /Failed to authenticate|Not logged in|Please run .*login|HTTP 401|Missing Authentication header|Invalid API key|sign in again|token could not be refreshed/i;
 const SKILLS_REPO = 'https://github.com/kepano/obsidian-skills';
 const DEFAULT_SKILLS_DIR = path.join(__dirname, '..', 'agent-skills', 'obsidian-skills');
 
@@ -253,6 +256,9 @@ function resolveAgents(config, warn = () => {}) {
       enforcesReview: spec.enforcesReview,
       args: Array.isArray(a.args) ? a.args.map(String) : [],
       env: a.env && typeof a.env === 'object' ? Object.fromEntries(Object.entries(a.env).map(([k, v]) => [k, String(v)])) : null,
+      // Variables taken out of the agent's environment — e.g. an API key the server inherited, so that the
+      // CLI uses its own OAuth sign-in instead.
+      envUnset: Array.isArray(a.envUnset) ? a.envUnset.map(String) : null,
       timeoutMs: Number(a.timeoutMs) > 0 ? Number(a.timeoutMs) : timeoutMs,
       sites: Array.isArray(a.sites) ? a.sites.map(String) : null,
       users: Array.isArray(a.users) ? a.users.map(String) : null,
@@ -396,7 +402,7 @@ function modeRules(mode, protect) {
 function firstTurnPreamble(agents, agent, t) {
   const skills = agent.skills ? agents.skills.skills : [];
   return [
-    `You are ${agent.label}, working with ${t.user} on an Obsidian vault that Websidian publishes as a website. They are talking to you from a panel beside Websidian's browser editor.`,
+    `You are ${agent.label}, working with ${t.user} on an Obsidian vault that Websidian publishes as a website. They are talking to you from a panel beside ${t.surface === 'reader' ? 'the note they are reading (they cannot edit this vault from there)' : "Websidian's browser editor"}.`,
     'This is one continuing conversation: later messages will not repeat this context, so keep it in mind.',
     '',
     `Vault: ${t.vaultPath}${t.cwdIsVault ? ' (your working directory)' : ''}`,
@@ -432,12 +438,19 @@ function turnMessage(agents, agent, t, session) {
 }
 
 // ---- running a CLI ---------------------------------------------------------
+function agentEnv(agent) {
+  if (!agent.env && !agent.envUnset) return process.env;
+  const env = { ...process.env, ...(agent.env || {}) };
+  for (const k of agent.envUnset || []) delete env[k];
+  return env;
+}
+
 function runProcess(agent, argv, stdin, cwd, onChild) {
   const spawnFn = agent._spawn || module.exports._spawn || spawn;
   return new Promise((resolve, reject) => {
     let child;
     try {
-      child = spawnFn(argv[0], argv.slice(1), { cwd, shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env: agent.env ? { ...process.env, ...agent.env } : process.env });
+      child = spawnFn(argv[0], argv.slice(1), { cwd, shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env: agentEnv(agent) });
     } catch (e) { return reject(e); }
     if (onChild) onChild(child);
     let out = '', err = '', settled = false, killed = false;
@@ -481,10 +494,11 @@ function resetSession(agents, { site, user, agentId, rel }) {
 }
 
 // Start a turn. Returns at once with a turn id; the browser polls `turnStatus`.
-function startTurn(agents, { vault, user, agentId, rel, message, mode, selection, dirty, protect = [], isProtected = null, log }) {
+// `surface`: 'editor' (the editor's panel) or 'reader' (a reading view: Review only, whatever is asked).
+function startTurn(agents, { vault, user, agentId, rel, message, mode, selection, dirty, protect = [], isProtected = null, log, surface = 'editor' }) {
   const agent = agents.agents.get(agentId);
   if (!agent || !allowedFor(agent, vault.slug, user)) throw mine('No such agent here.', 404);
-  mode = mode === 'edit' ? 'edit' : 'review';
+  mode = mode === 'edit' && surface !== 'reader' ? 'edit' : 'review';
   if (!agent.modes.includes(mode)) throw mine(`${agent.label} is not allowed to ${mode} on this server.`, 403);
   const msg = String(message == null ? '' : message).trim();
   if (!msg) throw mine('Write a message first.', 400);
@@ -496,7 +510,7 @@ function startTurn(agents, { vault, user, agentId, rel, message, mode, selection
   if (mode === 'edit' && [...agents.running.values()].some(r => r.site === vault.slug && r.mode === 'edit' && r.state === 'running')) throw mine('Another agent is editing this vault right now — wait for it to finish.', 409);
 
   const id = crypto.randomBytes(9).toString('base64url');
-  const job = { id, key, site: vault.slug, user, agentId, rel, mode, state: 'running', started: Date.now(), child: null, result: null, error: null };
+  const job = { id, key, site: vault.slug, user, agentId, rel, mode, surface, state: 'running', started: Date.now(), child: null, result: null, error: null };
   agents.running.set(id, job);
   job.isProtected = isProtected || (r => protect.some(p => globMatch(p, r.split('/').pop()) || globMatch(p, r)));
   job.promise = runTurn(agents, agent, job, { vault, msg, sel, dirty: !!dirty, protect, log })
@@ -516,7 +530,7 @@ async function runTurn(agents, agent, job, { vault, msg, sel, dirty, protect, lo
   const cwd = mapped ? os.tmpdir() : vault.root;
   const impl = IMPL[agent.backend];
   const t = {
-    user: job.user, rel: job.rel, mode: job.mode, protect, dirty, selection: sel, message: msg,
+    user: job.user, rel: job.rel, mode: job.mode, surface: job.surface, protect, dirty, selection: sel, message: msg,
     vaultPath, cwd, cwdIsVault: !mapped, siteTitle: vault.title, untrusted: !!vault.untrusted,
     sessionId: session && session.sessionId, newId: impl.newId(),
     skillDirs: agent.skills ? agents.skills.dirs : [], pluginDirs: agent.skills ? agents.skills.pluginDirs : [],
@@ -535,14 +549,15 @@ async function runTurn(agents, agent, job, { vault, msg, sel, dirty, protect, lo
 
   if (job.cancelled) throw mine('Stopped.', 499);
   const parsed = r.code === 0 || agent.backend === 'claude-cli' || agent.backend === 'codex-cli' ? impl.parse(r, t) : { error: `exit ${r.code}` };
-  const authFailed = AUTH_FAILED.test(r.err) || (parsed.error && AUTH_FAILED.test(parsed.error));
+  const authFailed = AUTH_FAILED.test(r.err) || (parsed.error && AUTH_FAILED.test(parsed.error)) || (r.code !== 0 && AUTH_FAILED.test(r.out.slice(-2000)));
   if (parsed.error || authFailed || r.code !== 0 || !parsed.text) {
     // Full detail to the log only: it can carry paths, account names or tokens.
     (log || (() => {}))('agent-failed', { site: vault.slug, user: job.user, agent: agent.id, code: r.code, error: String(parsed.error || '').slice(0, 300) });
     agents.warn(`agent ${agent.id} failed (exit ${r.code})\n--- argv ---\n${argv.map(a => a.length > 200 ? a.slice(0, 200) + '…' : a).join(' ')}\n--- stdout ---\n${r.out.slice(-4000)}\n--- stderr ---\n${r.err.slice(-4000)}`);
     // A session the CLI no longer knows is forgotten, so the next message starts a fresh one.
     if (session && /no conversation found|session.*not found|unknown session|could not find session/i.test(r.err + r.out + (parsed.error || ''))) agents.store.delete(job.key);
-    const e = mine(authFailed ? `${agent.label} is not signed in on the server.` : !parsed.error && !parsed.text && r.code === 0 ? `${agent.label} came back with nothing.` : `${agent.label} could not answer — the server log has the detail.`, 502);
+    const limited = !authFailed && RATE_LIMITED.test(r.err.slice(-4000) + r.out.slice(-4000) + (parsed.error || ''));
+    const e = mine(authFailed ? `${agent.label} is not signed in on the server.` : limited ? `${agent.label}'s model provider is rate-limited or out of quota — try again later, or ask another agent.` : !parsed.error && !parsed.text && r.code === 0 ? `${agent.label} came back with nothing.` : `${agent.label} could not answer — the server log has the detail.`, 502);
     e.changes = describeChanges(agents, job, changes);
     throw e;
   }
@@ -621,7 +636,7 @@ async function revert(agents, { turn, rel, vault, user, writeFile, trashFile }) 
 module.exports = {
   resolveAgents, menu, startTurn, turnStatus, cancelTurn, getSession, resetSession, revert,
   BACKENDS, IMPL, claudeArgv, codexArgv, hermesArgv, openclawArgv, parseClaude, parseCodex, parseHermes, parseOpenclaw,
-  unifiedDiff, snapshot, changesBetween, turnMessage, firstTurnPreamble, loadSkills, resolveCommand, claudePathRule, globMatch,
+  agentEnv, unifiedDiff, snapshot, changesBetween, turnMessage, firstTurnPreamble, loadSkills, resolveCommand, claudePathRule, globMatch,
   SKILLS_REPO, DEFAULT_SKILLS_DIR, mine,
   _spawn: spawn, _spawnSync: spawnSync,
 };

@@ -334,6 +334,15 @@ html.is-shell body.shell-host { min-height: 100%; }
 .is-shell .main { padding-top: 16px; }
 @media (max-width: 1100px) { .is-shell .tocbar { display: none; } }
 @media (max-width: 800px) { .is-shell .shell-crumbs { display: none; } }
+/* flow=1: the host scrolls; the page is as tall as its content and nothing is sized to the frame. The note
+   tree is bounded by the reader's view (--flow-view-h, sent by the host) and scrolls on its own. */
+html.is-shell.shell-flow { height: auto; }
+html.shell-flow body.shell-host { min-height: 0; }
+.shell-flow .shell { min-height: 0; align-items: start; }
+.shell-flow .sidebar { height: auto; max-height: var(--flow-view-h, 720px); position: static; }
+.shell-flow .tocbar { height: auto; position: static; }
+/* The host chooses the vault (its own picker, or the URL it frames): no second site switch inside. */
+.is-shell .site-switch { display: none; }
 /* chrome=tree: the host has its own search and title bar; chrome=none: a reading pane, the note alone. */
 html.is-shell.shell-no-bar { --topbar-h: 0px; }
 .is-shell.shell-no-tree .shell { grid-template-columns: minmax(0, 1fr) var(--toc-w); }

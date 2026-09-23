@@ -57,7 +57,9 @@ stamp runtime > "$TMP/app/websidian.version"
 stamp plugin > "$TMP/stage/websidian/websidian.version"
 
 echo "==> Packing Websidian (src, public, package.json, package-lock.json, node_modules) — revision ${REV:-unknown}"
-tar -cf "$TMP/app.tar" src public package.json package-lock.json node_modules
+# The Obsidian skills for the agent panel travel along when this checkout has them (`npm run skills`).
+SKILLS=""; [ -d agent-skills ] && SKILLS="agent-skills"
+tar -cf "$TMP/app.tar" src public package.json package-lock.json node_modules $SKILLS
 tar -rf "$TMP/app.tar" -C "$TMP/app" websidian.version
 
 echo "==> Packing the plugin (without tests, __pycache__ and deploy)"

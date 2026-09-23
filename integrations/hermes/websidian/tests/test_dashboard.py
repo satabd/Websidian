@@ -97,6 +97,52 @@ class GeneratedConfig(unittest.TestCase):
         self.assertEqual(brain["auth"], {"token": secrets["site_token"]})
         self.assertEqual((mem["slug"], mem["edit"], mem["untrusted"]), ("memories", False, True))
         self.assertNotEqual(pa["secret"], secrets["edit_secret"])
+        self.assertNotIn("agents", cfg, "the agent panel is off unless asked for")
+        self.assertNotIn("agents", brain)
+
+    def test_agents_setting(self):
+        rt = self.runtime({"vaults": [{"path": "/v/brain", "slug": "brain"}, {"path": "/v/private", "slug": "private", "agents": False}],
+                           "agents": True})
+        cfg = core.build_config(rt, core.load_or_create_secrets(rt["secrets_path"]))
+        self.assertEqual([a["id"] for a in cfg["agents"]["list"]], ["hermes", "claude", "codex"], "Hermes first")
+        self.assertTrue(all(a["modes"] == ["review"] for a in cfg["agents"]["list"]))
+        self.assertEqual(cfg["agents"]["sessionScope"], "vault")
+        self.assertEqual(cfg["agents"]["stateFile"], str(self.tmp / "plugin-data" / "websidian" / "agent-sessions.json"))
+        self.assertEqual([s["agents"] for s in cfg["sites"]], ["readers", False])
+        # A list of its own: names or entries; an entry asking for edit still gets review only; unknown backends dropped.
+        rt = self.runtime({"vaults": [{"path": "/v"}], "agents": {"list": ["hermes", {"id": "c", "backend": "claude-cli", "modes": ["edit"]},
+                                                                            {"backend": "rm-rf"}], "sessionScope": "note"}})
+        ag = core.build_config(rt, core.load_or_create_secrets(rt["secrets_path"]))["agents"]
+        self.assertEqual([(a["id"], a["backend"], a["modes"]) for a in ag["list"]], [("hermes", "hermes-cli", ["review"]), ("c", "claude-cli", ["review"])])
+        self.assertEqual(ag["sessionScope"], "note")
+        # Claude Code and Codex use their OAuth sign-ins: inherited API keys are taken out; Hermes keeps its env.
+        by_id = {a["id"]: a for a in core.agents_settings(True, self.tmp)["list"]}
+        self.assertIn("ANTHROPIC_API_KEY", by_id["claude"]["envUnset"])
+        self.assertIn("OPENAI_API_KEY", by_id["codex"]["envUnset"])
+        self.assertNotIn("envUnset", by_id["hermes"])
+        self.assertIsNone(core.agents_settings({"enabled": False}, self.tmp))
+        self.assertIsNone(core.agents_settings({"list": [{"backend": "nope"}]}, self.tmp))
+
+    def test_agent_cli_off_the_path(self):
+        # hermes01: the dashboard's PATH lacks ~/.local/bin, where hermes, claude and codex live.
+        from unittest import mock
+        home = self.tmp / "home"
+        (home / ".local" / "bin").mkdir(parents=True)
+        cli = home / ".local" / "bin" / "hermes"
+        cli.write_text("#!/bin/sh\n")
+        cli.chmod(0o755)
+        with mock.patch("shutil.which", return_value=None), mock.patch.object(core.Path, "home", return_value=home), \
+                mock.patch.dict(os.environ, {"PATH": "/usr/bin"}), mock.patch("os.access", return_value=True):
+            self.assertEqual(core.find_cli("hermes"), str(cli))
+            self.assertEqual(core.find_cli("codex"), "")
+            ag = core.agents_settings({"list": ["hermes", "codex"]}, self.tmp)
+        hermes, codex = ag["list"]
+        self.assertEqual(hermes["command"], str(cli))
+        self.assertEqual(hermes["env"]["PATH"], "/usr/bin" + os.pathsep + str(cli.parent), "the agent gets the folder too")
+        self.assertNotIn("command", codex, "not found: Websidian tries the bare name and leaves it out if it does not run")
+        with mock.patch("shutil.which", return_value="/opt/x/claude"):
+            ag = core.agents_settings({"list": [{"id": "c", "backend": "claude-cli", "command": ["docker", "exec", "box", "claude"]}]}, self.tmp)
+        self.assertEqual(ag["list"][0]["command"], ["docker", "exec", "box", "claude"], "an explicit command is kept")
 
     def test_app_dir_setting(self):
         rt = self.runtime({"dashboard": {"app_dir": "~/wsd-app", "node": "/usr/bin/node"}})

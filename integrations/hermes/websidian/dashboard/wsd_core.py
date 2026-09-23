@@ -91,6 +91,96 @@ def read_plugin_settings() -> Dict[str, Any]:
     return json.loads(json.dumps(settings, default=str))  # detach from the loader's cache
 
 
+def read_memory_limits() -> Dict[str, Any]:
+    """Hermes's ``memory`` section (``memory_char_limit``, ``user_char_limit``), or ``{}``."""
+    try:
+        try:
+            from hermes_cli.config import load_config_readonly as _load  # type: ignore
+        except Exception:
+            from hermes_cli.config import load_config as _load  # type: ignore
+        mem = (_load() or {}).get("memory") or {}
+    except Exception:
+        return {}
+    return {k: mem[k] for k in ("memory_char_limit", "user_char_limit") if isinstance(mem.get(k), int)}
+
+
+# The agent panel beside a note in the dashboard tab. ``agents: true`` offers these, Hermes first (the one whose
+# memory and skills the tab shows); an agent whose CLI is not installed or does not answer is left out at start.
+DEFAULT_AGENTS = [
+    {"id": "hermes", "backend": "hermes-cli"},
+    {"id": "claude", "backend": "claude-cli"},
+    {"id": "codex", "backend": "codex-cli"},
+]
+AGENT_BACKENDS = ("hermes-cli", "claude-cli", "codex-cli", "openclaw-cli")
+# Claude Code and Codex answer on their own OAuth sign-ins (claude.ai, ChatGPT), never on an API key the
+# dashboard inherited from Hermes's .env: these are taken out of their environment (confirmed by the user).
+OAUTH_ONLY_UNSET = {
+    "claude-cli": ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_TOKEN", "ANTHROPIC_BASE_URL"],
+    "codex-cli": ["OPENAI_API_KEY", "CODEX_API_KEY", "OPENAI_BASE_URL"],
+}
+
+
+def find_cli(name: str) -> str:
+    """The full path of an agent CLI, or "" (Websidian then tries the bare name on its own PATH).
+
+    The dashboard often runs with a bare PATH that lacks ``~/.local/bin``, where Hermes installs itself and
+    where it puts ``claude`` and ``codex`` (found so in ``hermes01``), so that folder is looked in as well.
+    """
+    import shutil
+    found = shutil.which(name)
+    if found:
+        return found
+    for folder in (Path.home() / ".local" / "bin", Path("/usr/local/bin")):
+        p = folder / name
+        if p.is_file() and os.access(p, os.X_OK):
+            return str(p)
+    return ""
+
+
+def agents_settings(raw: Any, data: Path) -> Optional[Dict[str, Any]]:
+    """Websidian's ``agents`` config from the plugin's ``agents`` setting, or ``None`` (the default: off).
+
+    ``true`` means Hermes, Claude Code and Codex. A mapping may give ``list`` (Websidian's agent entries),
+    ``sessionScope`` (``vault``, the default here: one conversation per vault that is told which note is open,
+    or ``note``) and ``timeoutMs``. Only Review mode is ever reachable from the tab.
+    """
+    if raw is True:
+        raw = {}
+    if not isinstance(raw, Mapping) or raw.get("enabled") is False:
+        return None
+    items = raw.get("list") if isinstance(raw.get("list"), list) else DEFAULT_AGENTS
+    agent_list = []
+    for a in items:
+        if isinstance(a, str):
+            a = {"id": a, "backend": a if a.endswith("-cli") else a + "-cli"}
+        if not isinstance(a, Mapping) or str(a.get("backend") or "") not in AGENT_BACKENDS:
+            continue
+        entry = {**json.loads(json.dumps(dict(a), default=str)), "modes": ["review"]}  # review only from the dashboard
+        unset = OAUTH_ONLY_UNSET.get(str(entry["backend"]))
+        if unset and "envUnset" not in entry:
+            entry["envUnset"] = list(unset)
+        if not entry.get("command"):
+            found = find_cli(str(entry["backend"]).replace("-cli", ""))
+            if found:
+                entry["command"] = found
+                # Found off the PATH: give the agent that folder too, for the tools it starts itself.
+                folder = str(Path(found).parent)
+                path = os.environ.get("PATH", "")
+                if folder not in path.split(os.pathsep):
+                    entry["env"] = {**(entry.get("env") or {}), "PATH": path + os.pathsep + folder if path else folder}
+        agent_list.append(entry)
+    if not agent_list:
+        return None
+    out: Dict[str, Any] = {
+        "list": agent_list,
+        "sessionScope": "note" if raw.get("sessionScope") == "note" else "vault",
+        "stateFile": str(data / "agent-sessions.json"),
+    }
+    if isinstance(raw.get("timeoutMs"), int) and raw["timeoutMs"] > 0:
+        out["timeoutMs"] = raw["timeoutMs"]
+    return out
+
+
 def resolve_runtime(settings: Mapping[str, Any], home: Optional[Path] = None) -> Dict[str, Any]:
     """Everything the supervisor needs, derived from plugin settings."""
     dash = sites.dashboard_settings(settings.get("dashboard"))
@@ -102,6 +192,7 @@ def resolve_runtime(settings: Mapping[str, Any], home: Optional[Path] = None) ->
         "config_path": ddir / "websidian.config.json", "log_path": ddir / "server.log",
         "pid_path": ddir / "server.pid", "secrets_path": ddir / "secrets.json",
         "sites": sites.normalize_vaults(settings.get("vaults") if isinstance(settings.get("vaults"), list) else []),
+        "agents": agents_settings(settings.get("agents"), ddir),
     }
 
 
@@ -164,8 +255,11 @@ def build_config(runtime: Mapping[str, Any], secrets: Mapping[str, str]) -> Dict
             "auth": {"token": secrets["site_token"]},
         }
         site["edit"] = {"allowFrom": list(LOOPBACK), "secret": secrets["edit_secret"]} if s["edit"] else False
+        # "readers": the dashboard's signed-in user may ask an agent about a note, Review only, editable or not.
+        if runtime.get("agents"):
+            site["agents"] = "readers" if s.get("agents", True) else False
         site_list.append(site)
-    return {
+    cfg: Dict[str, Any] = {
         "host": "127.0.0.1",
         "port": int(runtime["port"]),
         "basePath": runtime["base_path"],
@@ -178,6 +272,9 @@ def build_config(runtime: Mapping[str, Any], secrets: Mapping[str, str]) -> Dict
         },
         "sites": site_list,
     }
+    if runtime.get("agents"):
+        cfg["agents"] = runtime["agents"]
+    return cfg
 
 
 def config_text(cfg: Mapping[str, Any]) -> str:

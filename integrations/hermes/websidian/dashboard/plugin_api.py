@@ -1,6 +1,7 @@
 """Websidian dashboard extension backend, mounted by the Hermes dashboard at ``/api/plugins/websidian/``.
 
 - ``GET  /status``      JSON for the tab UI (server state, sites, log tail when down).
+- ``GET  /overview``    what is in the vaults: recent notes, memory entries, skills (``wsd_model.py``).
 - ``*    /w/{path}``    reverse proxy to the dashboard-managed Websidian server on 127.0.0.1, which is itself mounted
                         at ``<dashboard prefix>/api/plugins/websidian/w`` so all of its URLs are already correct.
 
@@ -36,7 +37,19 @@ def _load_core():
     return mod
 
 
+def _load_model():
+    name = "hermes_websidian_dashboard_model"
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, Path(__file__).resolve().parent / "wsd_model.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    return mod
+
+
 core = _load_core()
+model = _load_model()
 
 router = APIRouter()
 supervisor = core.Supervisor(core.read_plugin_settings)
@@ -85,6 +98,16 @@ async def status() -> Any:
     if not st["running"]:
         _kick_ensure()
     return st
+
+
+def _overview() -> Any:
+    rt = supervisor._runtime()
+    return model.overview(rt["sites"], rt["base_path"], core.hermes_home(), core.read_memory_limits())
+
+
+@router.get("/overview")
+async def overview() -> Any:
+    return JSONResponse(await asyncio.to_thread(_overview), headers={"cache-control": "no-store"})
 
 
 @router.api_route("/w", methods=PROXY_METHODS)

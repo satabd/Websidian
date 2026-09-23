@@ -86,6 +86,7 @@ At start the server runs each agent's `<command> --version`. One that does not a
 | `timeoutMs` | Stop the agent after this long. Default `agents.timeoutMs`, 15 minutes |
 | `args` | Extra arguments, appended as given |
 | `env` | Extra environment variables for this agent only |
+| `envUnset` | Variables taken out of this agent's environment — e.g. `["ANTHROPIC_API_KEY"]` so Claude Code answers on its own OAuth sign-in rather than a key the server inherited |
 | `instructions` | A line added to this agent's first message |
 | `skills` | `false` keeps the skills away from this agent |
 | `paths` | `{ "<site slug>": "<path>" }` — the vault as the agent sees it, for an agent in a container. The agent is then started in the temp directory and told the path |
@@ -106,7 +107,15 @@ And for all of them:
 | `agents.timeoutMs` | Default time limit per turn, 900000 |
 | `agents.stateFile` | Where the session ids and the panel's transcript live. Default `.websidian/agent-sessions.json` next to where the server starts |
 | `rateLimit.agents` | Turns per minute per address, default 10 |
-| `sites[].agents` | `false` turns the panel off for one site |
+| `sites[].agents` | `false` turns the panel off for one site. `"readers"` also opens it to readers signed in by a trusted proxy ([[Configuration#Behind a trusted proxy]]) — see below |
+
+### For readers, beside the note
+A site that says `"agents": "readers"` gets a second door, `<site>/_ask/`, with the same endpoints as the editor's panel. It serves the [[Hermes plugin#Asking an agent|Hermes tab's panel]].
+
+- **Who**: only a request the trusted proxy signed in (`proxyAuth`: its secret, from its network). A public reader has no identity and gets `401`; a site without `"readers"` has no door (`404`).
+- **What**: **Review only**, whatever the request asks and whatever the agent's `modes` allow; editing may be off for the vault. The first message tells the agent the person is reading and cannot edit from there.
+- **Revert** still works, for files an agent changed in that person's own turn — the safety net for Hermes and OpenClaw, whose Review is by instruction only.
+- Writes need `X-Requested-With`, as in the editor. The conversation is the same one the editor's panel would show for that user and note.
 
 ## Using it
 

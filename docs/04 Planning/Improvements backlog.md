@@ -58,7 +58,10 @@ See [[Agent memory and second brain]].
 | # | Improvement |
 |---|---|
 | A1 | Mount Hermes `memories/`, `skills/` and its Obsidian vault to Windows folders; named volume for the rest of `~/.hermes` |
-| A2 | Memory view: `§` entries as a list, character meter against the agent's limit |
+| A2 | ✅ 2026-09-23 — the Hermes tab's **Memory** view lists the `§` entries of `MEMORY.md` / `USER.md` with a meter against `memory.memory_char_limit` / `user_char_limit` ([[Hermes plugin#Dashboard tab]]) |
+| A21 | Hermes tab: the **editor** in the tab still has its own light chrome and toolbar; give it shell mode (host theme and palette, no brand or site switch) so editing looks like reading |
+| A22 | Hermes tab: search goes through each vault's `/_search`, and every request reaches Websidian from `127.0.0.1`, so all dashboard users share one search budget (60 a minute). Raise `rateLimit.search` in the generated config, or key the limiter on the proxied user |
+| A23 | Hermes tab: a **skill's own files** (`references/`, `scripts/`) listed under the skill in the Skills view, not only through Browse |
 | A3 | Git history of memory files, including the agent's own writes ("what did it learn this week") |
 | A4 | One-click "revert this memory entry" |
 | A5 | [[Hermes plugin]] in `hermes01` with the dashboard tab and real vaults ✅ — gateway restarted 2026-09-16 |

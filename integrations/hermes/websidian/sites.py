@@ -71,7 +71,7 @@ def _folder_slug(path: str) -> str:
 
 
 def normalize_vaults(vaults: Optional[Iterable[Any]]) -> List[Dict[str, Any]]:
-    """``[{path, url, slug, title, edit, untrusted}]`` with unique slugs, in the configured order.
+    """``[{path, url, slug, title, edit, untrusted, kind}]`` with unique slugs, in the configured order.
 
     slug: explicit ``slug`` -> last path segment of ``url`` -> folder name -> ``vault``; duplicates get ``-2``, ``-3``...
     ``untrusted`` defaults to True and ``edit`` to False: a vault an agent writes to is also a vault every
@@ -94,6 +94,7 @@ def normalize_vaults(vaults: Optional[Iterable[Any]]) -> List[Dict[str, Any]]:
             slug = f"{base}-{n}"
             n += 1
         used.add(slug)
+        kind = str(v.get("kind") or "").strip().lower()
         title = str(v.get("title") or "").strip() or os.path.basename(path.replace("\\", "/").rstrip("/")) or slug
         out.append({
             "path": path, "url": url, "slug": slug, "title": title,
@@ -101,6 +102,10 @@ def normalize_vaults(vaults: Optional[Iterable[Any]]) -> List[Dict[str, Any]]:
             "edit": as_bool(v.get("edit"), False),
             # Never let the default be False: vault text may come from the agent, web pages, tool output.
             "untrusted": as_bool(v.get("untrusted"), True),
+            # What the dashboard tab shows it as: memory, skills or vault; "" = work it out from the path.
+            "kind": kind if kind in ("memory", "skills", "vault") else "",
+            # The agent panel on this vault's notes, when the plugin's ``agents`` setting is on.
+            "agents": as_bool(v.get("agents"), True),
         })
     return out
 

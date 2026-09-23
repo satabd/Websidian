@@ -1,7 +1,7 @@
 ---
 title: Hermes plugin
 tags: [websidian, guide, agents, hermes]
-updated: 2026-09-16
+updated: 2026-09-23
 order: 13
 description: Let an agent read and write the vault, safely
 ---
@@ -135,6 +135,25 @@ Done 2026-09-13 by session `md2html-fd`:
 
 **Open it:** Hermes dashboard → **Websidian** in the sidebar (`http://localhost:9119/websidian`). No second login: the dashboard backend signs you in as `hermes` through Websidian's `proxyAuth` ([[Configuration#Behind a trusted proxy]]). Websidian runs under the basePath `/api/plugins/websidian/w`.
 
+### What is in the tab
+Redesigned 2026-09-23: the tab draws its own views in the dashboard's style and colours, and Websidian only does the reading.
+
+| View | Shows |
+|---|---|
+| **Overview** | Hermes's memory (two cards: entries and how full each file is), every vault (notes, last change, *Editable* / *Read-only*), and the notes changed most recently across all vaults |
+| **Memory** | `MEMORY.md` (*Agent notes*) and `USER.md` (*About you*) entry by entry — the `§`-separated entries Hermes keeps — with a meter against `memory.memory_char_limit` / `memory.user_char_limit` from the Hermes config. *Open* reads the file; *Edit* appears only when that vault has `edit: true` |
+| **Skills** | Every `SKILL.md`, by category (a category folder's `DESCRIPTION.md` describes it), with a filter; a skill opens in the reading pane with its links and backlinks |
+| **Browse** | A vault's note tree next to the note; a picker when there is more than one vault |
+| **Graph** | The vault's graph; clicking a node opens the note in the reading pane |
+
+- **Reading theme** (the palette button next to search): *Match Hermes* (the default), *Light*, *Dark*, *Paper*, *Nord* or *Night*, for notes, the tree and the graph; the tab itself stays in the dashboard's theme. Remembered per browser (`localStorage`), applied without reloading the note.
+- **Ask** (in the reading pane's bar) opens the agent panel beside the note — [[#Asking an agent]].
+- **Search** (top right, or press `/`) searches every vault at once; `↑` `↓` and `Enter` open a hit, `Esc` clears.
+- **The reading pane**: a bar with *Back*, the title and path, *Edit* (editable vaults), *Graph* and *Open* (the full page in a new tab), over the note. The note has no box of its own: it is as tall as its content and scrolls with the dashboard page ([[Embedding in your website#Inside another application shell mode|shell mode]] with `&flow=1`), in the dashboard theme's colours. The graph and the editor keep a frame the height of the window.
+- The address bar follows the reader, so a note or a view can be bookmarked; *Back* from a deep-linked note goes to the view its vault belongs to.
+- Which vault is the memory and which the skills is found from the path (`<hermes home>/memories`, `<hermes home>/skills`); set `kind: memory | skills | vault` on a vault to say it outright.
+- The model behind the views is `GET /api/plugins/websidian/overview` (`dashboard/wsd_model.py`): read from disk on every call, bounded walks, vault-relative paths only. Nothing a vault holds becomes markup in the dashboard: titles, entries and snippets are set as text.
+
 **Deep links:** `?site=memories&note=MEMORY&edit=1` opens that note in the editor. A note whose name needs percent-escaping (a space, `&`, `#`, `+`, `%`, non-Latin letters) travels as `?site=…&note64=<base64url>` instead, because the login redirect decodes the target one time too many and would corrupt a `note=` value; plain names stay readable, and old `note=`/`q=` links still work. The same applies to `q=` / `q64=` (the iframe's own query string).
 
 | Site | Folder | Notes | Mode |
@@ -168,6 +187,36 @@ dashboard:
 
 **Not checked in the browser:** saving a protected file with confirmation through the dashboard (deliberately, so the real memory was not changed; covered by tests).
 
+### Asking an agent
+Opt in with `agents: true` in the plugin settings, then restart the dashboard. Every note in the tab gets **Ask** in its bar: a panel beside the note (above it on a narrow window) where you talk to **Hermes Agent** (first, the default), **Claude Code** or **Codex** about the note you are reading.
+
+```yaml
+plugins:
+  entries:
+    websidian:
+      settings:
+        agents: true               # Hermes, Claude Code, Codex — each left out if its CLI does not answer
+        # agents:
+        #   list: [hermes, claude]   # or Websidian agent entries: {id, backend, model, env, ...}
+        #   sessionScope: note       # default here: vault — one conversation per vault, told which note is open
+        vaults:
+          - { path: /root/.hermes/memories, slug: memories, agents: false }   # no panel on this vault
+```
+
+- **Review only.** The panel is for reading: agents may read the whole vault but are told not to change it — enforced for Claude Code and Codex, by instruction for Hermes. It works on read-only vaults too; nothing in the tab can put an agent in Edit mode. A file changed anyway is listed under the reply, flagged, with **Diff** and **Revert**; if it was the open note, the note reloads.
+- **One conversation per vault** by default (the agent keeps its own CLI session and is told when you open another note), so Hermes keeps the context as you move around. **⟲** starts a new one; the picker remembers your agent per browser.
+- The agents run **where the dashboard runs** (in `hermes01`: inside the container), as its user, signed in the way each CLI already is there — `hermes setup`, `claude login`, `codex login`. **Claude Code and Codex use only their OAuth sign-ins** (claude.ai, ChatGPT): the plugin takes `ANTHROPIC_API_KEY`, `ANTHROPIC_TOKEN`, `OPENAI_API_KEY` and their kin out of their environment, so a key in Hermes's `.env` is never used instead. An agent that is not signed in, or whose provider is out of quota, says so in the panel.
+- The CLIs are found on the dashboard's `PATH` or in `~/.local/bin` (where Hermes installs itself, `claude` and `codex`; the dashboard in `hermes01` runs without it on its `PATH`), and the installer ships the Obsidian skills when the checkout has them (`npm run skills`).
+
+> [!note] Sign the CLIs in inside the container
+> ```bash
+> docker exec -it hermes01 /root/.local/bin/claude          # then /login, with the claude.ai account
+> docker exec -it hermes01 /root/.local/bin/codex login --device-auth
+> ```
+> Found 2026-09-23 on the first live run: both were "logged in" by their status commands, but the OAuth tokens could no longer be refreshed, so every turn was refused — [[Known issues]].
+- Replies are Markdown turned into plain elements in the dashboard: `[[wikilinks]]` are highlighted, `http(s)` links open in a new tab, and nothing an agent writes becomes HTML.
+- Under the hood: the generated config sets `"agents": "readers"` on each vault, and the panel talks to `<vault>/_ask/` — [[Agents in the editor#For readers, beside the note]].
+
 ## Configure
 In `~/.hermes/config.yaml` under `plugins.entries.websidian.settings` (or `WEBSIDIAN_*` environment variables):
 
@@ -190,6 +239,9 @@ plugins:
 | `vaults` | — | `[{path, url, slug, title, edit, untrusted}]`: folders Websidian serves and their site URL |
 | `vaults[].edit` | `false` | Browser editing, **opt-in per vault**. The dashboard has one role, so `true` means every signed-in dashboard user can rewrite that vault. A read-only vault also gets no edit link in replies |
 | `vaults[].untrusted` | `true` | Keep it. Vault text can come from the agent, a web page or tool output |
+| `agents` | off | `true` or `{list, sessionScope, timeoutMs}`: the agent panel beside notes, Review only ([[#Asking an agent]]) |
+| `vaults[].agents` | `true` | `false` hides the agent panel on that vault |
+| `vaults[].kind` | from the path | `memory`, `skills` or `vault`: which view of the dashboard tab the vault belongs to ([[#What is in the tab]]) |
 | `protect` | the 9 instruction files | Basenames that need approval |
 | `protect_mode` | `approve` | `approve` (Hermes human-approval prompt) or `block` |
 | `block_active_content` | `true` | Refuse raw active HTML in vault notes |

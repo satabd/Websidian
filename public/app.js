@@ -13,11 +13,17 @@
   // browser's own theme; the server writes the same pair onto the links it renders.
   var THEME = MODE === 'shell' ? (/[?&]theme=(dark|light)\b/.exec(location.search) || ['', ''])[1] : '';
   var CHROME = MODE === 'shell' ? (/[?&]chrome=(tree|none)\b/.exec(location.search) || ['', ''])[1] : '';
+  // flow=1: the host sizes the frame to the page and scrolls it with its own page (the Hermes dashboard tab),
+  // so nothing is sized to the frame's viewport and the page reports its height (websidian:height).
+  var FLOW = MODE === 'shell' && /[?&]flow=1\b/.test(location.search);
+  if (FLOW) root.classList.add('shell-flow');
   function withMode(h) {
     if (!MODE || !h || h.indexOf(W.base) !== 0) return h;
-    if (h.indexOf(MODE + '=') >= 0 || /\.(png|jpe?g|gif|svg|webp|pdf)(\?|#|$)/i.test(h)) return h;
+    if (/\.(png|jpe?g|gif|svg|webp|pdf)(\?|#|$)/i.test(h)) return h;
     var i = h.indexOf('#'); var hash = i >= 0 ? h.slice(i) : ''; var p = i >= 0 ? h.slice(0, i) : h;
-    return p + (p.indexOf('?') >= 0 ? '&' : '?') + MODE + '=1' + (THEME ? '&theme=' + THEME : '') + (CHROME ? '&chrome=' + CHROME : '') + hash;
+    // The server writes the mode onto its own links, but not flow: that one is added here.
+    if (p.indexOf(MODE + '=') >= 0) return FLOW && !/[?&]flow=/.test(p) ? p + '&flow=1' + hash : h;
+    return p + (p.indexOf('?') >= 0 ? '&' : '?') + MODE + '=1' + (THEME ? '&theme=' + THEME : '') + (CHROME ? '&chrome=' + CHROME : '') + (FLOW ? '&flow=1' : '') + hash;
   }
   if (MODE) {
     document.addEventListener('click', function (ev) {
@@ -42,6 +48,18 @@
   if (W && W.shell) {
     // The host draws the title bar and owns the theme. Tell it which note is open so it can follow
     // along, and let it push a theme down without a reload.
+    if (window.parent !== window && FLOW) {
+      var lastH = 0;
+      var postHeight = function () {
+        var h = Math.ceil(document.documentElement.getBoundingClientRect().height);
+        if (h === lastH) return;
+        lastH = h;
+        window.parent.postMessage({ type: 'websidian:height', height: h, rel: W.rel }, '*');
+      };
+      if (window.ResizeObserver) new ResizeObserver(postHeight).observe(document.documentElement);
+      window.addEventListener('load', postHeight);
+      postHeight();
+    }
     if (window.parent !== window) {
       window.addEventListener('load', function () {
         var h1 = document.querySelector('.note h1');
@@ -50,8 +68,28 @@
     }
     window.addEventListener('message', function (ev) {
       var d = ev.data;
+      if (d && d.type === 'websidian:palette' && ev.source === window.parent) { applyPalette(d.palette); return; }
+      // In flow mode the frame is as tall as the page, so the host says how much of it a reader sees at once:
+      // that bounds the note tree, which would otherwise make the page as long as the whole vault.
+      if (d && d.type === 'websidian:viewport' && ev.source === window.parent && FLOW) {
+        var vh = Math.round(Number(d.height));
+        if (vh >= 200 && vh <= 10000) root.style.setProperty('--flow-view-h', vh + 'px');
+        return;
+      }
       if (!d || d.type !== 'websidian:theme') return;
       if (d.theme === 'dark' || d.theme === 'light') { root.setAttribute('data-theme', d.theme); renderMermaid(true); }
+    });
+  }
+  // A host palette ({bg, bg2, fg, muted, line, accent, accentBg, codeBg, mark}) over the theme's colours, so a
+  // reading pane looks like the application around it. Only #rrggbb values are taken: nothing the parent
+  // sends can become anything but a colour.
+  function applyPalette(p) {
+    if (!p || typeof p !== 'object') return;
+    var names = { bg: '--bg', bg2: '--bg2', fg: '--fg', muted: '--muted', line: '--line', accent: '--accent', accentBg: '--accent-bg', codeBg: '--code-bg', mark: '--mark' };
+    Object.keys(names).forEach(function (k) {
+      var v = p[k];
+      if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) root.style.setProperty(names[k], v);
+      else root.style.removeProperty(names[k]);
     });
   }
 
@@ -121,7 +159,9 @@
   if (menuBtn) menuBtn.addEventListener('click', function () { sidebar.classList.toggle('is-open'); });
   document.addEventListener('click', function (e) { if (sidebar && sidebar.classList.contains('is-open') && !sidebar.contains(e.target) && e.target !== menuBtn) sidebar.classList.remove('is-open'); });
   var cur = sidebar && sidebar.querySelector('.is-current');
-  if (cur) cur.scrollIntoView({ block: 'center' });
+  // Centre the current note in the tree by scrolling the tree only: scrollIntoView would scroll the page too,
+  // and a note would open halfway down whenever it sits low in the tree.
+  if (cur) sidebar.scrollTop += cur.getBoundingClientRect().top - sidebar.getBoundingClientRect().top - (sidebar.clientHeight - cur.offsetHeight) / 2;
 
   // ---- mermaid diagrams ----
   var mermaidSources = null;

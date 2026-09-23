@@ -670,6 +670,10 @@ function install(router, { config, vaults, bySlug, renderer, log, layoutVersion,
   }
 
   // -- agents (optional; only routed when `agents` is configured) ---------------------
+  // The same endpoints serve two surfaces. Under _api: the editor's panel, for a signed-in editor, Review or
+  // Edit. Under _ask: a reading view, for a site that says `"agents": "readers"` — whoever the trusted proxy
+  // signed in may talk to an agent about the note they read, in Review mode only, even where editing is off
+  // (the Hermes dashboard tab). Revert stays on both: it only undoes what an agent changed in that person's turn.
   if (agents) {
     const fail = (req, res, e, what) => {
       const status = e.expose ? (e.status || 400) : 500;
@@ -679,78 +683,102 @@ function install(router, { config, vaults, bySlug, renderer, log, layoutVersion,
     const noteRel = (req, input) => { const t = safeNoteRel(req.vault, input, { strict: true }); if (t.error) throw agentsLib.mine(t.error, 400); return t.rel; };
     const off = (req, res, next) => (agentsOn(req.vault) ? next() : res.status(404).json({ error: 'Agents are off for this site.' }));
 
-    api.get('/agents', off, (req, res) => res.json(agentsLib.menu(agents, req.vault, req.user)));
+    const agentRoutes = (r, surface) => {
+      r.get('/agents', off, (req, res) => {
+        const m = agentsLib.menu(agents, req.vault, req.user);
+        if (surface === 'reader') m.agents = m.agents.map(a => ({ ...a, modes: ['review'] }));
+        res.json({ ...m, surface });
+      });
 
-    // An agent's reply rendered like a note (wikilinks resolve), but never with raw HTML: the
-    // agent may have read a note that told it to write some.
-    api.post('/agents/render', off, async (req, res) => {
-      const body = req.body || {};
-      try {
-        const rel = noteRel(req, body.rel);
-        const texts = (Array.isArray(body.texts) ? body.texts : []).slice(0, 120).map(t => String(t == null ? '' : t).slice(0, 200_000));
-        const html = [];
-        for (const t of texts) html.push((await renderer.renderSource(req.vault, rel, t, { safe: true })).html);
-        res.json({ html });
-      } catch (e) { fail(req, res, e, 'render'); }
-    });
+      // An agent's reply rendered like a note (wikilinks resolve), but never with raw HTML: the
+      // agent may have read a note that told it to write some.
+      r.post('/agents/render', off, async (req, res) => {
+        const body = req.body || {};
+        try {
+          const rel = noteRel(req, body.rel);
+          const texts = (Array.isArray(body.texts) ? body.texts : []).slice(0, 120).map(t => String(t == null ? '' : t).slice(0, 200_000));
+          const html = [];
+          for (const t of texts) html.push((await renderer.renderSource(req.vault, rel, t, { safe: true })).html);
+          res.json({ html });
+        } catch (e) { fail(req, res, e, 'render'); }
+      });
 
-    api.get('/agents/:agent/session', off, (req, res) => {
-      try { res.json(agentsLib.getSession(agents, { site: req.vault.slug, user: req.user, agentId: req.params.agent, rel: noteRel(req, req.query.rel) })); }
-      catch (e) { fail(req, res, e, 'session'); }
-    });
-    // Forget the conversation: the next message starts a new session (the CLI keeps its own copy).
-    api.delete('/agents/:agent/session', off, (req, res) => {
-      try { agentsLib.resetSession(agents, { site: req.vault.slug, user: req.user, agentId: req.params.agent, rel: noteRel(req, req.query.rel) }); res.json({ ok: true }); }
-      catch (e) { fail(req, res, e, 'reset'); }
-    });
+      r.get('/agents/:agent/session', off, (req, res) => {
+        try { res.json(agentsLib.getSession(agents, { site: req.vault.slug, user: req.user, agentId: req.params.agent, rel: noteRel(req, req.query.rel) })); }
+        catch (e) { fail(req, res, e, 'session'); }
+      });
+      // Forget the conversation: the next message starts a new session (the CLI keeps its own copy).
+      r.delete('/agents/:agent/session', off, (req, res) => {
+        try { agentsLib.resetSession(agents, { site: req.vault.slug, user: req.user, agentId: req.params.agent, rel: noteRel(req, req.query.rel) }); res.json({ ok: true }); }
+        catch (e) { fail(req, res, e, 'reset'); }
+      });
 
-    api.post('/agents/:agent/turn', off, agentLimiter.middleware(), (req, res) => {
-      const body = req.body || {}; const vault = req.vault;
-      try {
-        const patterns = protectPatterns(vault);
-        const out = agentsLib.startTurn(agents, {
-          vault, user: req.user, agentId: req.params.agent, rel: noteRel(req, body.rel),
-          message: body.message, mode: body.mode, selection: body.selection, dirty: !!body.dirty,
-          protect: patterns.length ? patterns : DEFAULT_PROTECT, isProtected: rel => isProtected(patterns.length ? patterns : DEFAULT_PROTECT, rel), log,
-        });
-        res.status(202).json(out);
-      } catch (e) { fail(req, res, e, 'turn'); }
-    });
+      r.post('/agents/:agent/turn', off, agentLimiter.middleware(), (req, res) => {
+        const body = req.body || {}; const vault = req.vault;
+        try {
+          const patterns = protectPatterns(vault);
+          const out = agentsLib.startTurn(agents, {
+            vault, user: req.user, agentId: req.params.agent, rel: noteRel(req, body.rel),
+            message: body.message, mode: surface === 'reader' ? 'review' : body.mode, selection: body.selection, dirty: surface === 'reader' ? false : !!body.dirty,
+            protect: patterns.length ? patterns : DEFAULT_PROTECT, isProtected: rel => isProtected(patterns.length ? patterns : DEFAULT_PROTECT, rel), log, surface,
+          });
+          res.status(202).json(out);
+        } catch (e) { fail(req, res, e, 'turn'); }
+      });
 
-    api.get('/agent-turns/:turn', off, (req, res) => {
-      try { res.json(agentsLib.turnStatus(agents, { id: req.params.turn, site: req.vault.slug, user: req.user })); }
-      catch (e) { fail(req, res, e, 'status'); }
-    });
-    api.post('/agent-turns/:turn/cancel', off, (req, res) => {
-      try { res.json(agentsLib.cancelTurn(agents, { id: req.params.turn, site: req.vault.slug, user: req.user })); }
-      catch (e) { fail(req, res, e, 'cancel'); }
-    });
+      r.get('/agent-turns/:turn', off, (req, res) => {
+        try { res.json(agentsLib.turnStatus(agents, { id: req.params.turn, site: req.vault.slug, user: req.user })); }
+        catch (e) { fail(req, res, e, 'status'); }
+      });
+      r.post('/agent-turns/:turn/cancel', off, (req, res) => {
+        try { res.json(agentsLib.cancelTurn(agents, { id: req.params.turn, site: req.vault.slug, user: req.user })); }
+        catch (e) { fail(req, res, e, 'cancel'); }
+      });
 
-    // Undo one file of a turn. Writes go through the same guards as a save: inside the vault,
-    // no symlink escape; a file the agent created is moved to .trash, like a delete.
-    api.post('/agent-turns/:turn/revert', off, async (req, res) => {
-      const vault = req.vault; const rel = String((req.body || {}).rel || '');
-      const inside = async relPath => {
-        const abs = path.join(vault.root, ...relPath.split('/'));
-        if (relPath.split('/').includes('..') || !insideRoot(path.resolve(vault.root), path.resolve(abs))) throw agentsLib.mine('Not inside the vault.', 400);
-        const escape = await linkEscape(vault, abs); if (escape) throw agentsLib.mine(escape, 400);
-        return abs;
-      };
-      try {
-        const out = await agentsLib.revert(agents, {
-          turn: req.params.turn, rel, vault, user: req.user,
-          writeFile: async (r, text) => atomicWrite(await inside(r), text),
-          trashFile: async r => {
-            const abs = await inside(r);
-            let dest = path.join(vault.root, '.trash', ...r.split('/'));
-            if (await stampOf(dest)) { const p = path.parse(dest); dest = path.join(p.dir, `${p.name}.${Date.now()}${p.ext}`); }
-            await fsp.mkdir(path.dirname(dest), { recursive: true }); await fsp.rename(abs, dest);
-          },
-        });
-        log('agent-revert', { site: vault.slug, user: req.user, rel: out.rel, status: out.status });
-        res.json(out);
-      } catch (e) { fail(req, res, e, 'revert'); }
-    });
+      // Undo one file of a turn. Writes go through the same guards as a save: inside the vault,
+      // no symlink escape; a file the agent created is moved to .trash, like a delete.
+      r.post('/agent-turns/:turn/revert', off, async (req, res) => {
+        const vault = req.vault; const rel = String((req.body || {}).rel || '');
+        const inside = async relPath => {
+          const abs = path.join(vault.root, ...relPath.split('/'));
+          if (relPath.split('/').includes('..') || !insideRoot(path.resolve(vault.root), path.resolve(abs))) throw agentsLib.mine('Not inside the vault.', 400);
+          const escape = await linkEscape(vault, abs); if (escape) throw agentsLib.mine(escape, 400);
+          return abs;
+        };
+        try {
+          const out = await agentsLib.revert(agents, {
+            turn: req.params.turn, rel, vault, user: req.user,
+            writeFile: async (r2, text) => atomicWrite(await inside(r2), text),
+            trashFile: async r2 => {
+              const abs = await inside(r2);
+              let dest = path.join(vault.root, '.trash', ...r2.split('/'));
+              if (await stampOf(dest)) { const p = path.parse(dest); dest = path.join(p.dir, `${p.name}.${Date.now()}${p.ext}`); }
+              await fsp.mkdir(path.dirname(dest), { recursive: true }); await fsp.rename(abs, dest);
+            },
+          });
+          log('agent-revert', { site: vault.slug, user: req.user, rel: out.rel, status: out.status, surface });
+          res.json(out);
+        } catch (e) { fail(req, res, e, 'revert'); }
+      });
+    };
+
+    agentRoutes(api, 'editor');
+
+    // The reading view's door. Signed in by the trusted proxy only (req.proxyUser exists only when proxyAuth
+    // checked the secret and the network): a public reader has no identity, so no agent.
+    const ask = express.Router({ mergeParams: true });
+    router.use('/:site/_ask', (req, res, next) => {
+      const vault = bySlug.get(req.params.site);
+      if (!vault || !agentsOn(vault) || vault.agents !== 'readers') return next('router');
+      if (!req.proxyUser) return res.status(401).json({ error: 'Sign in through the dashboard to talk to an agent.' });
+      // CSRF: a cross-site form cannot set this header.
+      if (req.method !== 'GET' && !req.headers['x-requested-with']) return res.status(403).json({ error: 'Missing X-Requested-With header' });
+      req.vault = vault;
+      req.user = req.proxyUser;
+      res.set('Cache-Control', 'no-store');
+      next();
+    }, express.json({ limit: 256 * 1024 }), ask);
+    agentRoutes(ask, 'reader');
   }
 
   return { currentUser, assist, agents };

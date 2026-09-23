@@ -19,7 +19,7 @@ const { folderTitle } = require('./vault');
 const { pageTags } = require('./seo');
 const { nonceAttr, withNonce } = require('./untrusted');
 
-const LAYOUT_VERSION = 24;   // 24: graph and explore pages take the host theme and survive a missing theme button; 23: shell chrome levels (&chrome=tree|none) and their CSS; 22: dates in `title:`/`updated:` print as days, not Date strings; 21: shell mode (?shell=1) for a host application's own chrome; 20: Explore reach + named views (explore.js, app.css); 19: dir="auto" on sidebar, table of contents and backlink titles; detected page direction
+const LAYOUT_VERSION = 28;   // 28: shell mode takes a host palette (websidian:palette), can flow with the host page (&flow=1) and leaves the site choice to the host; the note tree centres the current note without scrolling the page; 24: graph and explore pages take the host theme and survive a missing theme button; 23: shell chrome levels (&chrome=tree|none) and their CSS; 22: dates in `title:`/`updated:` print as days, not Date strings; 21: shell mode (?shell=1) for a host application's own chrome; 20: Explore reach + named views (explore.js, app.css); 19: dir="auto" on sidebar, table of contents and backlink titles; detected page direction
 
 // JSON inside <script>: a note path containing "</script>" must not close the tag.
 const scriptJson = v => JSON.stringify(v).replace(/</g, '\\u003c');

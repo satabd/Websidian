@@ -197,6 +197,7 @@ test('unifiedDiff shows what changed with context', () => {
 // ---- over HTTP, with a fake agent ------------------------------------------
 
 const PORT = 19250 + Math.floor(Math.random() * 300);
+const PROXY_SECRET = 'p'.repeat(40);
 const url = p => `http://127.0.0.1:${PORT}${p}`;
 let tmp, proc, out = '', cookie = '', agentLog;
 const api = (method, p, body) => fetch(url('/s/_api/' + p), { method, body: body === undefined ? undefined : JSON.stringify(body), headers: { 'content-type': 'application/json', 'x-requested-with': 't', cookie } });
@@ -223,7 +224,9 @@ before(async () => {
   const cfg = path.join(os.tmpdir(), `ws-agents-cfg-${process.pid}.json`);
   fs.writeFileSync(cfg, JSON.stringify({
     port: PORT, host: '127.0.0.1', cacheDir: false, warm: false, log: false,
-    sites: [{ slug: 's', title: 'S', root: tmp.root, home: 'Home' }, { slug: 'off', title: 'Off', root: tmp.root, agents: false }],
+    sites: [{ slug: 's', title: 'S', root: tmp.root, home: 'Home' }, { slug: 'off', title: 'Off', root: tmp.root, agents: false },
+      { slug: 'ro', title: 'Read only', root: tmp.root, edit: false, agents: 'readers' }],
+    proxyAuth: { secret: PROXY_SECRET },
     edit: { users: { u: 'p' }, secret: 'x'.repeat(40) },
     rateLimit: { agents: 1000 },
     agents: {
@@ -334,10 +337,72 @@ test('a failing agent shows one line; its output stays in the server log', async
   assert.doesNotMatch(JSON.stringify(r), /sk-secret-123/);
 });
 
+test('envUnset takes inherited variables out of the agent environment; env adds its own', () => {
+  process.env.WS_TEST_KEY = 'inherited';
+  try {
+    const env = A.agentEnv({ env: { EXTRA: '1' }, envUnset: ['WS_TEST_KEY'] });
+    assert.equal(env.WS_TEST_KEY, undefined);
+    assert.equal(env.EXTRA, '1');
+    assert.equal(A.agentEnv({ env: null, envUnset: null }), process.env);
+    assert.equal(process.env.WS_TEST_KEY, 'inherited', 'the server keeps its own');
+  } finally { delete process.env.WS_TEST_KEY; }
+});
+
+test('a provider out of quota, or a CLI not signed in, is said so plainly', async () => {
+  const q = await turn('QUOTA now');
+  assert.equal(q.state, 'failed');
+  assert.match(q.error, /rate-limited or out of quota/);
+  const a = await turn('NOAUTH now');
+  assert.match(a.error, /not signed in on the server/);
+  const x = await turn('EXPIRED now');
+  assert.match(x.error, /not signed in on the server/);
+});
+
 test('an agent reply is rendered with the vault\'s links but without raw HTML', async () => {
   const r = await turn('HTML please');
   assert.equal(r.state, 'done', JSON.stringify(r));
   const j = await (await api('POST', 'agents/render', { rel: 'Home.md', texts: [r.text] })).json();
   assert.match(j.html[0], /internal-link/, 'wikilinks resolve');
   assert.doesNotMatch(j.html[0], /<img/, 'the agent\'s HTML is text, not markup');
+});
+
+// ---- the reader's door: <site>/_ask (a site with "agents": "readers") ------------------------
+
+const ask = (method, p, body, headers = {}) => fetch(url('/ro/_ask/' + p), {
+  method, body: body === undefined ? undefined : JSON.stringify(body),
+  headers: { 'content-type': 'application/json', 'x-websidian-proxy-secret': PROXY_SECRET, 'x-websidian-user': 'reader', 'x-requested-with': 't', ...headers },
+});
+
+test('readers: signed in by the proxy they get the agents, Review only; nobody else does', async () => {
+  const j = await (await ask('GET', 'agents')).json();
+  assert.equal(j.surface, 'reader');
+  assert.deepEqual(j.agents.map(a => a.modes), [['review']], 'an agent allowed to edit is offered for review only');
+  assert.equal((await fetch(url('/ro/_ask/agents'))).status, 401, 'no proxy sign-in, no agent');
+  assert.equal((await fetch(url('/ro/_ask/agents'), { headers: { 'x-websidian-proxy-secret': 'wrong'.repeat(10), 'x-websidian-user': 'x' } })).status, 401);
+  assert.equal((await fetch(url('/s/_ask/agents'), { headers: { 'x-websidian-proxy-secret': PROXY_SECRET } })).status, 404, 'only a site that says "readers" has the door');
+  assert.equal((await fetch(url('/ro/_api/agents'), { headers: { 'x-websidian-proxy-secret': PROXY_SECRET, 'x-requested-with': 't' } })).status, 404, 'editing is off: no editor API');
+  assert.equal((await ask('POST', 'agents/fake/turn', { rel: 'Home.md', message: 'hi' }, { 'x-requested-with': '' })).status, 403, 'CSRF header required');
+});
+
+test('readers: a turn asked for Edit runs as Review, and says where the person is', async () => {
+  const r = await ask('POST', 'agents/fake/turn', { rel: 'Home.md', message: 'Please WRITE', mode: 'edit' });
+  const j = await r.json();
+  assert.equal(r.status, 202, JSON.stringify(j));
+  assert.equal(j.mode, 'review');
+  let s;
+  for (let i = 0; i < 200; i++) {
+    s = await (await ask('GET', 'agent-turns/' + j.turn)).json();
+    if (s.state !== 'running') break;
+    await new Promise(res => setTimeout(res, 50));
+  }
+  const c = calls().pop();
+  assert.doesNotMatch(c.argv[c.argv.indexOf('--tools') + 1], /Edit|Write/, 'review tools only');
+  assert.match(c.stdin, /Mode: REVIEW/);
+  assert.match(c.stdin, /beside the note they are reading/);
+  if (s.changes && s.changes.length) {
+    assert.ok(s.changes.every(ch => ch.unexpected), 'a write in review is flagged');
+    for (const ch of s.changes) await ask('POST', 'agent-turns/' + j.turn + '/revert', { rel: ch.rel });
+  }
+  const sess = await (await ask('GET', 'agents/fake/session?rel=Home.md')).json();
+  assert.equal(sess.history.length, 2, 'the reader has a conversation of their own');
 });
