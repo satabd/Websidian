@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "skills": "node src/fetch-skills.js",
+    "pack:openclaw": "node integrations/openclaw/websidian/deploy/pack.mjs",
     "dev": "node --watch src/server.js",
     "demo": "node -e \"process.env.WEBSIDIAN_CONFIG='demo/websidian.config.json';require('./src/server.js')\"",
     "test": "node --test \"test/**/*.test.js\" \"integrations/openclaw/websidian/test/*.test.js\""

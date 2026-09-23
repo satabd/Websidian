@@ -18,6 +18,7 @@ export function resolveRuntime(settings) {
   return {
     dataDir: ui.dataDir,
     appDir: ui.appDir,
+    bundleDir: ui.bundleDir || '',
     node: ui.node,
     port: ui.port,
     publicBase: ui.publicBase,
@@ -139,6 +140,37 @@ function pidIsWebsidian(pid, serverJs) {
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// How to run npm with the Gateway's own node, without a shell: the npm that ships beside that node
+// (Windows: <dir>/node_modules/npm; Unix: <prefix>/lib/node_modules/npm), else `npm` on PATH.
+export function npmCommand(node = process.execPath, exists = fs.existsSync) {
+  const dir = path.dirname(node);
+  for (const cli of [path.join(dir, 'node_modules', 'npm', 'bin', 'npm-cli.js'), path.join(dir, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js')]) {
+    if (exists(cli)) return { command: node, args: [cli], shell: false };
+  }
+  return { command: process.platform === 'win32' ? 'npm.cmd' : 'npm', args: [], shell: process.platform === 'win32' };
+}
+
+// True when <appDir> must be (re)installed from the bundle: no server.js yet, or another revision.
+export function needsProvision(rt) {
+  if (!rt.bundleDir) return false;
+  if (!fs.existsSync(path.join(rt.appDir, 'src', 'server.js'))) return true;
+  const have = readVersionStamp(path.join(rt.appDir, VERSION_FILE));
+  const want = readVersionStamp(path.join(rt.bundleDir, VERSION_FILE));
+  return !have || !want || have.revision !== want.revision || have.installed_at !== want.installed_at;
+}
+
+function run(cmd, args, { cwd, env, shell, logPath, timeoutMs = 15 * 60_000 }) {
+  return new Promise((resolve) => {
+    let logFd;
+    try { logFd = fs.openSync(logPath, 'a'); } catch { /* no log */ }
+    const child = spawn(cmd, args, { cwd, env, shell, windowsHide: true, stdio: ['ignore', logFd ?? 'ignore', logFd ?? 'ignore'] });
+    const timer = setTimeout(() => { try { child.kill(); } catch { /* gone */ } }, timeoutMs);
+    const done = (code, err) => { clearTimeout(timer); if (logFd !== undefined) try { fs.closeSync(logFd); } catch { /* closed */ } resolve({ code, err }); };
+    child.on('error', (err) => done(-1, err));
+    child.on('exit', (code) => done(code));
+  });
+}
+
 // Keeps one Websidian Node process running for the Gateway.
 // - ensure(): regenerate the config from settings, restart the process when the config changed, spawn it when
 //   /_health does not answer, with a restart budget (maxStarts per windowMs) and exponential backoff between
@@ -208,6 +240,10 @@ export class Supervisor {
       this.lastError = 'no vaults configured (plugins.entries.websidian.config.vaults)';
       return { running: false, error: this.lastError };
     }
+    if (needsProvision(rt)) {
+      const res = await this.provision(rt);
+      if (!res.ok) return { running: false, error: this.lastError };
+    }
     const serverJs = path.join(rt.appDir, 'src', 'server.js');
     if (!fs.existsSync(serverJs)) {
       this.lastError = `Websidian is not installed: ${serverJs} not found (run deploy/install-local.sh or deploy/install-into-container.sh)`;
@@ -231,6 +267,48 @@ export class Supervisor {
       await this.terminate(rt);
     }
     return this.spawn(rt);
+  }
+
+  // Install the bundled runtime into <appDir>: copy it to a staging folder beside appDir, `npm ci` there with
+  // Websidian's own lock file (no scripts, no dev dependencies), then swap it in. The stamp is copied last, so a
+  // half-finished install is retried on the next tick. Shares the restart budget and backoff with spawn().
+  async provision(rt) {
+    if (!this.canSpawn()) return { ok: false };
+    this.starts.push(Date.now());
+    const staging = rt.appDir + '.installing';
+    const old = rt.appDir + '.old';
+    fs.mkdirSync(rt.dataDir, { recursive: true });
+    this.lastError = 'installing the Websidian runtime (first start or an update; about a minute)';
+    this.log(`websidian: ${this.lastError} into ${rt.appDir}`);
+    try {
+      fs.rmSync(staging, { recursive: true, force: true });
+      fs.mkdirSync(staging, { recursive: true });
+      for (const f of ['src', 'public', 'package.json', 'package-lock.json']) {
+        if (fs.existsSync(path.join(rt.bundleDir, f))) fs.cpSync(path.join(rt.bundleDir, f), path.join(staging, f), { recursive: true });
+      }
+      try { fs.appendFileSync(rt.logPath, `
+[${new Date().toISOString()}] websidian-openclaw: npm ci in ${staging}
+`); } catch { /* no log */ }
+      const npm = npmCommand(rt.node);
+      const env = { ...process.env };
+      delete env.NODE_OPTIONS;
+      const res = await run(npm.command, [...npm.args, 'ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: staging, env, shell: npm.shell, logPath: rt.logPath });
+      if (res.code !== 0) throw new Error(res.err ? `cannot run npm: ${res.err.message}` : `npm ci exited with code ${res.code} (see server.log)`);
+      await this.terminate(rt);
+      fs.rmSync(old, { recursive: true, force: true });
+      if (fs.existsSync(rt.appDir)) fs.renameSync(rt.appDir, old);
+      fs.renameSync(staging, rt.appDir);
+      fs.copyFileSync(path.join(rt.bundleDir, VERSION_FILE), path.join(rt.appDir, VERSION_FILE));
+      fs.rmSync(old, { recursive: true, force: true });
+      this.failures = 0;
+      this.lastError = '';
+      this.log(`websidian: runtime installed in ${rt.appDir}`);
+      return { ok: true };
+    } catch (err) {
+      try { fs.rmSync(staging, { recursive: true, force: true }); } catch { /* best effort */ }
+      this.failed(`installing the Websidian runtime failed: ${err.message}`);
+      return { ok: false };
+    }
   }
 
   async waitHealthy(rt, timeoutMs) {

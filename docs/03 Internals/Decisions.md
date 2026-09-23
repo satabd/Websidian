@@ -20,6 +20,7 @@ description: The choices we made, and why
 | 2026-09-11 | **Autosave off by default** | Every save publishes |
 | 2026-09-13 | **Agent-written folders are `untrusted` sites** | Prompt-injected HTML in an agent note could act as the signed-in editor and rewrite the agent's instruction files |
 | 2026-09-13 | **These docs live in an Obsidian vault in the repo** (`docs/`), updated while building | One reference that grows with the code |
+| 2026-09-23 | **The OpenClaw plugin ships as one self-contained package that installs its own runtime on first start** (`npm run pack:openclaw`) | Asked for: "self deployable on OpenClaw". The runtime is copied into the plugin's data folder and `npm ci`'d with Websidian's own lock file rather than installed as the plugin's dependencies, because OpenClaw overrides dependency versions for every plugin and Express 4 breaks under them. Packing copies files; nothing is compiled, so "no build step" holds |
 | 2026-09-16 | **The real config is never committed**; `websidian.config.example.json` ships instead | It holds vault paths, passwords, tokens and webhook secrets |
 | 2026-09-16 | **The shipped example config serves `docs/`** | A fresh clone runs `npm start` and reads the documentation through Websidian itself |
 | 2026-09-16 | **Long-form planning lives in the vault, not in root Markdown files** | `ROADMAP.md` was 13 KB the website could not serve; it is now a pointer to [[Roadmap]] and [[Scope and positioning]] |

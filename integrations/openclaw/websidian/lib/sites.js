@@ -3,8 +3,10 @@
 // The agent hooks, the /brain command, the websidian_links tool and the pages served behind the Gateway
 // all derive site slugs from the same `vaults` setting through normalizeVaults(), so the links the agent
 // shares point at the sites the plugin serves.
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Websidian is mounted at this path on the Gateway: /plugins/websidian/w/<slug>/...
 export const ROUTE_PREFIX = '/plugins/websidian';
@@ -139,7 +141,24 @@ export function workspaceFor(cfg, agentId, env = process.env) {
   return workspaceDirs(cfg, env)[0];
 }
 
-// Normalized `ui` setting: {enabled, port, appDir, dataDir, node, publicBase, auth, password, sessionHours}.
+// The Websidian runtime a packed plugin carries inside itself (deploy/pack.mjs), so `openclaw plugins install`
+// alone is a complete install: on first start the supervisor copies it to <dataDir>/app and installs its locked
+// dependencies there (supervisor.provision). It never runs in place: OpenClaw overrides some dependency
+// versions for every plugin (path-to-regexp 8, which Express 4 cannot use) and loads plugins from a rebuilt
+// copy. A plugin copied from a checkout by the installers has no runtime/; the installers fill <dataDir>/app.
+export const BUNDLED_RUNTIME = path.resolve(fileURLToPath(new URL('../runtime/', import.meta.url)));
+export function bundledRuntime(dir = BUNDLED_RUNTIME) {
+  return fs.existsSync(path.join(dir, 'src', 'server.js')) ? dir : '';
+}
+
+// The vaults used when `vaults` is not set at all: the default agent's workspace, once it exists, so a fresh
+// install shows the agent's memory without any config. An explicit `vaults: []` means none.
+export function defaultVaults(cfg = {}, env = process.env) {
+  const ws = workspaceFor(cfg, '', env);
+  return ws && fs.existsSync(ws) ? [{ path: ws, slug: 'workspace', title: 'Agent workspace' }] : [];
+}
+
+// Normalized `ui` setting: {enabled, port, appDir, bundleDir, dataDir, node, publicBase, auth, password, sessionHours}.
 export function uiSettings(raw, cfg = {}, env = process.env) {
   const d = raw && typeof raw === 'object' ? raw : {};
   let port = parseInt(d.port, 10);
@@ -149,7 +168,8 @@ export function uiSettings(raw, cfg = {}, env = process.env) {
     || `http://127.0.0.1:${Number.isInteger(gatewayPort) && gatewayPort > 0 ? gatewayPort : DEFAULT_GATEWAY_PORT}`;
   const stateDir = resolveStateDir(env);
   const dataDir = String(d.dataDir || '').trim() ? path.resolve(expandHome(String(d.dataDir).trim(), env)) : path.join(stateDir, 'plugin-data', 'websidian');
-  const appDir = String(d.appDir || '').trim() ? path.resolve(expandHome(String(d.appDir).trim(), env)) : path.join(dataDir, 'app');
+  const appDirSet = !!String(d.appDir || '').trim();
+  const appDir = appDirSet ? path.resolve(expandHome(String(d.appDir).trim(), env)) : path.join(dataDir, 'app');
   const auth = String(d.auth || '').trim().toLowerCase() === 'password' ? 'password' : 'gateway';
   const mem = d.memory && typeof d.memory === 'object' ? d.memory : {};
   let sessionHours = Number(d.sessionHours);
@@ -158,6 +178,8 @@ export function uiSettings(raw, cfg = {}, env = process.env) {
     enabled: asBool(d.enabled, true),
     port,
     appDir,
+    // Where provision() installs the runtime from: the bundled copy, unless ui.appDir names a runtime of its own.
+    bundleDir: appDirSet ? '' : bundledRuntime(),
     dataDir,
     node: String(d.node || '').trim() || process.execPath,
     publicBase,

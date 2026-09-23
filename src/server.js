@@ -25,7 +25,7 @@ const { sectionPage, sectionAppendix } = require('./sections');
 const seo = require('./seo');
 const hooks = require('./hooks');
 const editor = require('./editor');
-const { createEsm } = require('./esm');
+const { createEsm, nodeModulesDirs, packageDir } = require('./esm');
 const { resolveProxyAuth, middleware: proxyAuthMiddleware } = require('./proxyauth');
 const { isServableAttachment, SVG_CSP, makeNonce, pageCsp } = require('./untrusted');
 const { resolveAssist } = require('./assist');
@@ -129,14 +129,17 @@ const r = express.Router();          // everything below is mounted at BASE
 app.use(BASE || '/', r);
 if (BASE) app.get('/', (req, res) => res.redirect(BASE + '/'));
 r.use('/_static', express.static(path.join(__dirname, '..', 'public'), { maxAge: '7d', immutable: true }));
-// Browser libraries served from node_modules, so the site has no external dependencies.
-r.use('/_vendor/mermaid', express.static(path.join(__dirname, '..', 'node_modules', 'mermaid', 'dist'), { maxAge: '30d', immutable: true }));
-r.use('/_vendor/hljs', express.static(path.join(__dirname, '..', 'node_modules', '@highlightjs', 'cdn-assets'), { maxAge: '30d', immutable: true }));
-r.use('/_vendor/katex', express.static(path.join(__dirname, '..', 'node_modules', 'katex', 'dist'), { maxAge: '30d', immutable: true }));
+// Browser libraries served from node_modules, so the site has no external dependencies. Found the way Node
+// finds them, so a hoisted install (the OpenClaw plugin's bundled runtime) works too.
+const NODE_MODULES = nodeModulesDirs(path.join(__dirname, '..'));
+const vendorDir = (name, ...sub) => path.join(packageDir(NODE_MODULES, name) || path.join(__dirname, '..', 'node_modules', name), ...sub);
+r.use('/_vendor/mermaid', express.static(vendorDir('mermaid', 'dist'), { maxAge: '30d', immutable: true }));
+r.use('/_vendor/hljs', express.static(vendorDir('@highlightjs/cdn-assets'), { maxAge: '30d', immutable: true }));
+r.use('/_vendor/katex', express.static(vendorDir('katex', 'dist'), { maxAge: '30d', immutable: true }));
 // Excalidraw viewer (0.17.6: the last release with a browser build that needs no bundler) and the React it needs.
-r.use('/_vendor/excalidraw', express.static(path.join(__dirname, '..', 'node_modules', '@excalidraw', 'excalidraw', 'dist'), { maxAge: '30d', immutable: true }));
-r.use('/_vendor/react', express.static(path.join(__dirname, '..', 'node_modules', 'react', 'umd'), { maxAge: '30d', immutable: true }));
-r.use('/_vendor/react-dom', express.static(path.join(__dirname, '..', 'node_modules', 'react-dom', 'umd'), { maxAge: '30d', immutable: true }));
+r.use('/_vendor/excalidraw', express.static(vendorDir('@excalidraw/excalidraw', 'dist'), { maxAge: '30d', immutable: true }));
+r.use('/_vendor/react', express.static(vendorDir('react', 'umd'), { maxAge: '30d', immutable: true }));
+r.use('/_vendor/react-dom', express.static(vendorDir('react-dom', 'umd'), { maxAge: '30d', immutable: true }));
 // CodeMirror 6 and friends as plain ES modules, resolved by an import map (no bundler).
 const esm = createEsm({ root: path.join(__dirname, '..') });
 r.use('/_vendor/esm', esm.handler);

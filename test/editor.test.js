@@ -9,7 +9,7 @@ const { spawn } = require('child_process');
 const { makeVault, FIXTURE } = require('./helpers');
 const { safeNoteRel, ipAllowed, resolveConfig, makeSession, readSession, anchorsOf, obsidianSettings } = require('../src/editor');
 const { extractTags } = require('../src/vault');
-const { buildPackages, entryOf } = require('../src/esm');
+const { buildPackages, entryOf, nodeModulesDirs, packageDir } = require('../src/esm');
 
 const PORT = 21080 + Math.floor(Math.random() * 1000);
 let tmp, proc, logLines = '', cookie = '';
@@ -112,6 +112,18 @@ test('esm: every CodeMirror package and dependency resolves to one ES module fil
   assert.equal(entryOf({ module: 'dist/index.js' }), 'dist/index.js');
   assert.equal(entryOf({ exports: { '.': { import: './src/index.js' } } }), './src/index.js');
   assert.equal(entryOf({ exports: { import: './x.js' } }), './x.js');
+});
+
+test('esm: libraries are found where npm hoisted them (a runtime inside an OpenClaw plugin)', () => {
+  // <plugin>/runtime has no node_modules of its own; the packages sit in <plugin>/node_modules.
+  const runtime = path.join(__dirname, '..', 'src');           // stands in for <plugin>/runtime
+  const dirs = nodeModulesDirs(runtime);
+  assert.equal(dirs[0], path.join(runtime, 'node_modules'));
+  assert.ok(dirs.includes(path.join(__dirname, '..', 'node_modules')));
+  assert.equal(packageDir(dirs, 'katex'), path.join(__dirname, '..', 'node_modules', 'katex'));
+  assert.equal(packageDir(dirs, 'no-such-package-xyz'), null);
+  assert.ok(buildPackages(dirs).has('@codemirror/state'), 'the import map resolves through the parent');
+  assert.ok(!nodeModulesDirs(path.join(__dirname, '..', 'node_modules', 'katex')).some(d => d.endsWith(path.join('node_modules', 'node_modules'))));
 });
 
 // ---- HTTP: gates -----------------------------------------------------------------

@@ -1,7 +1,7 @@
 {
   "id": "websidian",
   "name": "Websidian",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Connect OpenClaw to Websidian (an Obsidian vault served as a website): guard writes so vault notes stay plain Markdown and agent instruction files need human approval, share view/edit links for the notes the agent writes, and serve the vaults behind the Gateway.",
   "activation": {
     "onStartup": true,
@@ -23,7 +23,7 @@
     "properties": {
       "vaults": {
         "type": "array",
-        "description": "Vaults served by Websidian. Each entry: {path, url?, slug?, title?, edit?, untrusted?}. path is the vault folder; url an external Websidian site base including the slug (links point there); slug/title name the site the plugin serves itself; edit (default false) enables browser editing; untrusted (default true) keeps agent-written HTML inert.",
+        "description": "Vaults served by Websidian. Not set: the default agent's workspace. Each entry: {path, url?, slug?, title?, edit?, untrusted?}. path is the vault folder; url an external Websidian site base including the slug (links point there); slug/title name the site the plugin serves itself; edit (default false) enables browser editing; untrusted (default true) keeps agent-written HTML inert.",
         "items": {
           "type": "object",
           "additionalProperties": false,
@@ -93,7 +93,7 @@
           },
           "appDir": {
             "type": "string",
-            "description": "Websidian runtime copy (default <state dir>/plugin-data/websidian/app)."
+            "description": "Websidian runtime (default: the copy bundled in the plugin package, else <state dir>/plugin-data/websidian/app)."
           },
           "dataDir": {
             "type": "string",

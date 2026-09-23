@@ -13,3 +13,6 @@ __pycache__/
 # Fetched by `npm run skills`, and the agent panel's session ids.
 /agent-skills/
 /.websidian/
+
+# `npm run pack:openclaw` output (the self-contained OpenClaw plugin tarball).
+/.release/

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { editUrl, formatLinksBlock, isNoteRel, linksForPath, noteLinks, noteRelToUrlPath, recentNotes, relativeNotePath, viewUrl } from '../lib/links.js';
-import { normalizeVaults, publicPrefix, resolveLinks, siteUrl, slugify, uiSettings, websidianBasePath, workspaceDirs, workspaceFor } from '../lib/sites.js';
+import { bundledRuntime, defaultVaults, normalizeVaults, publicPrefix, resolveLinks, siteUrl, slugify, uiSettings, websidianBasePath, workspaceDirs, workspaceFor } from '../lib/sites.js';
 import { ChangeTracker } from '../lib/tracker.js';
 
 let tmp, vault;
@@ -134,5 +134,38 @@ describe('linksForPath, recentNotes, formatting, tracker', () => {
     assert.equal(t.all('s3').length, 200);
     for (let i = 0; i < 300; i++) t.record(`sess${i}`, { rel: 'x.md', vault: 'v', view: 'z' });
     assert.equal(t.all('s1').length, 0); // evicted
+  });
+});
+
+describe('self-contained install', () => {
+  test('bundledRuntime: a folder with src/server.js, else empty', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wsd-rt-'));
+    try {
+      assert.equal(bundledRuntime(dir), '');
+      fs.mkdirSync(path.join(dir, 'src'));
+      fs.writeFileSync(path.join(dir, 'src', 'server.js'), '');
+      assert.equal(bundledRuntime(dir), dir);
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  test('ui.appDir: <dataDir>/app by default, fed from the bundle; an explicit appDir has no bundle', () => {
+    const env = { OPENCLAW_STATE_DIR: path.join(os.tmpdir(), 'wsd-state') };
+    const auto = uiSettings({}, {}, env);
+    assert.equal(auto.appDir, path.join(env.OPENCLAW_STATE_DIR, 'plugin-data', 'websidian', 'app'));
+    assert.equal(auto.bundleDir, bundledRuntime(), 'the bundle when the plugin carries one (a checkout does not)');
+    const own = uiSettings({ appDir: '/opt/wsd' }, {}, env);
+    assert.equal(own.appDir, path.resolve('/opt/wsd'));
+    assert.equal(own.bundleDir, '');
+  });
+
+  test('defaultVaults: the default workspace once it exists', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wsd-ws-'));
+    try {
+      const ws = path.join(dir, 'ws');
+      const cfg = { agents: { defaults: { workspace: ws } } };
+      assert.deepEqual(defaultVaults(cfg, {}), []);
+      fs.mkdirSync(ws);
+      assert.deepEqual(defaultVaults(cfg, {}), [{ path: path.resolve(ws), slug: 'workspace', title: 'Agent workspace' }]);
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 });

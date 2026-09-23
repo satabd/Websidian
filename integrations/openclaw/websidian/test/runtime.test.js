@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { Settings } from '../lib/guard.js';
 import { uiSettings } from '../lib/sites.js';
-import { buildConfig, loadOrCreateSecrets, resolveRuntime, versionSkew, writeConfigIfChanged, readVersionStamp, tailLines, Supervisor } from '../lib/supervisor.js';
+import { buildConfig, loadOrCreateSecrets, needsProvision, npmCommand, resolveRuntime, versionSkew, writeConfigIfChanged, readVersionStamp, tailLines, Supervisor } from '../lib/supervisor.js';
 import { cleanUser, expectedCredential, filterRequestHeaders, filterResponseHeaders, loginPage, makeSession, parseCookies, readSession, safeNext, statusPage, upstreamTarget } from '../lib/proxy.js';
 
 let tmp;
@@ -130,5 +130,51 @@ describe('proxy rules', () => {
     assert.ok(html.includes('&lt;boom&gt;') && html.includes('&lt;t&gt;') && html.includes('&lt;log&gt;') && html.includes('&lt;u&gt;'));
     assert.ok(!html.includes('<boom>') && !html.includes('<log>'));
     assert.ok(html.includes('http-equiv="refresh"'));
+  });
+});
+
+describe('provisioning the bundled runtime', () => {
+  let tmp;
+  before(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wsd-prov-')); });
+  after(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  const stamp = (rev) => JSON.stringify({ revision: rev, installed_at: '2026-09-23T00:00:00Z', component: 'runtime' });
+  function bundle(rev) {
+    const dir = path.join(tmp, 'bundle');
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'src', 'server.js'), '// stand-in\n');
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'wsd-stand-in', version: '1.0.0', private: true }));
+    fs.writeFileSync(path.join(dir, 'package-lock.json'), JSON.stringify({ name: 'wsd-stand-in', version: '1.0.0', lockfileVersion: 3, requires: true, packages: { '': { name: 'wsd-stand-in', version: '1.0.0' } } }));
+    fs.writeFileSync(path.join(dir, 'websidian.version'), stamp(rev));
+    return dir;
+  }
+
+  test('npmCommand: the npm beside the node, run by that node; else npm on PATH', () => {
+    const node = path.join('/opt', 'node', 'bin', 'node');
+    const unixCli = path.join('/opt', 'node', 'bin', '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js');
+    assert.deepEqual(npmCommand(node, p => p === unixCli), { command: node, args: [unixCli], shell: false });
+    assert.match(npmCommand(node, () => false).command, /^npm(\.cmd)?$/);
+  });
+
+  test('needsProvision: only with a bundle, when appDir is missing or on another stamp', () => {
+    const rt = { appDir: path.join(tmp, 'app0'), bundleDir: '' };
+    assert.equal(needsProvision(rt), false, 'no bundle: the installers own appDir');
+    rt.bundleDir = bundle('aaa');
+    assert.equal(needsProvision(rt), true, 'nothing installed yet');
+  });
+
+  test('provision: npm ci in a staging folder, swapped in, stamped; a new bundle stamp installs again', async () => {
+    const dataDir = path.join(tmp, 'data');
+    const rt = { appDir: path.join(dataDir, 'app'), bundleDir: bundle('bbb'), dataDir, logPath: path.join(dataDir, 'server.log'), pidPath: path.join(dataDir, 'server.pid'), node: process.execPath };
+    const sup = new Supervisor({ loadSettings: () => { throw new Error('unused'); } });
+    sup.runtime = rt;
+    const res = await sup.provision(rt);
+    assert.equal(res.ok, true, sup.lastError);
+    assert.ok(fs.existsSync(path.join(rt.appDir, 'src', 'server.js')));
+    assert.equal(readVersionStamp(path.join(rt.appDir, 'websidian.version')).revision, 'bbb');
+    assert.ok(!fs.existsSync(rt.appDir + '.installing') && !fs.existsSync(rt.appDir + '.old'));
+    assert.equal(needsProvision(rt), false);
+    fs.writeFileSync(path.join(rt.bundleDir, 'websidian.version'), stamp('ccc'));
+    assert.equal(needsProvision(rt), true, 'a plugin update brings a new runtime');
   });
 });

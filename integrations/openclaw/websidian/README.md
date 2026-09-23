@@ -42,15 +42,34 @@ dist/control-ui/       the browser Control UI plugin the Gateway serves as-is
   memory-page.js         the native page: search, Overview, Timeline, Browse, Graph, reading pane
   memory.css             styles, all under .websidian-memory
 skills/websidian/      SKILL.md
-deploy/                installers (native profile, Docker container)
+deploy/                pack.mjs (the self-contained package), installers (native profile, Docker container)
 test/                  node --test
 ```
 
 ## Install
 
-Setting it up on someone else's OpenClaw — the seven steps from clone to check, the smallest working
-`openclaw.json`, and how to hand the code over — is in the docs vault: `docs/01 Guide/OpenClaw plugin.md`,
-*Installing it for someone else*.
+### One command (the package)
+
+`npm run pack:openclaw` at the repository root builds `.release/websidian-openclaw-websidian-<version>.tgz`: this
+plugin plus the Websidian runtime (`runtime/`: `src/`, `public/`, `package.json`, `package-lock.json`). On the
+OpenClaw host:
+
+```bash
+openclaw plugins install npm-pack:/path/to/websidian-openclaw-websidian-0.2.0.tgz --accept-capabilities
+openclaw config set gateway.controlUi.experimental.customPlugins true              # the Memory page
+openclaw config set plugins.entries.websidian.hooks.allowConversationAccess true   # the prompt section
+openclaw gateway restart
+```
+
+No other config is needed: without `vaults` the plugin serves the default agent's workspace. On the first start
+(and after an update) the `websidian-runtime` service copies `runtime/` to `<state dir>/plugin-data/websidian/app`
+and runs `npm ci --omit=dev --ignore-scripts` there (`provision()` in `lib/supervisor.js`), then starts it. The
+runtime never runs from the installed package: OpenClaw overrides some dependency versions for every plugin
+(`path-to-regexp` 8, which Express 4 cannot use) and loads plugins from a rebuilt copy, so the package declares no
+dependencies and the runtime gets Websidian's own lock file. Handing it to someone else: send the tarball -
+`docs/01 Guide/OpenClaw plugin.md`, *Installing it for someone else*.
+
+### From a checkout (the installers)
 
 Two copies make up the integration: the **plugin** (this folder) and the **Websidian runtime** (a copy of the
 repository root: `src/`, `public/`, `package.json`, `package-lock.json`, with `node_modules` installed inside it).

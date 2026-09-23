@@ -32,12 +32,34 @@ function entryOf(pkg) {
   return typeof e === 'string' ? e : null;
 }
 
+// The node_modules folders Node searches from `root`: its own, then each parent's. Libraries are found
+// whether npm installed them beside the app or hoisted them above it (an OpenClaw plugin install puts the
+// Websidian runtime in <plugin>/runtime and its dependencies in <plugin>/node_modules or higher).
+function nodeModulesDirs(root) {
+  const out = [];
+  for (let dir = path.resolve(root); ; dir = path.dirname(dir)) {
+    if (path.basename(dir) !== 'node_modules') out.push(path.join(dir, 'node_modules'));
+    if (path.dirname(dir) === dir) return out;
+  }
+}
+
+// The folder of package `name` in the first of `dirs` that has it, or null.
+function packageDir(dirs, name) {
+  for (const d of [].concat(dirs)) {
+    const dir = path.join(d, ...name.split('/'));
+    if (fs.existsSync(path.join(dir, 'package.json'))) return dir;
+  }
+  return null;
+}
+
 // { name -> { version, file (absolute), url } } for ROOTS and all their dependencies.
+// `nodeModules` is one node_modules folder or a list searched in order.
 function buildPackages(nodeModules, roots = ROOTS) {
   const out = new Map();
   const visit = (name) => {
     if (out.has(name)) return;
-    const dir = path.join(nodeModules, ...name.split('/'));
+    const dir = packageDir(nodeModules, name);
+    if (!dir) return;
     let pkg; try { pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')); } catch { return; }
     const entry = entryOf(pkg); if (!entry) return;
     const file = path.resolve(dir, entry);
@@ -50,7 +72,7 @@ function buildPackages(nodeModules, roots = ROOTS) {
 }
 
 function createEsm({ root }) {
-  const nodeModules = path.join(root, 'node_modules');
+  const nodeModules = nodeModulesDirs(root);
   const cmDir = path.join(root, 'public', 'cm');
   const packages = buildPackages(nodeModules);
   const byUrlName = new Map([...packages].map(([name, p]) => [`${name}@${p.version}.js`, p.file]));
@@ -88,4 +110,4 @@ function createEsm({ root }) {
   return { packages, importMap, handler };
 }
 
-module.exports = { createEsm, buildPackages, entryOf, ROOTS };
+module.exports = { createEsm, buildPackages, entryOf, nodeModulesDirs, packageDir, ROOTS };

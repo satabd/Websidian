@@ -51,6 +51,17 @@ The ask: is git wired up so edits can be pushed by a user and pulled on the serv
 - **Decided (user)**: no git automation in Websidian — commit per save, per agent turn and push-back are all dropped as too much complexity; the team handles git itself. Reverses the 2026-09-11 decision ([[Decisions]]). Backlog #2 and G3 moved to *Rejected*; [[Roadmap]], [[Scope and positioning]], [[Feature status]] and [[Deploying]] updated.
 - **Next**: nothing on git. Paste-to-upload images is now the top editor gap ([[Improvements backlog]]).
 
+## 2026-09-23 — OpenClaw plugin: self-deployable
+The ask: make the plugin self-deployable on OpenClaw — no checkout, no installer script.
+
+- **One tarball, one command.** `npm run pack:openclaw` (`deploy/pack.mjs`) packs the plugin with the Websidian runtime in `runtime/` (with `package.json` and the lock file). `openclaw plugins install npm-pack:<tgz> --accept-capabilities`, two `openclaw config set` lines (Custom plugin UI, `allowConversationAccess`) and a restart are the whole install — [[OpenClaw plugin#One command: the package]].
+- **No config needed**: without `vaults` the plugin serves the default agent's workspace (`defaultVaults()` in `lib/sites.js`); an explicit `[]` still means none.
+- **Learned: OpenClaw rewrites a plugin's dependencies.** Its managed npm project applies `managedOverrides` (`path-to-regexp` 8.4.2, `qs`, `proxy-addr`, …) and it loads plugins from a rebuilt copy under the temp folder. The first packed build, with Websidian's dependencies declared on the plugin, crashed at start: *pathRegexp is not a function* in Express 4. So the package now declares **no** dependencies, and the plugin **provisions** its runtime on first start: copy `runtime/` to `plugin-data/websidian/app.installing`, `npm ci --omit=dev --ignore-scripts` with the npm beside the Gateway's node, swap it in, stamp it; a newer package installs again (`provision()`/`needsProvision()` in `lib/supervisor.js`). The installers' route is unchanged (a plugin without `runtime/` never provisions).
+- **Also fixed**: Websidian found its browser libraries (`/_vendor/…`, the CodeMirror import map) only in `<app>/node_modules`; it now searches the way Node does (`nodeModulesDirs`/`packageDir` in `src/esm.js`), so a hoisted install works.
+- **Tested** in a fresh lab (OpenClaw 2026.9.5 from npm, portable Node 26, a new state dir): install, runtime provisioned in 13 s, `inspect` with 4 hooks / 2 routes and no diagnostics, `401`/`200` on the Memory model, a proxied note with CSP, vendor files `200`, and the Memory page with the reading pane in the browser. New tests: provisioning with a real `npm ci`, the default vault, the hoisted lookup (plugin suite 105 tests).
+- **Fixed in passing**: the previous docs commit had dropped the guide's `## Configure` heading.
+- **Next**: publish (npm or ClawHub — needs a go-ahead), then try the package in Docker and on Linux (A12).
+
 ## 2026-09-23 — OpenClaw plugin: the architecture and the hand-over, written down
 The ask: what the OpenClaw integration is now, how to use it, and how someone else installs it — documented, plus a plain-English summary.
 

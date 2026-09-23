@@ -17,7 +17,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { DEFAULT_PROTECT, normalizeVaults, resolveLinks, resolveStateDir, uiSettings, workspaceDirs, expandHome } from './sites.js';
+import { DEFAULT_PROTECT, defaultVaults, normalizeVaults, resolveLinks, resolveStateDir, uiSettings, workspaceDirs, expandHome } from './sites.js';
 import { absolutize, realpathSafe } from './links.js';
 
 // Files a vault must never gain: the browser would run them (Websidian serves attachments from the vault).
@@ -53,7 +53,7 @@ export class Settings {
 export function settingsFromConfig(pluginConfig, cfg = {}, env = process.env) {
   const c = pluginConfig && typeof pluginConfig === 'object' ? pluginConfig : {};
   return new Settings({
-    vaults: Array.isArray(c.vaults) ? c.vaults : [],
+    vaults: Array.isArray(c.vaults) ? c.vaults : defaultVaults(cfg, env),
     protect: Array.isArray(c.protect) ? c.protect : undefined,
     protectMode: c.protectMode,
     blockActiveContent: c.blockActiveContent === undefined ? true : !!c.blockActiveContent,

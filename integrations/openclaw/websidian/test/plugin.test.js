@@ -169,8 +169,16 @@ describe('hook flow', () => {
     assert.match(text, /Recently modified notes:\n- Plan: http:\/\/127\.0\.0\.1:18789\/plugins\/websidian\/w\/brain\/Plan/);
     assert.match((await api.commands[0].handler({ args: 'zzz' })).text, /No notes matching/);
   });
-  test('no vaults configured', async () => {
+  test('vaults not set: the default agent workspace is the vault', async () => {
     const api = fakeApi({ pluginConfig: { ui: { enabled: false } } });
+    registerWebsidian(api, { env: env() });
+    assert.doesNotMatch((await api.commands[0].handler({ args: '' })).text, /no vaults configured/);
+    const prompt = await api.hooks.before_prompt_build.handler({});
+    assert.match(JSON.stringify(prompt || {}), /Websidian vaults/, 'the prompt section is there');
+  });
+
+  test('no vaults configured (an explicit empty list)', async () => {
+    const api = fakeApi({ pluginConfig: { vaults: [], ui: { enabled: false } } });
     registerWebsidian(api, { env: env() });
     assert.match((await api.commands[0].handler({ args: '' })).text, /no vaults configured/);
     assert.equal(await api.hooks.before_prompt_build.handler({}), undefined);
