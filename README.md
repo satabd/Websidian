@@ -16,6 +16,10 @@ version. There is no build step and no publish step.
 vault/guide/Start Here.md   →   https://docs.example.com/notes/guide/Start%20Here
 ```
 
+> **Using OpenClaw?** Websidian is on ClawHub as [`websidian`](https://clawhub.ai/plugins/websidian): one command
+> gives your agent a **🧠 Memory** page inside OpenClaw and its notes as a website —
+> see [OpenClaw plugin](#openclaw-plugin-on-clawhub).
+
 ## Quick start
 
 ```bash
@@ -259,7 +263,22 @@ Recommendations:
 - **`"edit": false`** on sites that hold the agent's instruction files (skills, `AGENTS.md`, memories) unless you really want to change them from the browser; if you do, keep `edit.allowFrom` narrow.
 - Vault CSS snippets (`.obsidian/snippets`) are off by default on untrusted sites, because an agent could write them; set `"snippets": true` to use them anyway.
 
-Two agent integrations ship in `integrations/`: a **Hermes Agent plugin** (`integrations/hermes/websidian`, Python: write guard, reply links, a dashboard tab) and an **OpenClaw plugin** (`integrations/openclaw/websidian`, plain JavaScript: the same guard and links as OpenClaw hooks, a `websidian_links` tool, `/brain`, and the vaults served behind the Gateway at `/plugins/websidian/`). Each has its own README with installers.
+Two agent integrations ship in `integrations/`: a **Hermes Agent plugin** (`integrations/hermes/websidian`, Python: write guard, reply links, a dashboard tab) and an **OpenClaw plugin** (`integrations/openclaw/websidian`, plain JavaScript: the same guard and links as OpenClaw hooks, a `websidian_links` tool, `/brain`, and the vaults served behind the Gateway at `/plugins/websidian/`). Each has its own README.
+
+### OpenClaw plugin (on ClawHub)
+
+Published on ClawHub as **`websidian`** (owner `satabd`). On the machine that runs the OpenClaw Gateway (2026.9.5 tested; Node 24.16+ or 26.1+, with `npm`):
+
+```bash
+openclaw plugins install clawhub:websidian --accept-capabilities
+openclaw config set gateway.controlUi.experimental.customPlugins true              # the Memory page
+openclaw config set plugins.entries.websidian.hooks.allowConversationAccess true   # the prompt section
+openclaw gateway restart
+```
+
+That is the whole install — no checkout and no Websidian config. With no settings the plugin serves the default agent's workspace, read-only. On its first start it installs its own copy of Websidian into `~/.openclaw/plugin-data/websidian/app` (about 15 seconds, from the npm registry); then **🧠 Memory** appears in the Control UI sidebar, and the notes are at `http://127.0.0.1:18789/plugins/websidian/` behind the Gateway token. Update with `openclaw plugins update websidian` and a restart. Docker: run the same commands through `docker exec <container> openclaw …`, then `docker restart <container>`.
+
+What it does, the configuration keys and how it works: [`integrations/openclaw/websidian/README.md`](integrations/openclaw/websidian/README.md) and the guide note [`docs/01 Guide/OpenClaw plugin.md`](docs/01%20Guide/OpenClaw%20plugin.md).
 
 The OpenClaw plugin also gives OpenClaw a native **🧠 Memory** page: a destination in the Control UI's own sidebar, beside Chat and Sessions, that opens inside OpenClaw rather than in a new tab. It shows the agent's `MEMORY.md`, `USER.md` and `DREAMS.md`, a timeline of the dated notes under `memory/`, and the vault's graph and search — all read from the OpenClaw workspace, read-only, with no second sign-in and no second copy of the files. Notes render through Websidian in **shell mode** (`?shell=1`), which keeps the note tree, search, backlinks and the local graph and drops the header, branding and theme toggle the host already draws.
 

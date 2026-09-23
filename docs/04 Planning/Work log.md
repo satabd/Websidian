@@ -51,6 +51,16 @@ The ask: is git wired up so edits can be pushed by a user and pulled on the serv
 - **Decided (user)**: no git automation in Websidian — commit per save, per agent turn and push-back are all dropped as too much complexity; the team handles git itself. Reverses the 2026-09-11 decision ([[Decisions]]). Backlog #2 and G3 moved to *Rejected*; [[Roadmap]], [[Scope and positioning]], [[Feature status]] and [[Deploying]] updated.
 - **Next**: nothing on git. Paste-to-upload images is now the top editor gap ([[Improvements backlog]]).
 
+## 2026-09-23 — OpenClaw plugin: published on ClawHub
+The ask: publish the plugin to ClawHub, linked to the (now public) repository, then update the docs and the READMEs.
+
+- **Published** `websidian@0.2.0` under `@satabd` (`clawhub package publish`, family `code-plugin`, source-linked to `satabd/Websidian` at `81ce9e5`, `--source-path integrations/openclaw/websidian`). Package and release scans came back clean, not blocked.
+- **Proved by name**: a fresh OpenClaw 2026.9.5 state, `openclaw plugins install clawhub:websidian --accept-capabilities`, the two `config set` lines, restart → runtime installed in 17 s, started, the Memory model `200`, a workspace note served through the proxy.
+- **What ClawHub required**: `openclaw.build.openclawVersion`/`pluginSdkVersion` in `package.json` (added, 2026.9.5), and a `package.json` name equal to the listing name — the plugin package is now named `websidian` (it was `@websidian/openclaw-websidian`), which also silences OpenClaw's id/name warning. `clawhub package validate` passed with no findings.
+- **Learned**: ClawHub CLI 0.23.3 cannot publish from Windows (`spawnSync("npm")` → *ENOENT*); worked around with a `--require` shim, written down in [[OpenClaw plugin#Releasing a new version]]. The first `clawhub login` the user ran did not store a token; a device-flow login (`--no-browser`, approved in the browser) did.
+- **Docs**: the root `README.md` (the GitHub front page) now leads OpenClaw users to `clawhub:websidian` and has an *OpenClaw plugin (on ClawHub)* section; the plugin README and the guide put ClawHub first and add *Releasing a new version*.
+- **Next**: the ClawHub install in Docker and on Linux; publishing from CI with a trusted publisher (A12); the live chat turn (A9).
+
 ## 2026-09-23 — OpenClaw plugin: self-deployable
 The ask: make the plugin self-deployable on OpenClaw — no checkout, no installer script.
 

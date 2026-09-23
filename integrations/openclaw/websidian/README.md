@@ -48,26 +48,45 @@ test/                  node --test
 
 ## Install
 
-### One command (the package)
+### From ClawHub (recommended)
 
-`npm run pack:openclaw` at the repository root builds `.release/websidian-<version>.tgz`: this
-plugin plus the Websidian runtime (`runtime/`: `src/`, `public/`, `package.json`, `package-lock.json`). On the
-OpenClaw host:
+Published as [`websidian`](https://clawhub.ai/plugins/websidian) (owner `satabd`). On the OpenClaw host:
 
 ```bash
-openclaw plugins install npm-pack:/path/to/websidian-0.2.0.tgz --accept-capabilities
+openclaw plugins install clawhub:websidian --accept-capabilities
 openclaw config set gateway.controlUi.experimental.customPlugins true              # the Memory page
 openclaw config set plugins.entries.websidian.hooks.allowConversationAccess true   # the prompt section
 openclaw gateway restart
 ```
+
+Update: `openclaw plugins update websidian`, then restart.
+
+### From a tarball (the same package, offline hand-over)
+
+`npm run pack:openclaw` at the repository root builds `.release/websidian-<version>.tgz`: this plugin plus the
+Websidian runtime (`runtime/`: `src/`, `public/`, `package.json`, `package-lock.json`). Install it with
+`openclaw plugins install npm-pack:/path/to/websidian-0.2.0.tgz --accept-capabilities`, then the same two
+`config set` lines and a restart.
+
+### How the package works
 
 No other config is needed: without `vaults` the plugin serves the default agent's workspace. On the first start
 (and after an update) the `websidian-runtime` service copies `runtime/` to `<state dir>/plugin-data/websidian/app`
 and runs `npm ci --omit=dev --ignore-scripts` there (`provision()` in `lib/supervisor.js`), then starts it. The
 runtime never runs from the installed package: OpenClaw overrides some dependency versions for every plugin
 (`path-to-regexp` 8, which Express 4 cannot use) and loads plugins from a rebuilt copy, so the package declares no
-dependencies and the runtime gets Websidian's own lock file. Handing it to someone else: send the tarball -
-`docs/01 Guide/OpenClaw plugin.md`, *Installing it for someone else*.
+dependencies and the runtime gets Websidian's own lock file.
+
+### Releasing a new version
+
+1. Bump `version` in both `package.json` and `openclaw.plugin.json` (they must match), commit and push.
+2. `npm run pack:openclaw -- --keep` (prints the staging folder).
+3. `npx clawhub login` once, then from the staging folder:
+   `clawhub package publish <staging> --family code-plugin --name websidian --owner satabd --version <v>
+   --source-repo satabd/Websidian --source-commit <sha> --source-ref main --source-path integrations/openclaw/websidian
+   --changelog "…" --wait` (`--dry-run` first).
+4. On Windows the ClawHub CLI 0.23.3 cannot start `npm` (`spawnSync npm ENOENT`); run it with a
+   `NODE_OPTIONS=--require` shim that sends `spawnSync("npm", …)` to `npm-cli.js` — see the guide note.
 
 ### From a checkout (the installers)
 

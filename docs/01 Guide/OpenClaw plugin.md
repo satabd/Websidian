@@ -9,7 +9,9 @@ description: Let OpenClaw read and write the vault safely, serve it behind the G
 
 Connects [OpenClaw](https://openclaw.ai) to Websidian the way the [[Hermes plugin]] connects Hermes: keeps agent-written vault notes plain Markdown, asks a human before the agent changes its own instruction files, replies with view/edit links for the notes it wrote, and serves the vaults behind the Gateway's own port.
 
-> [!success] Status, 2026-09-23: self-deployable — one `openclaw plugins install` on OpenClaw 2026.9.5; the live chat turn is still outstanding
+> [!success] Status, 2026-09-23: on ClawHub — `openclaw plugins install clawhub:websidian`; the live chat turn is still outstanding
+> **Published** as `websidian@0.2.0` on ClawHub (scans clean), and installed by name into a fresh OpenClaw 2026.9.5 Gateway: runtime provisioned in 17 s, the workspace served, the Memory model `200` — [[#Installing it for someone else]].
+>
 > **The package** (`npm run pack:openclaw`) was installed into a fresh OpenClaw 2026.9.5 Gateway with nothing but `openclaw plugins install npm-pack:…` and two `config set` lines: it provisioned its own runtime, served the default workspace with no Websidian config, and the Memory page and the proxied notes were browser-tested — [[#One command: the package]].
 >
 > Built against 2026.6.9 on 2026-09-17 (throw-away container, then `clawat02`), and checked again on **2026.9.5** in a local lab Gateway on 2026-09-21 and 2026-09-23: it loads, registers both routes, and the Memory page was browser-tested there — [[#The Memory page]]. The hooks are still exercised with a fake plugin API only: no model has run with the plugin, so "the agent's reply carries links" and "changing `SOUL.md` prompts for approval" are unit-tested contracts, not a live chat — [[#Is it really installed?]] rows 6 and 7.
@@ -97,6 +99,8 @@ The guard is a port of the Hermes one: the active-content detector was checked a
 
 ### One command: the package
 
+**From ClawHub:** `openclaw plugins install clawhub:websidian --accept-capabilities` — then the two `config set` lines and the restart below. The rest of this section is the same package as a local tarball.
+
 The plugin ships as one npm-pack tarball that carries the Websidian runtime inside it. Build it from a checkout:
 
 ```bash
@@ -117,7 +121,7 @@ That is all. With no `config` the plugin serves the **default agent's workspace*
 > [!note] Why the runtime is not installed by OpenClaw itself
 > OpenClaw forces some dependency versions on every plugin it installs (its `managedOverrides`: `path-to-regexp` 8, `qs`, `proxy-addr`, …) and loads plugins from a rebuilt copy of the package. Express 4 cannot run on `path-to-regexp` 8 — the first packed build crashed with *pathRegexp is not a function* in exactly this way, 2026-09-23. So the package lists **no** dependencies of its own; the runtime gets exactly the versions the tests ran on, in a folder of its own. Found and fixed in the lab Gateway — [[#Is it really installed?]] row 10.
 
-`openclaw plugins update websidian` does not apply to an `npm-pack:` install; to update, install the newer tarball the same way with `--force`, then restart.
+`openclaw plugins update websidian` updates a ClawHub install; an `npm-pack:` install has no registry to ask, so install the newer tarball the same way with `--force`, then restart.
 
 ### From a checkout: the installers
 
@@ -167,13 +171,15 @@ Then restart the Gateway. It needs Node 24.16+ or 26.1+; it refuses Node 25.
 
 ## Installing it for someone else
 
-Send them the tarball (`npm run pack:openclaw`). They need only a running OpenClaw (**2026.9.5** tested) with `npm` available — no checkout, no git, no installer script, no Websidian config.
+It is on **ClawHub** as [`websidian`](https://clawhub.ai/plugins/websidian) (owner `satabd`, published 2026-09-23). They need a running OpenClaw (**2026.9.5** tested; Node 24.16+ or 26.1+) with `npm` available — no checkout, no git, no installer script, no Websidian config.
 
-1. `openclaw plugins install npm-pack:<where they saved it>.tgz --accept-capabilities` — OpenClaw warns that a local archive is outside ClawHub review; that is expected.
+1. `openclaw plugins install clawhub:websidian --accept-capabilities`
 2. `openclaw config set gateway.controlUi.experimental.customPlugins true`
 3. `openclaw config set plugins.entries.websidian.hooks.allowConversationAccess true`
-4. `openclaw gateway restart` (Docker: copy the tarball in with `docker cp` first, run 1–3 through `docker exec <container> openclaw …`, then `docker restart <container>`).
+4. `openclaw gateway restart` (Docker: run 1–3 through `docker exec <container> openclaw …`, then `docker restart <container>`).
 5. **Check**: after ~15 s, **🧠 Memory** is in the sidebar and shows their workspace; `openclaw plugins inspect websidian --runtime` lists 4 hooks, `websidian_links`, `brain`, `websidian-runtime` and 2 HTTP routes. The full list is [[#Is it really installed?]].
+
+Updates: `openclaw plugins update websidian`, then restart — the plugin installs the matching runtime by itself.
 
 Only if they reach the Gateway by another address than `127.0.0.1:18789` (a LAN name, a reverse proxy): `openclaw config set plugins.entries.websidian.config.ui.publicBase https://their-gateway`, so the links in replies work. More vaults, editing and the rest: [[#Configure]].
 
@@ -181,11 +187,28 @@ Only if they reach the Gateway by another address than `127.0.0.1:18789` (a LAN 
 
 | Way | What they type | Status |
 |---|---|---|
-| **Send the tarball** (chat, email, a shared drive) | Steps above | ✅ works today; tested end to end on OpenClaw 2026.9.5, 2026-09-23 |
-| **A GitHub release asset** | Download it, then the steps above | The repository is private (checked 2026-09-23), so only collaborators can download; a public repo or a separate public releases repo would fix that |
-| **npm** (`openclaw plugins install @websidian/openclaw-websidian`) | One command, and `openclaw plugins update` works | Needs publishing under an npm scope you own — not done |
-| **ClawHub** (`openclaw plugins install clawhub:…`, also the Control UI's own plugin browser) | One command or a click | Needs publishing to ClawHub — not done; the only route that works from the Control UI |
+| **ClawHub** | `openclaw plugins install clawhub:websidian` | ✅ published 2026-09-23 (`websidian@0.2.0`, package and release scans clean, source-linked to `satabd/Websidian`); installed by name into a fresh OpenClaw 2026.9.5 and working |
+| **A tarball** (`npm run pack:openclaw`) | `openclaw plugins install npm-pack:<file>.tgz` | ✅ the same package, for a machine without ClawHub access; no `plugins update` |
+| **npm** | `openclaw plugins install npm:websidian` | Not published; the npm name `websidian` would have to be free and owned |
 | `git:github.com/satabd/Websidian` | — | Does not work: the repository root is Websidian, not the plugin |
+
+### Releasing a new version
+
+1. Bump `version` in the plugin's `package.json` **and** `openclaw.plugin.json` (the pack script refuses a mismatch), commit, push.
+2. `npm run pack:openclaw -- --keep` — the tarball, and the staging folder it was made from.
+3. `npx clawhub login` (once; a device code you approve in the browser), then publish the staging folder:
+   ```bash
+   clawhub package publish <staging folder> --family code-plugin --name websidian --owner satabd \
+     --version <version> --source-repo satabd/Websidian --source-commit <full sha> --source-ref main \
+     --source-path integrations/openclaw/websidian --changelog "…" --wait
+   ```
+   Run it with `--dry-run` first. `clawhub package moderation-status websidian` shows the scans.
+
+> [!warning] What ClawHub insisted on, 2026-09-23
+> - `openclaw.build.openclawVersion` (and `pluginSdkVersion`) in `package.json` — *required for external code plugins*.
+> - The `package.json` **name must equal the ClawHub name**; `@websidian/openclaw-websidian` was refused as *ClawPack package name mismatch*, so the package is now named `websidian`, like the manifest id.
+> - `clawhub package validate <folder>` (the bundled Plugin Inspector) passed with no findings before the first publish; run it before a release.
+> - **Windows**: ClawHub CLI 0.23.3 calls `spawnSync("npm", …)`, which cannot start `npm.cmd` (*spawnSync npm ENOENT*). Run it with `NODE_OPTIONS=--require <shim>.cjs`, where the shim sends that one call to `node <node dir>/node_modules/npm/bin/npm-cli.js`. Linux and macOS are unaffected.
 
 ## Configure
 
@@ -280,6 +303,7 @@ The page reads OpenClaw's theme off the surface it is painted on and hands it do
 | 7 | Changing `SOUL.md` produces an approval prompt | unit-tested contract only | unit-tested contract only |
 | 8 | `/plugins/websidian-memory/memory.json`: `401` without Gateway auth, `200` with it, and a `websidian_session` cookie that opens the proxied notes | — | ✅ |
 | 9 | **Memory** in the Control UI sidebar, highlighted when open; every tab, search and the reading pane work, light and dark | — | ✅ |
+| 11 | **From ClawHub**: `plugins install clawhub:websidian` into a fresh state dir, the two `config set` lines, restart: *runtime installed* (17 s), *started*, the Memory model `200`, a workspace note served through the proxy | — | ✅ 2026-09-23 |
 | 10 | **The package alone**: `plugins install npm-pack:…` into a fresh state dir, no Websidian config; the log says *runtime installed* then *started*; `inspect` shows 4 hooks and 2 routes with no diagnostics; `/_vendor/katex` and `/_vendor/mermaid` answer `200`; Memory shows the default workspace and opens a note in the reading pane | — | ✅ 2026-09-23 (runtime installed in 13 s) |
 
 ## Updating
