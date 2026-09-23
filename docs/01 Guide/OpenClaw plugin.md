@@ -100,13 +100,13 @@ The guard is a port of the Hermes one: the active-content detector was checked a
 The plugin ships as one npm-pack tarball that carries the Websidian runtime inside it. Build it from a checkout:
 
 ```bash
-npm run pack:openclaw        # → .release/websidian-openclaw-websidian-<version>.tgz
+npm run pack:openclaw        # → .release/websidian-<version>.tgz
 ```
 
 On the OpenClaw host, with the Gateway's own CLI:
 
 ```bash
-openclaw plugins install npm-pack:/path/to/websidian-openclaw-websidian-0.2.0.tgz --accept-capabilities
+openclaw plugins install npm-pack:/path/to/websidian-0.2.0.tgz --accept-capabilities
 openclaw config set gateway.controlUi.experimental.customPlugins true              # the Memory page
 openclaw config set plugins.entries.websidian.hooks.allowConversationAccess true   # the prompt section
 openclaw gateway restart

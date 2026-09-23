@@ -50,12 +50,12 @@ test/                  node --test
 
 ### One command (the package)
 
-`npm run pack:openclaw` at the repository root builds `.release/websidian-openclaw-websidian-<version>.tgz`: this
+`npm run pack:openclaw` at the repository root builds `.release/websidian-<version>.tgz`: this
 plugin plus the Websidian runtime (`runtime/`: `src/`, `public/`, `package.json`, `package-lock.json`). On the
 OpenClaw host:
 
 ```bash
-openclaw plugins install npm-pack:/path/to/websidian-openclaw-websidian-0.2.0.tgz --accept-capabilities
+openclaw plugins install npm-pack:/path/to/websidian-0.2.0.tgz --accept-capabilities
 openclaw config set gateway.controlUi.experimental.customPlugins true              # the Memory page
 openclaw config set plugins.entries.websidian.hooks.allowConversationAccess true   # the prompt section
 openclaw gateway restart

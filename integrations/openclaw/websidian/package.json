@@ -1,5 +1,5 @@
 {
-  "name": "@websidian/openclaw-websidian",
+  "name": "websidian",
   "version": "0.2.0",
   "description": "OpenClaw plugin for Websidian: write guard, note links and the vaults served behind the Gateway.",
   "type": "module",
