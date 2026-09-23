@@ -14,7 +14,60 @@ Connects [OpenClaw](https://openclaw.ai) to Websidian the way the [[Hermes plugi
 >
 > **`clawat02`** (pages at `http://127.0.0.1:18794/plugins/websidian/`) is up on 2026.9.5 but still runs the **2026-09-17 plugin**: no Memory page, and 2026.9.5 asks for two things it did not need before — [[#On OpenClaw 2026.9.5]]. Re-run the container installer there to get the Memory page.
 
-Code: `integrations/openclaw/websidian/` (`openclaw.plugin.json`, `index.js`, `lib/`, `skills/websidian/SKILL.md`, `deploy/`, `test/`, `README.md`). Plain ESM JavaScript, no build step, no dependencies.
+Code: `integrations/openclaw/websidian/` (`openclaw.plugin.json`, `index.js`, `lib/`, `dist/control-ui/`, `skills/websidian/SKILL.md`, `deploy/`, `test/`, `README.md`). Plain ESM JavaScript, no build step, no dependencies.
+
+## In plain words
+
+OpenClaw is an AI agent that keeps its memory and notes as Markdown files in a folder (its *workspace*). This plugin does three jobs for it:
+
+1. **Keeps the agent honest while it writes.** Before OpenClaw writes a file, the plugin looks at it. Notes must stay plain Markdown (no hidden scripts). If the agent tries to rewrite its own personality or rules files (`SOUL.md`, `AGENTS.md`, …), a human is asked first.
+2. **Makes the notes readable in a browser.** The plugin starts a private Websidian server next to OpenClaw and shows the folders as a website, behind OpenClaw's own login. After the agent writes notes, its reply ends with links to them.
+3. **Adds a 🧠 Memory page inside OpenClaw.** A new entry in OpenClaw's sidebar shows what the agent remembers — its long-term memory files, a day-by-day timeline, a note browser, a graph and search — without leaving OpenClaw or signing in again.
+
+## How it fits together
+
+Two pieces, installed side by side from the same revision of this repository:
+
+- **The plugin** (`integrations/openclaw/websidian/`) — loaded *inside* the OpenClaw Gateway process. Hooks, a tool, a command, two HTTP routes, a background service, and a browser script for the Control UI.
+- **The Websidian runtime** (a copy of `src/`, `public/`, `package.json` with its `node_modules`) at `<state dir>/plugin-data/websidian/app` — started by the plugin as a **child process** on `127.0.0.1:8095`. It is never exposed directly; every browser request goes through the Gateway.
+
+```mermaid
+flowchart LR
+  subgraph GW[OpenClaw Gateway process]
+    A[Agent turn] -->|before_tool_call| G[Guard<br>guard.js]
+    A -->|after_tool_call| T[Tracker]
+    T -->|message_sending| L[Links footer]
+    R1["/plugins/websidian<br>auth: plugin<br>proxy.js"]
+    R2["/plugins/websidian-memory<br>auth: gateway<br>native.js"]
+    S[Service websidian-runtime<br>supervisor.js]
+  end
+  S -->|spawns, restarts| W[Websidian child<br>127.0.0.1:8095]
+  W -->|reads| V[(Vaults: workspace, …)]
+  A -->|writes .md| V
+  B[Browser] -->|sign-in with Gateway token| R1
+  R1 -->|proxyAuth secret| W
+  CUI[Control UI + dist/control-ui/websidian.js] -->|Memory model JSON| R2
+  R2 -->|reads files| V
+  CUI -->|note frame, shell mode| R1
+```
+
+| Moment | What happens |
+|---|---|
+| **Gateway starts** | OpenClaw loads `index.js` → `lib/plugin.js` registers everything. The `websidian-runtime` service writes `websidian.config.json` and `secrets.json` (mode `0600`) into `<state dir>/plugin-data/websidian/`, then spawns the runtime and restarts it if it dies. |
+| **Agent writes a note** | `before_tool_call` runs the guard: allow, ask a human (`requireApproval`), or block. `after_tool_call` remembers the path; `message_sending` appends *Notes updated:* with links. |
+| **Someone opens `/plugins/websidian/`** | The plugin's own sign-in (the Gateway token) sets a cookie; the proxy forwards to the runtime with a shared secret. Sites are `untrusted` (agent HTML inert) and read-only unless `edit: true`. |
+| **Someone clicks 🧠 Memory** | OpenClaw has already authenticated them. The browser script draws the page; it asks `/plugins/websidian-memory/memory.json` for the model, which also mints the proxy cookie, so the note pane (Websidian in shell mode) opens with no second sign-in. |
+
+Where things live after install (native: `~/.openclaw`; Docker: `/home/node/.openclaw`):
+
+```
+<state dir>/plugin-data/websidian/
+  plugin/                 the plugin OpenClaw loads (plus websidian.version)
+  app/                    the Websidian runtime and its node_modules (plus websidian.version)
+  websidian.config.json   generated on every start from plugins.entries.websidian.config
+  secrets.json            proxy / edit / session secrets, generated once
+  cache/, server.log, server.pid   render cache, the runtime's log and PID
+```
 
 ## What it does
 
@@ -82,9 +135,45 @@ Then restart the Gateway. It needs Node 24.16+ or 26.1+; it refuses Node 25.
 > - `docker cp` writes files as **root**; `npm ci` as `node` then fails with `EACCES`. The container installer chowns the data folder before and after copying.
 > - Under **Git Bash**, `docker cp "dir/."` copies the directory itself (MSYS path rewriting), so `src/` landed in `app/app/`. The installer now streams both copies in with `tar`, receiving through `sh -c` so the container path is not rewritten either. The smoke test is what caught both.
 
-## Configure
+## Installing it for someone else
 
-`openclaw.json` → `plugins.entries.websidian.config` (the manifest schema is strict: unknown keys fail config validation):
+What another person needs: a running OpenClaw (**2026.9.5** tested; Node 24.16+ or 26.1+ for the Gateway), `git`, `npm`, and Bash (macOS, Linux, Git Bash) or PowerShell (Windows). Docker only if their OpenClaw runs in a container.
+
+> [!warning] The repository is private (checked 2026-09-23)
+> `github.com/satabd/Websidian` is private, so `git clone` works only for people you add as collaborators. The ways to hand it over are listed under [[#Ways to distribute it]]; pick one before sending the steps below.
+
+**Step by step, for them:**
+
+1. **Get the code**: `git clone https://github.com/satabd/Websidian.git` and `cd Websidian` (or unpack the archive you sent).
+2. **Run the installer** for their setup — native: `bash integrations/openclaw/websidian/deploy/install-local.sh` (Windows: the `.ps1`); Docker: `bash integrations/openclaw/websidian/deploy/install-into-container.sh <container>`. It copies both pieces into their OpenClaw state dir, installs dependencies, and checks the runtime boots.
+3. **Register the plugin** with the command it prints: `openclaw plugins install --link <state dir>/plugin-data/websidian/plugin` (Docker: add `--register` to step 2 instead).
+4. **Consent**: `openclaw plugins enable websidian --accept-capabilities`.
+5. **Configure** in `openclaw.json` — at least one vault, usually their workspace; the smallest useful block:
+   ```json5
+   {
+     plugins: { entries: { websidian: {
+       enabled: true,
+       hooks: { allowConversationAccess: true },
+       config: { vaults: [ { path: "~/.openclaw/workspace", slug: "workspace" } ] }   // ~ is expanded
+     } } },
+     gateway: { controlUi: { experimental: { customPlugins: true } } }
+   }
+   ```
+   Docker: use the path inside the container, `/home/node/.openclaw/workspace`. If they reach the Gateway by anything other than `127.0.0.1:18789`, set `ui.publicBase` so links work.
+6. **Restart the Gateway** (`openclaw gateway restart`, or `docker restart <container>`), then reload the Control UI.
+7. **Check**: `openclaw plugins inspect websidian --runtime` shows 4 hooks, the tool, `/brain`, the service and 2 routes; **🧠 Memory** is in the sidebar; `http://127.0.0.1:18789/plugins/websidian/` asks for the Gateway token. The full list is [[#Is it really installed?]].
+
+To update later: `git pull`, re-run step 2, restart (step 6).
+
+### Ways to distribute it
+
+| Way | What they do | Trade-off |
+|---|---|---|
+| **Add them as collaborators** on the private repo | Steps above as written | Simplest today; they see the whole project |
+| **Make the repository public** | Steps above as written | Your call — nothing in the repo is meant to be secret, but review before flipping it |
+| **Send an archive** (`git archive --format=zip -o websidian.zip HEAD`) | Unzip, then steps 2–7 | No git needed; the version stamp reads `unknown`, and updates mean a new archive |
+| **npm / ClawHub package** (`openclaw plugins install <package>`) | Not available yet | The plugin alone packs cleanly (`npm pack` in the plugin folder), but it still needs the runtime copy that only the installers make — backlog [[Improvements backlog|A12]] |
+ → `plugins.entries.websidian.config` (the manifest schema is strict: unknown keys fail config validation):
 
 ```json5
 {

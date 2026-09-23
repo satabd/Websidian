@@ -128,7 +128,7 @@
           "memory": {
             "type": "object",
             "additionalProperties": false,
-            "description": "The native Memory page in OpenClaw's Control UI, served at /plugins/websidian/memory.",
+            "description": "The native Memory page in OpenClaw's Control UI, served at /plugins/websidian-memory.",
             "properties": {
               "enabled": {
                 "type": "boolean",

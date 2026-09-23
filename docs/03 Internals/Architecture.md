@@ -1,7 +1,7 @@
 ---
 title: Architecture
 tags: [websidian, internals]
-updated: 2026-09-16
+updated: 2026-09-23
 order: 1
 description: Request flow, caching, which file does what
 ---
@@ -54,6 +54,10 @@ A page re-renders only when its file changes, a note it embeds changes, or notes
 | `test/` | [[Testing]] |
 | `demo/` | Practice vault and config for `npm run demo` |
 | `docs/` | This vault |
+
+## Agent integrations
+
+The agent plugins run Websidian *next to* the agent rather than inside it: the [[OpenClaw plugin]] starts it as a child process of the OpenClaw Gateway on loopback and proxies it behind the Gateway's login (diagram in [[OpenClaw plugin#How it fits together]]); the [[Hermes plugin]] does the same job for Hermes.
 
 ## Where this is going
 

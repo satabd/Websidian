@@ -10,6 +10,14 @@ description: What changed each session, newest first
 
 Newest first. One entry per working session: what changed, what was learned, what is next.
 
+## 2026-09-23 — OpenClaw plugin: the architecture and the hand-over, written down
+The ask: what the OpenClaw integration is now, how to use it, and how someone else installs it — documented, plus a plain-English summary.
+
+- [[OpenClaw plugin]] gained **In plain words** (the three jobs), **How it fits together** (a diagram of the plugin inside the Gateway, the supervised Websidian child, the two routes and the Control UI script; what happens at start, on a write, on a page view, on Memory; the files under `plugin-data/websidian/`) and **Installing it for someone else** (seven steps from clone to check, the minimal `openclaw.json`, and the ways to distribute it). [[Architecture]] links to it.
+- **Learned: the repository is private**, so "clone and run the installer" works only for collaborators. Options are listed in the guide; nothing was changed on GitHub.
+- **Fixed**: the plugin's `package.json` `files` left out `dist/`, so an npm pack would have shipped without the Memory page (checked with `npm pack --dry-run`); the manifest still described the Memory route as `/plugins/websidian/memory` instead of `/plugins/websidian-memory`.
+- **Next**: decide distribution (collaborators, public repo, or a package — backlog A12); redeploy `clawat02`; the live chat turn (A9).
+
 ## 2026-09-23 — docs pass: what is true on 2026.9.5, and `clawat02` is not gone
 A consistency pass after two sessions wrote to the vault on the same day (this one and the agent-panel one).
 

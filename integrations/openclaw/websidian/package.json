@@ -4,7 +4,7 @@
   "description": "OpenClaw plugin for Websidian: write guard, note links and the vaults served behind the Gateway.",
   "type": "module",
   "license": "MIT",
-  "files": ["index.js", "lib", "skills", "openclaw.plugin.json", "README.md"],
+  "files": ["index.js", "lib", "dist", "skills", "openclaw.plugin.json", "README.md"],
   "scripts": {
     "test": "node --test \"test/*.test.js\""
   },

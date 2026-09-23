@@ -48,6 +48,10 @@ test/                  node --test
 
 ## Install
 
+Setting it up on someone else's OpenClaw — the seven steps from clone to check, the smallest working
+`openclaw.json`, and how to hand the code over — is in the docs vault: `docs/01 Guide/OpenClaw plugin.md`,
+*Installing it for someone else*.
+
 Two copies make up the integration: the **plugin** (this folder) and the **Websidian runtime** (a copy of the
 repository root: `src/`, `public/`, `package.json`, `package-lock.json`, with `node_modules` installed inside it).
 The runtime lives at `<state dir>/plugin-data/websidian/app` (`ui.appDir`), the plugin wherever OpenClaw loads it from.
