@@ -1,7 +1,7 @@
 ---
 title: Known issues
 tags: [websidian, reference, issues]
-updated: 2026-09-23
+updated: 2026-09-24
 order: 3
 description: Limits and gotchas, stated plainly
 ---
@@ -61,6 +61,9 @@ Details: [[Agents in the editor]].
 - **The browser preview pane is shared** between sessions: another session can navigate or resize it mid-test.
 
 ## Agent setups
+- **The Open WebUI plugin has only met a scripted model.** Its tools were called by `tests/fake_openai.py` in a real Open WebUI 0.11.4; whether a real model picks `websidian_search` over Open WebUI's own `search_notes`, and writes good Obsidian Markdown, is untested — [[Open WebUI plugin]].
+- **The Open WebUI plugin's token can always write.** Websidian has no read-only API token, so `allow_write: false` only stops the tool, not someone holding the token. And every Open WebUI user writes as Websidian's `api` user, so the log cannot tell them apart.
+- **Open WebUI's embedded note needs `public_url` reachable from the browser**, and a site with its own login shows its sign-in page inside the frame.
 - **Chat replies do not carry dashboard links yet**: the Hermes gateway has not restarted since `link_style: dashboard` and the real vaults were configured.
 - **`--restart-runtime` cannot identify the process on Git Bash**: MSYS `ps` has no `-o`, so the script declines to signal the PID rather than guess. Use `install-local.ps1 -RestartRuntime` on Windows, or stop the process yourself. It works normally on macOS and Linux.
 - **A vault with `edit: true` is editable by everyone signed in to the dashboard.** The dashboard has one role, so there is no "only this person may edit the agent's memory". Protected files (`SKILL.md`, `MEMORY.md`…) ask for confirmation, but the confirmation is the only thing standing between any dashboard user and what the agent follows. This is why `vaults[].edit` defaults to `false`.
@@ -82,6 +85,9 @@ Details: [[Agents in the editor]].
 - **`clawat02` runs the 2026-09-17 plugin on OpenClaw 2026.9.5.** It loads and serves the stand-alone pages, but has no Memory page, and `inspect` reports *requires capability consent* and a blocked `before_prompt_build`. Re-run the container installer, then `openclaw plugins enable websidian --accept-capabilities`, `hooks.allowConversationAccess: true` and the Custom plugin UI lab, and restart — [[OpenClaw plugin#On OpenClaw 2026.9.5]].
 - **The OpenClaw package needs `npm` and the npm registry on its first start.** It installs its bundled runtime with `npm ci` (the npm beside the Gateway's `node`, else `npm` on `PATH`). An offline Gateway, or one without npm, keeps showing *installing the Websidian runtime failed* on the status page; use the installers there, or set `ui.appDir` to a runtime installed by hand — [[OpenClaw plugin#Install]].
 - **`openclaw plugins update websidian` does nothing for a tarball install.** An `npm-pack:` install has no registry to ask; install the newer tarball with `--force`, or install from ClawHub (`clawhub:websidian`), which updates normally.
+- **Memory search previews show raw math**: a note with a `$$…$$` formula shows the LaTeX source in its search snippet (`$$	ext{hyd…`); the note itself renders correctly. Seen 2026-09-24.
+- **The Memory page's note pane keeps a light scrollbar in dark mode**, and a note opened from **Search** leaves the previously active tab underlined. Cosmetic; seen 2026-09-24.
+- **Memory search skips diagram text**: words that appear only inside a Mermaid block do not match.
 - **The ClawHub CLI (0.23.3) cannot publish from Windows as it is**: it calls `spawnSync("npm", …)`, which fails with *ENOENT* because npm is `npm.cmd` there. The workaround (a `--require` shim) is in [[OpenClaw plugin#Releasing a new version]].
 - **The stand-alone OpenClaw pages are a URL, not a tab.** `/plugins/websidian/` is opened by hand (`/brain` prints it) and has its own sign-in. The **Memory** page is the tab, and it needs *Settings → Labs → Custom plugin UI* — without that lab the sidebar entry does not appear, though the route and the descriptor are registered either way — [[OpenClaw plugin#The Memory page]].
 - **`before_prompt_build` is refused on OpenClaw 2026.9.5** unless `plugins.entries.websidian.hooks.allowConversationAccess: true` is set: *"typed hook blocked because non-bundled plugins must set…"*. The *Websidian vaults* section then silently never reaches the system prompt. The other three hooks, the tool and `/brain` are unaffected. Seen in `plugins inspect --runtime` on 2026-09-21.

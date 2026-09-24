@@ -9,7 +9,7 @@ Websidian turns that hidden memory into a place you can actually see and explore
 No digging through folders, no separate knowledge-base app, no copying your memory somewhere else. Install it, and
 a **🧠 Memory** section appears in OpenClaw's sidebar.
 
-![The Memory page inside OpenClaw: long-term memory, what the agent knows about you, its dreams, and the latest daily notes](https://raw.githubusercontent.com/satabd/Websidian/main/docs/attachments/openclaw-memory.png)
+![The Memory page inside OpenClaw: long-term memory, what the agent knows about the user, its dreams, and the latest daily notes](https://raw.githubusercontent.com/satabd/Websidian/main/docs/attachments/openclaw-tour-overview.png)
 
 ## Your agent has a memory. Now you can see it.
 
@@ -26,18 +26,53 @@ Open the Memory page to understand what is happening behind your conversations:
 Instead of wondering *"what does my agent actually remember?"*, you simply look. And when the agent creates or
 updates a note, its reply ends with a link to open it.
 
-## One place for the agent's second brain
+## A tour of your agent's second brain
 
-- **🧠 Memory** — the most important things your agent remembers, at a glance: long-term memory, what it knows
-  about you, its consolidated memories ("dreams") and its recent activity, each with a preview and when it changed.
-- **🕒 Timeline** — memory as it developed, day by day. What did it learn yesterday, last week, during that project?
-- **🔎 Search** — search everything the agent has written, instead of asking it to recall something and hoping it
-  finds the right context.
-- **🕸️ Graph** — see how notes link to each other, and jump from one to the next.
-- **📖 Browse** — open any note as a clean Obsidian-style page: wikilinks, backlinks, tables, diagrams, math,
-  images, and Arabic or other right-to-left text.
+*The screenshots show a fictional agent that helps Maya run her bakery — the kind of memory any OpenClaw agent
+builds up after a few weeks.*
 
-![Reading a note inside the Memory page, in dark mode](https://raw.githubusercontent.com/satabd/Websidian/main/docs/attachments/openclaw-memory-note.png)
+### 🧠 Memory — what matters, at a glance
+
+The overview above: long-term memory, what the agent knows about you, its consolidated memories ("dreams") and its
+latest daily notes, each with a preview and when it changed.
+
+### 🕒 Timeline — memory as it developed
+
+Every daily note, grouped by day — *Today*, *Yesterday*, then the dates. What did it learn yesterday, last week,
+during that project?
+
+![The Timeline: daily memories grouped by day, in OpenClaw's dark theme](https://raw.githubusercontent.com/satabd/Websidian/main/docs/attachments/openclaw-tour-timeline.png)
+
+### 🔎 Search — ask the memory directly
+
+Search everything the agent has written, instead of asking it to recall something and hoping it finds the right
+context. The matching words are highlighted; press `/` to jump to the search box.
+
+![Searching the memory for "rye": six notes, with the matches highlighted](https://raw.githubusercontent.com/satabd/Websidian/main/docs/attachments/openclaw-tour-search.png)
+
+### 🕸️ Graph — see how it all connects
+
+Every note is a dot and every link a line. Hover one to light up what it touches — here, everything the agent
+connects to Maya's flour supplier: the projects, the decisions, the days he came up. Click a dot to read that note.
+
+![The graph with one person highlighted: ten linked notes, from projects to daily memories](https://raw.githubusercontent.com/satabd/Websidian/main/docs/attachments/openclaw-tour-graph.png)
+
+### 📖 Read any note — properly rendered
+
+Open a note from anywhere and it reads like a page, right inside OpenClaw: tables, math, callouts, tags and links
+you can follow — and, at the bottom, every note that links back to it.
+
+![A project note with a formula, a table and links, rendered in the reading pane](https://raw.githubusercontent.com/satabd/Websidian/main/docs/attachments/openclaw-tour-note.png)
+
+Diagrams render too, and the page follows OpenClaw's light or dark theme:
+
+![A project note with a flowchart and its backlinks, in dark mode](https://raw.githubusercontent.com/satabd/Websidian/main/docs/attachments/openclaw-tour-note-dark.png)
+
+Arabic and other right-to-left languages are laid out the right way round:
+
+![An Arabic note, laid out right to left, with links to English notes](https://raw.githubusercontent.com/satabd/Websidian/main/docs/attachments/openclaw-tour-arabic.png)
+
+When the agent creates or updates a note, its reply ends with a link to open it.
 
 ## More than a viewer
 

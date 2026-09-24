@@ -144,7 +144,16 @@ function walkNotes(root, dir, base) {
     }
   };
   walk(dir);
-  return out.sort((a, b) => b.mtime - a.mtime);
+  return out.sort(newestFirst);
+}
+
+// Newest first: by modification time, then — when times tie, as after a copy, a sync or a git checkout —
+// by the date the note is named for, then by path, so the order never depends on the directory listing.
+export function newestFirst(a, b) {
+  if (b.mtime !== a.mtime) return b.mtime - a.mtime;
+  const da = String(a.day || ''), db = String(b.day || '');
+  if (da !== db) return da < db ? 1 : -1;
+  return a.rel < b.rel ? 1 : a.rel > b.rel ? -1 : 0;
 }
 
 // Group dated entries into days, newest day first.
@@ -182,7 +191,7 @@ export function memoryModel(vault, { base = '', now = Date.now(), folders = MEMO
     try { stat = fs.statSync(abs); } catch { continue; }
     if (stat.isDirectory()) dated.push(...walkNotes(root, folder, base));
   }
-  dated.sort((a, b) => b.mtime - a.mtime);
+  dated.sort(newestFirst);
   // Only the notes the page will show are opened; the rest of the walk is a stat each.
   const recent = dated.slice(0, MAX_RECENT).map(e => withPreview(root, e));
   const latest = [...found.map(x => x.entry.mtime), ...(recent[0] ? [recent[0].mtime] : [])];

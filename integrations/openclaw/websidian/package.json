@@ -1,6 +1,6 @@
 {
   "name": "websidian",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Turn OpenClaw's hidden Markdown memory into a visible second brain: browse what your agent remembers, follow its timeline, search its knowledge and explore connections, without leaving OpenClaw.",
   "type": "module",
   "license": "MIT",

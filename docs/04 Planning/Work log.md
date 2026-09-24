@@ -2,7 +2,7 @@
 title: Work log
 tags: [websidian, log]
 aliases: [Changelog]
-updated: 2026-09-23
+updated: 2026-09-24
 order: 5
 description: What changed each session, newest first
 ---
@@ -17,6 +17,17 @@ Newest first. One entry per working session: what changed, what was learned, wha
 - `codex-cli 0.128.0` in the container logs a models-list decode error (*unknown variant `max`*) on every run; it still works, but it is old.
 - Seen once: *one session across turns* failed in a full `npm test` (the first turn came back resumed) and passed on every rerun — a race between test files, not yet found.
 - Next: a live turn through the panel in the dashboard (it now needs a sign-in), Codex once its quota resets, update Codex in the container.
+
+## 2026-09-23 — an Open WebUI plugin
+The ask: a plugin for [Open WebUI](https://github.com/open-webui/open-webui) like the Hermes and OpenClaw ones — [[Open WebUI plugin]].
+
+- **What it is**: two single-file plugins, because that is what Open WebUI installs. The **Tool** gives the model `websidian_vaults`, `websidian_search`, `websidian_recent`, `websidian_read`, `websidian_write` (create / append / replace) and `websidian_show` (the note embedded in the chat). The **Action** puts **Save reply** and **Save chat to Websidian** under every message. `deploy/install.py` installs or updates both over Open WebUI's API and sets their valves.
+- **Over HTTP, not the filesystem**: both call the [[Editor API]] with the site's `edit.token`, so Open WebUI in Docker needs no vault mount, and Websidian's own `428` for instruction files becomes an Open WebUI yes/no dialog (`__event_call__`). A replace asks too; a closed tab or a timeout counts as no.
+- **The guard is the Hermes one**, copied between markers by `sync_shared.py`; `npm test` now fails if the copy drifts from `guard.py` (`test/openwebui-plugin.test.js`).
+- **Found in the real Open WebUI (0.11.4, fresh container)**: its own Notes feature has built-in tools named `search_notes` and `write_note`. My first names were the same, so Open WebUI ran its own and answered `[]`. Renamed everything to `websidian_*`, with a test against the built-in list. Also: search snippets came back with `<mark>` tags (now plain text); the embed needs to post its height (`iframe:height`) because Open WebUI sandboxes it without same-origin; `GET /api/v1/functions/id/<missing>` answers 401, not 404, so the installer looks in the list.
+- **Checked in the browser** with a scripted OpenAI-compatible model (`tests/fake_openai.py`, no tokens spent): search, create with view/edit links and a source chip, the `AGENTS.md` dialog (Cancel → nothing written), a note with `onerror=` refused, the embedded note (in Chrome — the app's own browser pane does not paint sandboxed nested frames), and Save reply writing a note with properties.
+- Plugin suite: 29 tests against a real `node src/server.js`. `npm test` 360 pass, 1 skipped.
+- **Next**: one turn with a real model; decide whether Websidian should grow a read-only API token ([[Improvements backlog]] A24–A26).
 
 ## 2026-09-23 — deployed to `hermes01`
 The redesigned tab, the reading themes and the agent panel are live in `hermes01` (plugin and runtime stamped `c30922c-dirty`: the work is not committed yet). Config backup: `/root/.hermes/config.yaml.bak-websidian-agents-20260923-140134`; `agents: true` added to the plugin settings. Only the dashboard and the Websidian runtime were restarted — never the gateway.
@@ -58,6 +69,13 @@ The ask: is git wired up so edits can be pushed by a user and pulled on the serv
 - **Found**: pull-only. The per-site webhook (`/_hooks/git/:site`, default `git pull --ff-only`) refreshes the server on a push; browser and agent saves are plain file writes, never committed or pushed.
 - **Decided (user)**: no git automation in Websidian — commit per save, per agent turn and push-back are all dropped as too much complexity; the team handles git itself. Reverses the 2026-09-11 decision ([[Decisions]]). Backlog #2 and G3 moved to *Rejected*; [[Roadmap]], [[Scope and positioning]], [[Feature status]] and [[Deploying]] updated.
 - **Next**: nothing on git. Paste-to-upload images is now the top editor gap ([[Improvements backlog]]).
+
+## 2026-09-24 — OpenClaw plugin 0.2.3: a screenshot tour on ClawHub
+The ask: enrich the ClawHub page with screenshots of the graph and of notes being read.
+
+- **A demo memory** (fictional: an agent helping Maya run a bakery — people, projects, a decision log, ten daily notes, an Arabic note, a note with a formula and a table, one with a flowchart) in the lab Gateway, captured at 1360×860 inside OpenClaw's Control UI: overview, timeline (dark), search, the graph with one node hovered, the reading pane (light, dark with a diagram, Arabic RTL). Files `docs/attachments/openclaw-tour-*.png`; the plugin README (the ClawHub page) now has *A tour of your agent's second brain*, one view per heading.
+- **Fixed, found while shooting**: *Recent* and the *Timeline* sorted by modification time alone, so notes with equal times (after a copy, a sync or a git checkout) came out oldest first. `newestFirst()` in `lib/memory.js` breaks ties by the date in the note's name, then the path; tested.
+- **Found, not fixed** ([[Known issues]]): raw LaTeX in search snippets; a light scrollbar in the dark note pane; the old tab stays underlined for a note opened from search; diagram text is not searchable.
 
 ## 2026-09-23 — OpenClaw plugin: published on ClawHub
 The ask: publish the plugin to ClawHub, linked to the (now public) repository, then update the docs and the READMEs.

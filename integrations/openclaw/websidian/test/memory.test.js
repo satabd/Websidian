@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { dateFromName, dayLabel, groupByDay, memoryModel, memoryVault, previewOf, MEMORY_SECTIONS } from '../lib/memory.js';
+import { newestFirst, dateFromName, dayLabel, groupByDay, memoryModel, memoryVault, previewOf, MEMORY_SECTIONS } from '../lib/memory.js';
 import { createMemoryHandler, memoryPage, memoryPayload, noteHref, siteBase, themeOf } from '../lib/native.js';
 import { createRouteHandler, COOKIE_NAME, readSession } from '../lib/proxy.js';
 import { Settings } from '../lib/guard.js';
@@ -254,4 +254,15 @@ describe('the memory route', () => {
       assert.equal(login.status, 200, 'the stand-alone sign-in still works');
     } finally { settings = previous; }
   });
+});
+
+test('newestFirst: equal modification times fall back to the date in the name, newest first', () => {
+  const t = 1790000000000;
+  const notes = [
+    { rel: 'memory/2026-09-15.md', day: '2026-09-15', mtime: t },
+    { rel: 'memory/2026-09-24.md', day: '2026-09-24', mtime: t },
+    { rel: 'memory/2026-09-20.md', day: '2026-09-20', mtime: t },
+    { rel: 'memory/2026-09-10.md', day: '2026-09-10', mtime: t + 1000 },
+  ].sort(newestFirst);
+  assert.deepEqual(notes.map(n => n.day), ['2026-09-10', '2026-09-24', '2026-09-20', '2026-09-15'], 'a newer edit still wins; ties go by date');
 });
