@@ -61,9 +61,6 @@ Details: [[Agents in the editor]].
 - **The browser preview pane is shared** between sessions: another session can navigate or resize it mid-test.
 
 ## Agent setups
-- **The Open WebUI plugin has only met a scripted model.** Its tools were called by `tests/fake_openai.py` in a real Open WebUI 0.11.4; whether a real model picks `websidian_search` over Open WebUI's own `search_notes`, and writes good Obsidian Markdown, is untested — [[Open WebUI plugin]].
-- **The Open WebUI plugin's token can always write.** Websidian has no read-only API token, so `allow_write: false` only stops the tool, not someone holding the token. And every Open WebUI user writes as Websidian's `api` user, so the log cannot tell them apart.
-- **Open WebUI's embedded note needs `public_url` reachable from the browser**, and a site with its own login shows its sign-in page inside the frame.
 - **Chat replies do not carry dashboard links yet**: the Hermes gateway has not restarted since `link_style: dashboard` and the real vaults were configured.
 - **`--restart-runtime` cannot identify the process on Git Bash**: MSYS `ps` has no `-o`, so the script declines to signal the PID rather than guess. Use `install-local.ps1 -RestartRuntime` on Windows, or stop the process yourself. It works normally on macOS and Linux.
 - **A vault with `edit: true` is editable by everyone signed in to the dashboard.** The dashboard has one role, so there is no "only this person may edit the agent's memory". Protected files (`SKILL.md`, `MEMORY.md`…) ask for confirmation, but the confirmation is the only thing standing between any dashboard user and what the agent follows. This is why `vaults[].edit` defaults to `false`.
